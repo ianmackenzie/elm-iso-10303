@@ -36,23 +36,23 @@ toCodePoints string =
                 [] ->
                     []
 
-                first :: rest ->
+                first :: afterFirst ->
                     -- We have at least one code unit - might be a code point
                     -- itself, or the leading code unit of a surrogate pair
                     if first >= 0 && first <= 0xD7FF then
                         -- First code unit is in BMP (and is therefore a valid
                         -- UTF-32 code point), use it as is and continue with
                         -- remaining code units
-                        first :: combineSurrogates rest
+                        first :: combineSurrogates afterFirst
                     else if first >= 0xD800 && first <= 0xDBFF then
                         -- First code unit is a leading surrogate
-                        case rest of
+                        case afterFirst of
                             [] ->
                                 -- Should never happen - leading surrogate with
                                 -- no following code unit, discard it
                                 []
 
-                            second :: remaining ->
+                            second :: afterSecond ->
                                 -- Good, there is a following code unit (which
                                 -- should be a trailing surrogate)
                                 if second >= 0xDC00 && second <= 0xDFFF then
@@ -66,22 +66,24 @@ toCodePoints string =
                                                 + ((first - 0xD800) * 1024)
                                                 + (second - 0xDC00)
                                     in
-                                        -- Continue with remaining code units
-                                        codePoint :: combineSurrogates remaining
+                                        -- Continue with following code units
+                                        codePoint
+                                            :: combineSurrogates afterSecond
                                 else
                                     -- Should never happen - second code unit is
-                                    -- an invalid trailing surrogate, skip it
-                                    -- and continue with remaining code units
-                                    combineSurrogates remaining
+                                    -- not a valid trailing surrogate, skip the
+                                    -- leading surrogate and continue with
+                                    -- remaining code units
+                                    combineSurrogates afterFirst
                     else if first >= 0xE000 && first <= 0xFFFF then
                         -- First code unit is in BMP (and is therefore a valid
                         -- UTF-32 code point), use it as is and continue with
                         -- remaining code units
-                        first :: combineSurrogates rest
+                        first :: combineSurrogates afterFirst
                     else
                         -- Should never happen - first code unit is invalid,
                         -- skip it and continue with remaining code units
-                        combineSurrogates rest
+                        combineSurrogates afterFirst
 
         allCodeUnits =
             List.map Char.toCode (String.toList string)
