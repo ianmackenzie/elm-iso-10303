@@ -1,4 +1,4 @@
-module OpenSolid.StepFile exposing (encode)
+module OpenSolid.StepFile exposing (toCodePoints, encode)
 
 import String
 import Char
@@ -28,11 +28,10 @@ hexEncode size value =
         String.concat characters
 
 
-encode : String -> String
-encode string =
+toCodePoints : String -> List Int
+toCodePoints string =
     let
-        toCodePoints : List Int -> List Int
-        toCodePoints codeUnits =
+        combineSurrogates codeUnits =
             case codeUnits of
                 [] ->
                     []
@@ -44,7 +43,7 @@ encode string =
                         -- First code unit is in BMP (and is therefore a valid
                         -- UTF-32 code point), use it as is and continue with
                         -- remaining code units
-                        first :: toCodePoints rest
+                        first :: combineSurrogates rest
                     else if first >= 0xD800 && first <= 0xDBFF then
                         -- First code unit is a leading surrogate
                         case rest of
@@ -68,25 +67,31 @@ encode string =
                                                 + (second - 0xDC00)
                                     in
                                         -- Continue with remaining code units
-                                        codePoint :: toCodePoints remaining
+                                        codePoint :: combineSurrogates remaining
                                 else
                                     -- Should never happen - second code unit is
                                     -- an invalid trailing surrogate, skip it
                                     -- and continue with remaining code units
-                                    toCodePoints remaining
+                                    combineSurrogates remaining
                     else if first >= 0xE000 && first <= 0xFFFF then
                         -- First code unit is in BMP (and is therefore a valid
                         -- UTF-32 code point), use it as is and continue with
                         -- remaining code units
-                        first :: toCodePoints rest
+                        first :: combineSurrogates rest
                     else
                         -- Should never happen - first code unit is invalid,
                         -- skip it and continue with remaining code units
-                        toCodePoints rest
+                        combineSurrogates rest
 
-        codePoints =
-            toCodePoints (List.map Char.toCode (String.toList string))
+        allCodeUnits =
+            List.map Char.toCode (String.toList string)
+    in
+        combineSurrogates allCodeUnits
 
+
+encode : String -> String
+encode string =
+    let
         codePointToString codePoint =
             if (codePoint >= 0 && codePoint <= 0x1F) then
                 "\\X\\" ++ hexEncode 2 codePoint
@@ -101,4 +106,4 @@ encode string =
             else
                 ""
     in
-        String.concat (List.map codePointToString codePoints)
+        String.concat (List.map codePointToString (toCodePoints string))
