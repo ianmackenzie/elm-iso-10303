@@ -1,6 +1,7 @@
-module OpenSolid.StepFile exposing (toCodePoints, encode)
+module OpenSolid.StepFile exposing (encode)
 
 import String
+import String.Extra
 import Char
 import Bitwise
 
