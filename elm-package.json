@@ -4,7 +4,7 @@
   "repository": "https://github.com/opensolid/step-file.git",
   "license": "MPL-2.0",
   "source-directories": ["src"],
-  "exposed-modules": [],
+  "exposed-modules": ["Kintail.StepFile"],
   "dependencies": {
     "elm-lang/core": "5.0.0 <= v < 6.0.0",
     "elm-community/string-extra": "1.1.1 <= v < 2.0.0"

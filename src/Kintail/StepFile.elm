@@ -1,4 +1,4 @@
-module OpenSolid.StepFile exposing (encode)
+module Kintail.StepFile exposing (encode)
 
 {-| Functions for generating STEP (ISO 10303-21) files.
 
