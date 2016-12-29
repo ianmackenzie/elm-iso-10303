@@ -9,7 +9,7 @@ hexCharacterAtIndex : Int -> Int -> String
 hexCharacterAtIndex index value =
     let
         hexDigit =
-            Bitwise.and 0x0F (Bitwise.shiftRight value (index * 4))
+            Bitwise.and 0x0F (Bitwise.shiftRightBy (index * 4) value)
     in
         if hexDigit >= 0 && hexDigit <= 9 then
             String.fromChar (Char.fromCode (Char.toCode '0' + hexDigit))
@@ -23,7 +23,8 @@ hexEncode : Int -> Int -> String
 hexEncode size value =
     let
         characters =
-            [1..size] |> List.map (\i -> hexCharacterAtIndex (size - i) value)
+            List.range 1 size
+                |> List.map (\i -> hexCharacterAtIndex (size - i) value)
     in
         String.concat characters
 
