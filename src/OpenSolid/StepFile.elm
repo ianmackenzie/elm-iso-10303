@@ -1,5 +1,10 @@
 module OpenSolid.StepFile exposing (encode)
 
+{-| Functions for generating STEP (ISO 10303-21) files.
+
+@docs encode
+-}
+
 import String
 import String.Extra
 import Char
@@ -46,6 +51,8 @@ codePointToString codePoint =
         ""
 
 
+{-| Encode a string for output to a STEP file.
+-}
 encode : String -> String
 encode =
     String.Extra.toCodePoints
