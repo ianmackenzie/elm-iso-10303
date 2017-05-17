@@ -1,61 +1,217 @@
-module OpenSolid.Step exposing (encode)
+module OpenSolid.Step
+    exposing
+        ( File
+        , Header
+        , Entity(..)
+        , Parameter(..)
+        , Value(..)
+        , encode
+        , parse
+        )
 
-{-| Functions for generating STEP (ISO 10303-21) files.
+{-| Read and write STEP files in Elm.
 
-@docs encode
+@docs File, Header, Entity, Parameter, Value
+
+@docs encode, parse
 
 -}
 
-import String
-import String.Extra
-import Char
-import Bitwise
+import Date exposing (Date)
+import OpenSolid.Step.Encode as Encode
 
 
-hexCharacterAtIndex : Int -> Int -> String
-hexCharacterAtIndex index value =
-    let
-        hexDigit =
-            Bitwise.and 0x0F (Bitwise.shiftRightBy (index * 4) value)
-    in
-        if hexDigit >= 0 && hexDigit <= 9 then
-            String.fromChar (Char.fromCode (Char.toCode '0' + hexDigit))
-        else if hexDigit >= 0 && hexDigit <= 15 then
-            String.fromChar (Char.fromCode (Char.toCode 'A' + (hexDigit - 10)))
-        else
-            ""
-
-
-hexEncode : Int -> Int -> String
-hexEncode size value =
-    let
-        characters =
-            List.range 1 size
-                |> List.map (\i -> hexCharacterAtIndex (size - i) value)
-    in
-        String.concat characters
-
-
-codePointToString : Int -> String
-codePointToString codePoint =
-    if (codePoint >= 0 && codePoint <= 0x1F) then
-        "\\X\\" ++ hexEncode 2 codePoint
-    else if (codePoint >= 0x20 && codePoint <= 0x7E) then
-        String.fromChar (Char.fromCode codePoint)
-    else if (codePoint >= 0x7F && codePoint <= 0xFF) then
-        "\\X\\" ++ hexEncode 2 codePoint
-    else if (codePoint >= 0x0100 && codePoint <= 0xFFFF) then
-        "\\X2\\" ++ hexEncode 4 codePoint ++ "\\X0\\"
-    else if (codePoint >= 0x00010000 && codePoint <= 0x0010FFFF) then
-        "\\X4\\" ++ hexEncode 8 codePoint ++ "\\X0\\"
-    else
-        ""
-
-
-{-| Encode a string for output to a STEP file.
+{-| Complete representation of the data stored in a STEP file.
 -}
-encode : String -> String
-encode string =
-    String.Extra.toCodePoints string
-        |> List.map codePointToString
-        |> String.concat
+type alias File =
+    { header : Header
+    , entities : List ( Int, Entity )
+    }
+
+
+{-| Represents the data stored in the header section of a STEP file.
+-}
+type alias Header =
+    { fileDescription : List String
+    , fileName : String
+    , timeStamp : Date
+    , author : List String
+    , organization : List String
+    , preprocessorVersion : String
+    , originatingSystem : String
+    , authorization : String
+    , schemaIdentifiers : List String
+    }
+
+
+{-| Represents an entity in a STEP file such as a point, a curve, an assembly
+or an entire building.
+-}
+type Entity
+    = Entity String (List Parameter) -- TYPE([params])
+    | ComplexEntity (List Entity) -- ([entities])
+
+
+{-| Represents one parameter (field) of an entity.
+-}
+type Parameter
+    = Parameter Value -- <value>
+    | TypedParameter String Value -- TYPE(<value>)
+    | DefaultValue -- *
+    | NullValue -- $
+
+
+{-| Represents a parameter value such as a number, a string or a reference to
+another entity.
+-}
+type Value
+    = IntValue Int -- 123
+    | FloatValue Float -- 3.14
+    | StringValue String -- "Some string"
+    | InstanceReference Int -- #123
+    | EnumerationValue String -- .STEEL.
+    | BinaryValue String -- "185A40EF"
+    | ListValue (List Value) -- (1,2,3)
+
+
+{-| Convert a File value to a string of STEP-encoded text.
+-}
+encode : File -> String
+encode file =
+    String.join "\n"
+        [ "ISO-10303-21;"
+        , "HEADER;"
+        , encodeHeader file.header
+        , "ENDSEC;"
+        , "DATA;"
+        , encodeEntities file.entities
+        , "ENDSEC;"
+        , "END-ISO-10303-21;\n"
+        ]
+
+
+encodeHeader : Header -> String
+encodeHeader header =
+    let
+        fileDescriptionValues =
+            List.map StringValue header.fileDescription
+
+        fileDescriptionEntity =
+            Entity "FILE_DESCRIPTION"
+                [ Parameter (ListValue fileDescriptionValues)
+                , Parameter (StringValue "2;1")
+                ]
+
+        dateTimeString =
+            Encode.date header.timeStamp
+
+        authorValues =
+            List.map StringValue header.author
+
+        organizationValues =
+            List.map StringValue header.organization
+
+        fileNameEntity =
+            Entity "FILE_NAME"
+                [ Parameter (StringValue header.fileName)
+                , Parameter (StringValue dateTimeString)
+                , Parameter (ListValue authorValues)
+                , Parameter (ListValue organizationValues)
+                , Parameter (StringValue header.preprocessorVersion)
+                , Parameter (StringValue header.originatingSystem)
+                , Parameter (StringValue header.authorization)
+                ]
+
+        schemaIdentifierValues =
+            List.map StringValue header.schemaIdentifiers
+
+        fileSchemaEntity =
+            Entity "FILE_SCHEMA"
+                [ Parameter (ListValue schemaIdentifierValues) ]
+    in
+        List.map encodeEntity
+            [ fileDescriptionEntity
+            , fileNameEntity
+            , fileSchemaEntity
+            ]
+            |> String.join "\n"
+
+
+encodeEntities : List ( Int, Entity ) -> String
+encodeEntities entities =
+    String.join "\n" (List.map encodeEntityInstance entities)
+
+
+encodeEntityInstance : ( Int, Entity ) -> String
+encodeEntityInstance ( id, entity ) =
+    "#" ++ toString id ++ "=" ++ encodeEntity entity
+
+
+encodeEntity : Entity -> String
+encodeEntity entity =
+    case entity of
+        Entity type_ parameters ->
+            let
+                encodedParameters =
+                    List.map encodeParameter parameters
+            in
+                type_ ++ "(" ++ String.join "," encodedParameters ++ ")"
+
+        ComplexEntity entities ->
+            let
+                encodedEntities =
+                    List.map encodeEntity entities
+            in
+                "(" ++ String.join "," encodedEntities ++ ")"
+
+
+encodeParameter : Parameter -> String
+encodeParameter parameter =
+    case parameter of
+        Parameter value ->
+            encodeValue value
+
+        TypedParameter type_ value ->
+            type_ ++ "(" ++ encodeValue value ++ ")"
+
+        DefaultValue ->
+            "*"
+
+        NullValue ->
+            "$"
+
+
+encodeValue : Value -> String
+encodeValue value =
+    case value of
+        IntValue int ->
+            toString int
+
+        FloatValue float ->
+            Encode.float float
+
+        StringValue string ->
+            "'" ++ Encode.string string ++ "'"
+
+        InstanceReference id ->
+            "#" ++ toString id
+
+        EnumerationValue string ->
+            "." ++ string ++ "."
+
+        BinaryValue hexString ->
+            "\"" ++ hexString ++ "\""
+
+        ListValue values ->
+            let
+                encodedValues =
+                    List.map encodeValue values
+            in
+                "(" ++ String.join "," encodedValues ++ ")"
+
+
+{-| Attempt to parse a string of STEP-encoded text into a File value.
+-}
+parse : String -> Result String File
+parse string =
+    Err "Not implemented"
