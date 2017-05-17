@@ -1,8 +1,9 @@
-module Kintail.StepFile exposing (encode)
+module OpenSolid.Step exposing (encode)
 
 {-| Functions for generating STEP (ISO 10303-21) files.
 
 @docs encode
+
 -}
 
 import String
@@ -54,7 +55,7 @@ codePointToString codePoint =
 {-| Encode a string for output to a STEP file.
 -}
 encode : String -> String
-encode =
-    String.Extra.toCodePoints
-        >> List.map codePointToString
-        >> String.concat
+encode string =
+    String.Extra.toCodePoints string
+        |> List.map codePointToString
+        |> String.concat
