@@ -3,7 +3,7 @@ module OpenSolid.Step
         ( File
         , Header
         , Entity(..)
-        , Parameter(..)
+        , Attribute(..)
         , Value(..)
         , encode
         , parse
@@ -11,7 +11,7 @@ module OpenSolid.Step
 
 {-| Read and write STEP files in Elm.
 
-@docs File, Header, Entity, Parameter, Value
+@docs File, Header, Entity, Attribute, Value
 
 @docs encode, parse
 
@@ -48,20 +48,20 @@ type alias Header =
 or an entire building.
 -}
 type Entity
-    = Entity String (List Parameter) -- TYPE([params])
+    = Entity String (List Attribute) -- TYPE([attributes])
     | ComplexEntity (List Entity) -- ([entities])
 
 
-{-| Represents one parameter (field) of an entity.
+{-| Represents one attribute of an entity.
 -}
-type Parameter
-    = Parameter Value -- <value>
-    | TypedParameter String Value -- TYPE(<value>)
-    | DefaultValue -- *
-    | NullValue -- $
+type Attribute
+    = Attribute Value -- <value>
+    | TypedAttribute String Value -- TYPE(<value>)
+    | DefaultAttribute -- *
+    | NullAttribute -- $
 
 
-{-| Represents a parameter value such as a number, a string or a reference to
+{-| Represents a attribute value such as a number, a string or a reference to
 another entity.
 -}
 type Value
@@ -98,8 +98,8 @@ encodeHeader header =
 
         fileDescriptionEntity =
             Entity "FILE_DESCRIPTION"
-                [ Parameter (ListValue fileDescriptionValues)
-                , Parameter (StringValue "2;1")
+                [ Attribute (ListValue fileDescriptionValues)
+                , Attribute (StringValue "2;1")
                 ]
 
         dateTimeString =
@@ -113,13 +113,13 @@ encodeHeader header =
 
         fileNameEntity =
             Entity "FILE_NAME"
-                [ Parameter (StringValue header.fileName)
-                , Parameter (StringValue dateTimeString)
-                , Parameter (ListValue authorValues)
-                , Parameter (ListValue organizationValues)
-                , Parameter (StringValue header.preprocessorVersion)
-                , Parameter (StringValue header.originatingSystem)
-                , Parameter (StringValue header.authorization)
+                [ Attribute (StringValue header.fileName)
+                , Attribute (StringValue dateTimeString)
+                , Attribute (ListValue authorValues)
+                , Attribute (ListValue organizationValues)
+                , Attribute (StringValue header.preprocessorVersion)
+                , Attribute (StringValue header.originatingSystem)
+                , Attribute (StringValue header.authorization)
                 ]
 
         schemaIdentifierValues =
@@ -127,7 +127,7 @@ encodeHeader header =
 
         fileSchemaEntity =
             Entity "FILE_SCHEMA"
-                [ Parameter (ListValue schemaIdentifierValues) ]
+                [ Attribute (ListValue schemaIdentifierValues) ]
     in
         List.map encodeEntity
             [ fileDescriptionEntity
@@ -150,12 +150,12 @@ encodeEntityInstance ( id, entity ) =
 encodeEntity : Entity -> String
 encodeEntity entity =
     case entity of
-        Entity type_ parameters ->
+        Entity type_ attributes ->
             let
-                encodedParameters =
-                    List.map encodeParameter parameters
+                encodedAttributes =
+                    List.map encodeAttribute attributes
             in
-                type_ ++ "(" ++ String.join "," encodedParameters ++ ")"
+                type_ ++ "(" ++ String.join "," encodedAttributes ++ ")"
 
         ComplexEntity entities ->
             let
@@ -165,13 +165,13 @@ encodeEntity entity =
                 "(" ++ String.join "," encodedEntities ++ ")"
 
 
-encodeParameter : Parameter -> String
-encodeParameter parameter =
-    case parameter of
-        Parameter value ->
+encodeAttribute : Attribute -> String
+encodeAttribute attribute =
+    case attribute of
+        Attribute value ->
             encodeValue value
 
-        TypedParameter type_ value ->
+        TypedAttribute type_ value ->
             type_ ++ "(" ++ encodeValue value ++ ")"
 
         DefaultValue ->
