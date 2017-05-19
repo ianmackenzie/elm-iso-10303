@@ -1,133 +1,319 @@
 module OpenSolid.Step.Encode
     exposing
-        ( float
+        ( file
+        , entity
+        , referenceTo
+        , default
+        , null
+        , int
+        , float
         , string
-        , date
+        , enum
+        , binary
+        , list
+        , intAs
+        , floatAs
+        , stringAs
+        , enumAs
+        , binaryAs
+        , listAs
         )
 
-import String
-import String.Extra
-import Char
-import Bitwise
-import Date exposing (Date, Month)
+{-| Functions for encoding data in STEP format.
 
 
-float : Float -> String
-float value =
-    if toFloat (round value) == value then
-        -- STEP requires integer-valued floats to have a trailing '.'
-        toString value ++ "."
-    else
-        toString value
+# Files
+
+@docs file
 
 
-hexCharacterAtIndex : Int -> Int -> String
-hexCharacterAtIndex index value =
-    let
-        hexDigit =
-            Bitwise.and 0x0F (Bitwise.shiftRightBy (index * 4) value)
-    in
-        if hexDigit >= 0 && hexDigit <= 9 then
-            String.fromChar (Char.fromCode (Char.toCode '0' + hexDigit))
-        else if hexDigit >= 0 && hexDigit <= 15 then
-            String.fromChar (Char.fromCode (Char.toCode 'A' + (hexDigit - 10)))
-        else
-            ""
+# Entities
+
+@docs entity
 
 
-hexEncode : Int -> Int -> String
-hexEncode size value =
-    let
-        characters =
-            List.range 1 size
-                |> List.map (\i -> hexCharacterAtIndex (size - i) value)
-    in
-        String.concat characters
+# Attributes
+
+@docs referenceTo, default, null, int, float, string, enum, binary, list
 
 
-codePointToString : Int -> String
-codePointToString codePoint =
-    if (codePoint >= 0 && codePoint <= 0x1F) then
-        "\\X\\" ++ hexEncode 2 codePoint
-    else if (codePoint >= 0x20 && codePoint <= 0x7E) then
-        String.fromChar (Char.fromCode codePoint)
-    else if (codePoint >= 0x7F && codePoint <= 0xFF) then
-        "\\X\\" ++ hexEncode 2 codePoint
-    else if (codePoint >= 0x0100 && codePoint <= 0xFFFF) then
-        "\\X2\\" ++ hexEncode 4 codePoint ++ "\\X0\\"
-    else if (codePoint >= 0x00010000 && codePoint <= 0x0010FFFF) then
-        "\\X4\\" ++ hexEncode 8 codePoint ++ "\\X0\\"
-    else
-        ""
+## Typed attributes
+
+Typed attributes are sometimes needed when dealing with SELECT types.
+
+@docs intAs, floatAs, stringAs, enumAs, binaryAs, listAs
+
+-}
+
+import OpenSolid.Step as Step
+import OpenSolid.Step.Types as Types
+import OpenSolid.Step.EntityMap as EntityMap exposing (EntityMap)
+import OpenSolid.Step.Format as Format
 
 
-string : String -> String
-string str =
-    String.Extra.toCodePoints str
-        |> List.map codePointToString
-        |> String.concat
-
-
-month : Month -> String
-month month_ =
-    case month_ of
-        Date.Jan ->
-            "01"
-
-        Date.Feb ->
-            "02"
-
-        Date.Mar ->
-            "03"
-
-        Date.Apr ->
-            "04"
-
-        Date.May ->
-            "05"
-
-        Date.Jun ->
-            "06"
-
-        Date.Jul ->
-            "07"
-
-        Date.Aug ->
-            "08"
-
-        Date.Sep ->
-            "09"
-
-        Date.Oct ->
-            "10"
-
-        Date.Nov ->
-            "11"
-
-        Date.Dec ->
-            "12"
-
-
-twoDigits : Int -> String
-twoDigits value =
-    if value < 10 then
-        "0" ++ toString value
-    else
-        toString value
-
-
-date : Date -> String
-date date_ =
-    String.join ""
-        [ toString (Date.year date_)
-        , "-"
-        , month (Date.month date_)
-        , "-"
-        , twoDigits (Date.day date_)
-        , "T"
-        , twoDigits (Date.hour date_)
-        , ":"
-        , twoDigits (Date.minute date_)
-        , ":"
-        , twoDigits (Date.second date_)
+{-| Create a STEP-encoded string that can be written out to a file.
+-}
+file : Step.Header -> List Step.Entity -> String
+file header entities =
+    String.join "\n"
+        [ "ISO-10303-21;"
+        , "HEADER;"
+        , headerString header
+        , "ENDSEC;"
+        , "DATA;"
+        , entitiesString entities
+        , "ENDSEC;"
+        , "END-ISO-10303-21;\n"
         ]
+
+
+headerString : Step.Header -> String
+headerString header =
+    let
+        fileDescriptionEntity =
+            entity "FILE_DESCRIPTION"
+                [ list (List.map string header.fileDescription)
+                , string "2;1"
+                ]
+
+        fileNameEntity =
+            entity "FILE_NAME"
+                [ string header.fileName
+                , string (Format.date header.timeStamp)
+                , list (List.map string header.author)
+                , list (List.map string header.organization)
+                , string header.preprocessorVersion
+                , string header.originatingSystem
+                , string header.authorization
+                ]
+
+        fileSchemaEntity =
+            entity "FILE_SCHEMA"
+                [ list (List.map string header.schemaIdentifiers)
+                ]
+
+        entityMap =
+            EntityMap.empty
+                |> addEntity fileDescriptionEntity
+                |> Tuple.second
+                |> addEntity fileNameEntity
+                |> Tuple.second
+                |> addEntity fileSchemaEntity
+                |> Tuple.second
+    in
+        EntityMap.toList entityMap
+            |> List.map Tuple.second
+            |> String.join "\n"
+
+
+entitiesString : List Step.Entity -> String
+entitiesString entities =
+    let
+        entityMap =
+            List.foldl
+                (\entity accumulatedMap ->
+                    addEntity entity accumulatedMap |> Tuple.second
+                )
+                EntityMap.empty
+                entities
+    in
+        EntityMap.toList entityMap
+            |> List.map (\( id, string ) -> Format.id id ++ "=" ++ string)
+            |> String.join "\n"
+
+
+addEntity : Step.Entity -> EntityMap -> ( Int, EntityMap )
+addEntity (Types.Entity typeName attributes) entityMap =
+    let
+        ( attributeValues, mapWithAttributes ) =
+            addAttributes attributes entityMap
+
+        entityString =
+            Format.entity typeName attributeValues
+    in
+        EntityMap.add entityString mapWithAttributes
+
+
+addAttributes : List Step.Attribute -> EntityMap -> ( List Types.AttributeValue, EntityMap )
+addAttributes attributes entityMap =
+    List.foldl
+        (\attribute ( accumulatedAttributeValues, accumulatedMap ) ->
+            let
+                ( attributeValue, mapWithAttribute ) =
+                    addAttribute attribute accumulatedMap
+            in
+                ( attributeValue :: accumulatedAttributeValues
+                , mapWithAttribute
+                )
+        )
+        ( [], entityMap )
+        attributes
+        |> Tuple.mapFirst List.reverse
+
+
+addAttribute : Step.Attribute -> EntityMap -> ( Types.AttributeValue, EntityMap )
+addAttribute attribute entityMap =
+    case attribute of
+        Types.DefaultAttribute ->
+            ( Format.defaultAttribute, entityMap )
+
+        Types.NullAttribute ->
+            ( Format.nullAttribute, entityMap )
+
+        Types.IntAttribute int ->
+            ( Format.intAttribute int, entityMap )
+
+        Types.FloatAttribute float ->
+            ( Format.floatAttribute float, entityMap )
+
+        Types.StringAttribute string ->
+            ( Format.stringAttribute string, entityMap )
+
+        Types.BinaryAttribute string ->
+            ( Format.binaryAttribute string, entityMap )
+
+        Types.EnumAttribute enumName ->
+            ( Format.enumAttribute enumName, entityMap )
+
+        Types.ReferenceTo entity ->
+            let
+                ( entityId, updatedMap ) =
+                    addEntity entity entityMap
+            in
+                ( Format.referenceTo entityId, updatedMap )
+
+        Types.TypedAttribute typeName attribute ->
+            let
+                ( attributeValue, updatedMap ) =
+                    addAttribute attribute entityMap
+            in
+                ( Format.typedAttribute typeName attributeValue, updatedMap )
+
+        Types.AttributeList attributes ->
+            let
+                ( attributeValues, mapWithAttributes ) =
+                    addAttributes attributes entityMap
+            in
+                ( Format.listAttribute attributeValues, mapWithAttributes )
+
+
+{-| Construct a single STEP entity from a type name and list of attributes.
+-}
+entity : String -> List Step.Attribute -> Step.Entity
+entity typeName attributes =
+    Types.Entity (Format.typeName typeName) attributes
+
+
+{-| Construct a reference to another STEP entity.
+-}
+referenceTo : Step.Entity -> Step.Attribute
+referenceTo entity =
+    Types.ReferenceTo entity
+
+
+{-| The special 'default value' attribute.
+-}
+default : Step.Attribute
+default =
+    Types.DefaultAttribute
+
+
+{-| The special 'null value' attribute.
+-}
+null : Step.Attribute
+null =
+    Types.NullAttribute
+
+
+{-| Construct an integer-valued attribute.
+-}
+int : Int -> Step.Attribute
+int value =
+    Types.IntAttribute value
+
+
+{-| Construct a real-valued attribute.
+-}
+float : Float -> Step.Attribute
+float value =
+    Types.FloatAttribute value
+
+
+{-| Construct a string-valued attribute.
+-}
+string : String -> Step.Attribute
+string value =
+    Types.StringAttribute value
+
+
+{-| Construct an attribute that refers to an enumeration value defined in an
+EXPRESS schema. Enumeration values are always encoded as all-caps with leading
+and trailing periods, like `.STEEL.`; this function will capitalize and add
+periods if necessary.
+-}
+enum : String -> Step.Attribute
+enum value =
+    Types.EnumAttribute (Format.enumName value)
+
+
+{-| Construct a binary-valued attribute. The provided string is assumed to
+already be hex encoded as required by the STEP standard (i.e., every four bits
+are represented by one hexadecimal character).
+-}
+binary : String -> Step.Attribute
+binary value =
+    Types.BinaryAttribute value
+
+
+{-| Construct an attribute which is itself a list of other attributes.
+-}
+list : List Step.Attribute -> Step.Attribute
+list attributes =
+    Types.AttributeList attributes
+
+
+{-| Construct a type-tagged integer-valued attribute.
+-}
+intAs : String -> Int -> Step.Attribute
+intAs typeName value =
+    typedAttribute typeName (int value)
+
+
+{-| Construct a type-tagged float-valued attribute.
+-}
+floatAs : String -> Float -> Step.Attribute
+floatAs typeName value =
+    typedAttribute typeName (float value)
+
+
+{-| Construct a type-tagged string-valued attribute.
+-}
+stringAs : String -> String -> Step.Attribute
+stringAs typeName value =
+    typedAttribute typeName (string value)
+
+
+{-| Construct a type-tagged enumeration attribute.
+-}
+enumAs : String -> String -> Step.Attribute
+enumAs typeName value =
+    typedAttribute typeName (enum value)
+
+
+{-| Construct a type-tagged binary-valued attribute.
+-}
+binaryAs : String -> String -> Step.Attribute
+binaryAs typeName value =
+    typedAttribute typeName (binary value)
+
+
+{-| Construct a type-tagged list attribute.
+-}
+listAs : String -> List Step.Attribute -> Step.Attribute
+listAs typeName attributes =
+    typedAttribute typeName (list attributes)
+
+
+typedAttribute : String -> Step.Attribute -> Step.Attribute
+typedAttribute typeName attribute =
+    Types.TypedAttribute (Format.typeName typeName) attribute
