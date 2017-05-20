@@ -45,7 +45,7 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 
 -}
 
-import OpenSolid.Step as Step
+import OpenSolid.Step exposing (Header, Entity, Attribute)
 import OpenSolid.Step.Types as Types
 import OpenSolid.Step.EntityMap as EntityMap exposing (EntityMap)
 import OpenSolid.Step.Format as Format
@@ -53,7 +53,7 @@ import OpenSolid.Step.Format as Format
 
 {-| Create a STEP-encoded string that can be written out to a file.
 -}
-file : Step.Header -> List Step.Entity -> String
+file : Header -> List Entity -> String
 file header entities =
     String.join "\n"
         [ "ISO-10303-21;"
@@ -67,7 +67,7 @@ file header entities =
         ]
 
 
-headerString : Step.Header -> String
+headerString : Header -> String
 headerString header =
     let
         fileDescriptionEntity =
@@ -106,7 +106,7 @@ headerString header =
             |> String.join "\n"
 
 
-entitiesString : List Step.Entity -> String
+entitiesString : List Entity -> String
 entitiesString entities =
     let
         entityMap =
@@ -122,7 +122,7 @@ entitiesString entities =
             |> String.join "\n"
 
 
-addEntity : Step.Entity -> EntityMap -> ( Int, EntityMap )
+addEntity : Entity -> EntityMap -> ( Int, EntityMap )
 addEntity (Types.Entity typeName attributes) entityMap =
     let
         ( attributeValues, mapWithAttributes ) =
@@ -134,7 +134,7 @@ addEntity (Types.Entity typeName attributes) entityMap =
         EntityMap.add entityString mapWithAttributes
 
 
-addAttributes : List Step.Attribute -> EntityMap -> ( List Types.AttributeValue, EntityMap )
+addAttributes : List Attribute -> EntityMap -> ( List Types.AttributeValue, EntityMap )
 addAttributes attributes entityMap =
     List.foldl
         (\attribute ( accumulatedAttributeValues, accumulatedMap ) ->
@@ -151,7 +151,7 @@ addAttributes attributes entityMap =
         |> Tuple.mapFirst List.reverse
 
 
-addAttribute : Step.Attribute -> EntityMap -> ( Types.AttributeValue, EntityMap )
+addAttribute : Attribute -> EntityMap -> ( Types.AttributeValue, EntityMap )
 addAttribute attribute entityMap =
     case attribute of
         Types.DefaultAttribute ->
@@ -199,49 +199,49 @@ addAttribute attribute entityMap =
 
 {-| Construct a single STEP entity from a type name and list of attributes.
 -}
-entity : String -> List Step.Attribute -> Step.Entity
+entity : String -> List Attribute -> Entity
 entity typeName attributes =
     Types.Entity (Format.typeName typeName) attributes
 
 
 {-| Construct a reference to another STEP entity.
 -}
-referenceTo : Step.Entity -> Step.Attribute
+referenceTo : Entity -> Attribute
 referenceTo entity =
     Types.ReferenceTo entity
 
 
 {-| The special 'default value' attribute.
 -}
-default : Step.Attribute
+default : Attribute
 default =
     Types.DefaultAttribute
 
 
 {-| The special 'null value' attribute.
 -}
-null : Step.Attribute
+null : Attribute
 null =
     Types.NullAttribute
 
 
 {-| Construct an integer-valued attribute.
 -}
-int : Int -> Step.Attribute
+int : Int -> Attribute
 int value =
     Types.IntAttribute value
 
 
 {-| Construct a real-valued attribute.
 -}
-float : Float -> Step.Attribute
+float : Float -> Attribute
 float value =
     Types.FloatAttribute value
 
 
 {-| Construct a string-valued attribute.
 -}
-string : String -> Step.Attribute
+string : String -> Attribute
 string value =
     Types.StringAttribute value
 
@@ -251,7 +251,7 @@ EXPRESS schema. Enumeration values are always encoded as all-caps with leading
 and trailing periods, like `.STEEL.`; this function will capitalize and add
 periods if necessary.
 -}
-enum : String -> Step.Attribute
+enum : String -> Attribute
 enum value =
     Types.EnumAttribute (Format.enumName value)
 
@@ -260,60 +260,60 @@ enum value =
 already be hex encoded as required by the STEP standard (i.e., every four bits
 are represented by one hexadecimal character).
 -}
-binary : String -> Step.Attribute
+binary : String -> Attribute
 binary value =
     Types.BinaryAttribute value
 
 
 {-| Construct an attribute which is itself a list of other attributes.
 -}
-list : List Step.Attribute -> Step.Attribute
+list : List Attribute -> Attribute
 list attributes =
     Types.AttributeList attributes
 
 
 {-| Construct a type-tagged integer-valued attribute.
 -}
-intAs : String -> Int -> Step.Attribute
+intAs : String -> Int -> Attribute
 intAs typeName value =
     typedAttribute typeName (int value)
 
 
 {-| Construct a type-tagged float-valued attribute.
 -}
-floatAs : String -> Float -> Step.Attribute
+floatAs : String -> Float -> Attribute
 floatAs typeName value =
     typedAttribute typeName (float value)
 
 
 {-| Construct a type-tagged string-valued attribute.
 -}
-stringAs : String -> String -> Step.Attribute
+stringAs : String -> String -> Attribute
 stringAs typeName value =
     typedAttribute typeName (string value)
 
 
 {-| Construct a type-tagged enumeration attribute.
 -}
-enumAs : String -> String -> Step.Attribute
+enumAs : String -> String -> Attribute
 enumAs typeName value =
     typedAttribute typeName (enum value)
 
 
 {-| Construct a type-tagged binary-valued attribute.
 -}
-binaryAs : String -> String -> Step.Attribute
+binaryAs : String -> String -> Attribute
 binaryAs typeName value =
     typedAttribute typeName (binary value)
 
 
 {-| Construct a type-tagged list attribute.
 -}
-listAs : String -> List Step.Attribute -> Step.Attribute
+listAs : String -> List Attribute -> Attribute
 listAs typeName attributes =
     typedAttribute typeName (list attributes)
 
 
-typedAttribute : String -> Step.Attribute -> Step.Attribute
+typedAttribute : String -> Attribute -> Attribute
 typedAttribute typeName attribute =
     Types.TypedAttribute (Format.typeName typeName) attribute
