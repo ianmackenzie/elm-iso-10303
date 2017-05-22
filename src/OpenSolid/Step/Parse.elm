@@ -285,8 +285,11 @@ attribute =
         typedAttribute =
             Parser.succeed ParsedTypedAttribute
                 |= typeName
+                |. whitespace
                 |. Parser.symbol "("
+                |. whitespace
                 |= Parser.lazy (\() -> attribute)
+                |. whitespace
                 |. Parser.symbol ")"
 
         attributeList =
