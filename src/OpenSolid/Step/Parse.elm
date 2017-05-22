@@ -1,4 +1,4 @@
-module OpenSolid.Step.Parse exposing (file)
+module OpenSolid.Step.Parse exposing (file, attribute)
 
 import OpenSolid.Step exposing (Header, Entity)
 import OpenSolid.Step.Types as Types
@@ -249,6 +249,7 @@ attribute =
                 , Parser.symbol "-"
                     |> Parser.andThen (\() -> Parser.float)
                     |> Parser.map negate
+                , Parser.float
                 ]
                 |> Parser.sourceMap
                     (\rawString parsedFloat ->
