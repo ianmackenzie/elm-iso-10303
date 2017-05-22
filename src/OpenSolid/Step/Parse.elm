@@ -412,7 +412,7 @@ header =
             |. start "FILE_DESCRIPTION"
             |= stringList
             |. comma
-            |. Parser.keyword "2;1"
+            |. Parser.keyword "'2;1'"
             |. end
             |. start "FILE_NAME"
             |= string
