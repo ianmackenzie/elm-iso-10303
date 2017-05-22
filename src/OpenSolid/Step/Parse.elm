@@ -33,9 +33,7 @@ type alias ParsedEntity =
 
 
 type alias ParsedEntityInstance =
-    { id : Int
-    , parsedEntity : ParsedEntity
-    }
+    ( Int, ParsedEntity )
 
 
 whitespace : Parser ()
@@ -305,7 +303,7 @@ entity =
 
 entityInstance : Parser ParsedEntityInstance
 entityInstance =
-    Parser.succeed ParsedEntityInstance
+    Parser.succeed (,)
         |= id
         |. whitespace
         |. Parser.symbol "="
