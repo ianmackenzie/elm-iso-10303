@@ -115,11 +115,6 @@ typeName =
     keyword |> Parser.map Types.TypeName
 
 
-enumName : Parser Types.EnumName
-enumName =
-    keyword |> Parser.map Types.EnumName
-
-
 isBasic : Char -> Bool
 isBasic character =
     let
