@@ -376,8 +376,6 @@ header =
             Parser.LanguageKit.tuple whitespace string
     in
         Parser.succeed Header
-            |. Parser.keyword "HEADER;"
-            |. whitespace
             |. start "FILE_DESCRIPTION"
             |= stringList
             |. comma
@@ -401,7 +399,6 @@ header =
             |. start "FILE_SCHEMA"
             |= stringList
             |. end
-            |. Parser.keyword "ENDSEC;"
 
 
 isValidCharacter : Char -> Bool
@@ -424,7 +421,11 @@ file string =
             Parser.succeed (,)
                 |. Parser.keyword "ISO-10303-21;"
                 |. whitespace
+                |. Parser.keyword "HEADER;"
+                |. whitespace
                 |= header
+                |. whitespace
+                |. Parser.keyword "ENDSEC;"
                 |. whitespace
                 |. Parser.keyword "DATA;"
                 |. whitespace
