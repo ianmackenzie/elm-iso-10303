@@ -232,24 +232,59 @@ string =
         |. Parser.symbol "'"
 
 
+bool : Parser Bool
+bool =
+    Parser.oneOf
+        [ Parser.keyword ".T." |> Parser.map (\() -> True)
+        , Parser.keyword ".F." |> Parser.map (\() -> False)
+        ]
+
+
+default : Parser ()
+default =
+    Parser.symbol "*"
+
+
+null : Parser ()
+null =
+    Parser.symbol "$"
+
+
+binary : Parser String
+binary =
+    Parser.succeed identity
+        |. Parser.symbol "\""
+        |= Parser.keep Parser.oneOrMore isHexCharacter
+        |. Parser.symbol "\""
+
+
+enum : Parser Types.EnumName
+enum =
+    Parser.succeed identity
+        |. Parser.symbol "."
+        |= keyword
+        |. Parser.symbol "."
+        |> Parser.map Types.EnumName
+
+
+id : Parser Int
+id =
+    Parser.succeed identity
+        |. Parser.symbol "#"
+        |= Parser.int
+
+
 attribute : Parser ParsedAttribute
 attribute =
     let
         defaultAttribute =
-            Parser.symbol "*"
-                |> Parser.map (\() -> ParsedDefaultAttribute)
+            default |> Parser.map (\() -> ParsedDefaultAttribute)
 
         nullAttribute =
-            Parser.symbol "$"
-                |> Parser.map (\() -> ParsedNullAttribute)
+            null |> Parser.map (\() -> ParsedNullAttribute)
 
         boolAttribute =
-            Parser.oneOf
-                [ Parser.keyword ".T."
-                    |> Parser.map (\() -> ParsedBoolAttribute True)
-                , Parser.keyword ".F."
-                    |> Parser.map (\() -> ParsedBoolAttribute False)
-                ]
+            bool |> Parser.map ParsedBoolAttribute
 
         numericAttribute =
             Parser.oneOf
@@ -272,24 +307,13 @@ attribute =
             string |> Parser.map ParsedStringAttribute
 
         binaryAttribute =
-            Parser.succeed identity
-                |. Parser.symbol "\""
-                |= Parser.keep Parser.oneOrMore isHexCharacter
-                |. Parser.symbol "\""
-                |> Parser.map ParsedBinaryAttribute
+            binary |> Parser.map ParsedBinaryAttribute
 
         enumAttribute =
-            Parser.succeed identity
-                |. Parser.symbol "."
-                |= enumName
-                |. Parser.symbol "."
-                |> Parser.map ParsedEnumAttribute
+            enum |> Parser.map ParsedEnumAttribute
 
         unevaluatedReference =
-            Parser.succeed identity
-                |. Parser.symbol "#"
-                |= Parser.int
-                |> Parser.map ParsedReference
+            id |> Parser.map ParsedReference
 
         typedAttribute =
             Parser.succeed ParsedTypedAttribute
