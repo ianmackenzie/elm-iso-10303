@@ -1,4 +1,4 @@
-module OpenSolid.Step.Parse exposing (file, attribute)
+module OpenSolid.Step.Parse exposing (file, attribute, entity, entityInstance)
 
 import OpenSolid.Step exposing (Header, Entity)
 import OpenSolid.Step.Types as Types
@@ -26,7 +26,7 @@ type ParsedAttribute
 
 
 type alias ParsedEntity =
-    { typeName : String
+    { typeName : Types.TypeName
     , parsedAttributes : List ParsedAttribute
     }
 
@@ -337,3 +337,23 @@ attribute =
             , typedAttribute
             , attributeList
             ]
+
+
+entity : Parser ParsedEntity
+entity =
+    Parser.succeed ParsedEntity
+        |= typeName
+        |. whitespace
+        |= Parser.LanguageKit.tuple whitespace attribute
+
+
+entityInstance : Parser ( Int, ParsedEntity )
+entityInstance =
+    Parser.succeed (,)
+        |= id
+        |. whitespace
+        |. Parser.symbol "="
+        |. whitespace
+        |= entity
+        |. whitespace
+        |. Parser.symbol ";"
