@@ -69,21 +69,6 @@ file string =
         Err "Not implemented"
 
 
-header : Parser Header
-header =
-    Parser.fail "Not implemented"
-
-
-
---    Parser.succeed
---        (\fileDescriptionEntity fileNameEntity fileSchemaEntity ->
---            ()
---        )
---        |. Parser.keyword "HEADER;"
---        |. whitespace
---        |. Parser.keyword "ENDSEC;"
-
-
 whitespace : Parser ()
 whitespace =
     let
@@ -392,3 +377,59 @@ date =
                         ]
                 )
             |. Parser.symbol "'"
+
+
+header : Parser Header
+header =
+    let
+        start typeName =
+            Parser.succeed ()
+                |. Parser.keyword typeName
+                |. whitespace
+                |. Parser.symbol "("
+                |. whitespace
+
+        comma =
+            Parser.succeed ()
+                |. whitespace
+                |. Parser.symbol ","
+                |. whitespace
+
+        end =
+            Parser.succeed ()
+                |. whitespace
+                |. Parser.symbol ")"
+                |. whitespace
+                |. Parser.symbol ";"
+                |. whitespace
+
+        stringList =
+            Parser.LanguageKit.tuple whitespace string
+    in
+        Parser.succeed Header
+            |. Parser.keyword "HEADER;"
+            |. whitespace
+            |. start "FILE_DESCRIPTION"
+            |= stringList
+            |. comma
+            |. Parser.keyword "2;1"
+            |. end
+            |. start "FILE_NAME"
+            |= string
+            |. comma
+            |= date
+            |. comma
+            |= stringList
+            |. comma
+            |= stringList
+            |. comma
+            |= string
+            |. comma
+            |= string
+            |. comma
+            |= string
+            |. end
+            |. start "FILE_SCHEMA"
+            |= stringList
+            |. end
+            |. Parser.keyword "ENDSEC;"
