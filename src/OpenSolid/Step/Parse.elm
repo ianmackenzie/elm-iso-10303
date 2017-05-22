@@ -77,11 +77,6 @@ header =
 --        |. Parser.keyword "ENDSEC;"
 
 
-entities : Parser (List ParsedEntity)
-entities =
-    Parser.fail "Not implemented"
-
-
 whitespace : Parser ()
 whitespace =
     let
