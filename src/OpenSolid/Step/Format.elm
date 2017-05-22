@@ -4,6 +4,7 @@ module OpenSolid.Step.Format
         , binaryAttribute
         , enumAttribute
         , date
+        , boolAttribute
         , intAttribute
         , floatAttribute
         , referenceTo
@@ -188,6 +189,14 @@ minute value =
 second : Int -> String
 second value =
     String.padLeft 2 '0' (toString value)
+
+
+boolAttribute : Bool -> Types.AttributeValue
+boolAttribute bool =
+    if bool then
+        attributeValue ".T."
+    else
+        attributeValue ".F."
 
 
 intAttribute : Int -> Types.AttributeValue

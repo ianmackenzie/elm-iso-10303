@@ -14,6 +14,7 @@ import Bitwise
 type ParsedAttribute
     = ParsedDefaultAttribute
     | ParsedNullAttribute
+    | ParsedBoolAttribute Bool
     | ParsedIntAttribute Int
     | ParsedFloatAttribute Float
     | ParsedStringAttribute String
@@ -242,6 +243,14 @@ attribute =
             Parser.symbol "$"
                 |> Parser.map (\() -> ParsedNullAttribute)
 
+        boolAttribute =
+            Parser.oneOf
+                [ Parser.keyword ".T."
+                    |> Parser.map (\() -> ParsedBoolAttribute True)
+                , Parser.keyword ".F."
+                    |> Parser.map (\() -> ParsedBoolAttribute False)
+                ]
+
         numericAttribute =
             Parser.oneOf
                 [ Parser.symbol "+"
@@ -300,6 +309,7 @@ attribute =
         Parser.oneOf
             [ defaultAttribute
             , nullAttribute
+            , boolAttribute
             , enumAttribute
             , numericAttribute
             , stringAttribute

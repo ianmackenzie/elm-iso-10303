@@ -11,6 +11,7 @@ module OpenSolid.Step.Decode
         , map
         , toEntity
         , toAttribute
+        , bool
         , int
         , float
         , string
@@ -83,6 +84,19 @@ toEntity =
 toAttribute : Decoder Attribute Attribute
 toAttribute =
     Decoder Ok
+
+
+bool : Decoder Attribute Bool
+bool =
+    Decoder
+        (\attribute ->
+            case attribute of
+                Types.BoolAttribute value ->
+                    Ok value
+
+                _ ->
+                    Err "Expected a bool"
+        )
 
 
 int : Decoder Attribute Int

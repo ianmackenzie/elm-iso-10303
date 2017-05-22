@@ -34,6 +34,7 @@ type Entity
 type Attribute
     = DefaultAttribute
     | NullAttribute
+    | BoolAttribute Bool
     | IntAttribute Int
     | FloatAttribute Float
     | StringAttribute String

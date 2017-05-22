@@ -160,6 +160,9 @@ addAttribute attribute entityMap =
         Types.NullAttribute ->
             ( Format.nullAttribute, entityMap )
 
+        Types.BoolAttribute bool ->
+            ( Format.boolAttribute bool, entityMap )
+
         Types.IntAttribute int ->
             ( Format.intAttribute int, entityMap )
 
@@ -225,6 +228,16 @@ null =
     Types.NullAttribute
 
 
+{-| Construct a Boolean-valued attribute.
+
+Boolean values are actually encoded as enumeration values `.T.` and `.F.`.
+
+-}
+bool : Bool -> Attribute
+bool value =
+    Types.BoolAttribute value
+
+
 {-| Construct an integer-valued attribute.
 -}
 int : Int -> Attribute
@@ -270,6 +283,13 @@ binary value =
 list : List Attribute -> Attribute
 list attributes =
     Types.AttributeList attributes
+
+
+{-| Construct a type-tagged Boolean-valued attribute.
+-}
+boolAs : String -> Bool -> Attribute
+boolAs typeName value =
+    typedAttribute typeName (bool value)
 
 
 {-| Construct a type-tagged integer-valued attribute.
