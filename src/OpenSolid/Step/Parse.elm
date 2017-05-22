@@ -31,6 +31,12 @@ type alias ParsedEntity =
     }
 
 
+type alias ParsedEntityInstance =
+    { id : Int
+    , parsedEntity : ParsedEntity
+    }
+
+
 isValidCharacter : Char -> Bool
 isValidCharacter character =
     let
@@ -46,7 +52,7 @@ file string =
         contents =
             String.filter isValidCharacter string
 
-        parser : Parser ( Header, List ( Int, ParsedEntity ) )
+        parser : Parser ( Header, List ParsedEntityInstance )
         parser =
             Parser.succeed (,)
                 |. Parser.keyword "ISO-1303-21;"
@@ -342,9 +348,9 @@ entity =
         |= Parser.LanguageKit.tuple whitespace attribute
 
 
-entityInstance : Parser ( Int, ParsedEntity )
+entityInstance : Parser ParsedEntityInstance
 entityInstance =
-    Parser.succeed (,)
+    Parser.succeed ParsedEntityInstance
         |= id
         |. whitespace
         |. Parser.symbol "="
