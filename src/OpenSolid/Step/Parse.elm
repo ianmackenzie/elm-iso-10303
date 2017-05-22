@@ -38,37 +38,6 @@ type alias ParsedEntityInstance =
     }
 
 
-isValidCharacter : Char -> Bool
-isValidCharacter character =
-    let
-        code =
-            Char.toCode character
-    in
-        (code >= 0x20 && code <= 0x7E) || (code >= 0x80)
-
-
-file : String -> Result String ( Header, List Entity )
-file string =
-    let
-        contents =
-            String.filter isValidCharacter string
-
-        parser : Parser ( Header, List ParsedEntityInstance )
-        parser =
-            Parser.succeed (,)
-                |. Parser.keyword "ISO-1303-21;"
-                |. whitespace
-                |= header
-                |. whitespace
-                |= Parser.repeat Parser.zeroOrMore entityInstance
-                |. whitespace
-                |. Parser.keyword "END-ISO-10303-21;"
-                |. whitespace
-                |. Parser.end
-    in
-        Err "Not implemented"
-
-
 whitespace : Parser ()
 whitespace =
     let
@@ -433,3 +402,39 @@ header =
             |= stringList
             |. end
             |. Parser.keyword "ENDSEC;"
+
+
+isValidCharacter : Char -> Bool
+isValidCharacter character =
+    let
+        code =
+            Char.toCode character
+    in
+        (code >= 0x20 && code <= 0x7E) || (code >= 0x80)
+
+
+file : String -> Result Parser.Error ( Header, List Entity )
+file string =
+    let
+        contents =
+            String.filter isValidCharacter string
+
+        parser : Parser ( Header, List ParsedEntityInstance )
+        parser =
+            Parser.succeed (,)
+                |. Parser.keyword "ISO-10303-21;"
+                |. whitespace
+                |= header
+                |. whitespace
+                |. Parser.keyword "DATA;"
+                |. whitespace
+                |= Parser.repeat Parser.zeroOrMore entityInstance
+                |. whitespace
+                |. Parser.keyword "ENDSEC;"
+                |. whitespace
+                |. Parser.keyword "END-ISO-10303-21;"
+                |. whitespace
+                |. Parser.end
+    in
+        Parser.run parser contents
+            |> Result.map (Tuple.mapSecond (always []))
