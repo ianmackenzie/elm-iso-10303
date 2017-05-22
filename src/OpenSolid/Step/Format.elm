@@ -62,13 +62,13 @@ codePointToString codePoint =
         "\\"
     else if codePoint >= 0 && codePoint <= 0x1F then
         "\\X\\" ++ hexEncode 2 codePoint
-    else if (codePoint >= 0x20 && codePoint <= 0x7E) then
+    else if codePoint >= 0x20 && codePoint <= 0x7E then
         String.fromChar (Char.fromCode codePoint)
-    else if (codePoint >= 0x7F && codePoint <= 0xFF) then
+    else if codePoint >= 0x7F && codePoint <= 0xFF then
         "\\X\\" ++ hexEncode 2 codePoint
-    else if (codePoint >= 0x0100 && codePoint <= 0xFFFF) then
+    else if codePoint >= 0x0100 && codePoint <= 0xFFFF then
         "\\X2\\" ++ hexEncode 4 codePoint ++ "\\X0\\"
-    else if (codePoint >= 0x00010000 && codePoint <= 0x0010FFFF) then
+    else if codePoint >= 0x00010000 && codePoint <= 0x0010FFFF then
         "\\X4\\" ++ hexEncode 8 codePoint ++ "\\X0\\"
     else
         ""
