@@ -44,9 +44,23 @@ stringAttribute value =
         attributeValue ("'" ++ encoded ++ "'")
 
 
+apostropheCodePoint : Int
+apostropheCodePoint =
+    Char.toCode '\''
+
+
+backslashCodePoint : Int
+backslashCodePoint =
+    Char.toCode '\\'
+
+
 codePointToString : Int -> String
 codePointToString codePoint =
-    if (codePoint >= 0 && codePoint <= 0x1F) then
+    if codePoint == apostropheCodePoint then
+        "''"
+    else if codePoint == backslashCodePoint then
+        "\\"
+    else if codePoint >= 0 && codePoint <= 0x1F then
         "\\X\\" ++ hexEncode 2 codePoint
     else if (codePoint >= 0x20 && codePoint <= 0x7E) then
         String.fromChar (Char.fromCode codePoint)
