@@ -40,20 +40,20 @@ isValidCharacter character =
         (code >= 0x20 && code <= 0x7E) || (code >= 0x80)
 
 
-file : String -> Result String ( Header, List ParsedEntity )
+file : String -> Result String ( Header, List Entity )
 file string =
     let
         contents =
             String.filter isValidCharacter string
 
-        parser : Parser ( Header, List ParsedEntity )
+        parser : Parser ( Header, List ( Int, ParsedEntity ) )
         parser =
             Parser.succeed (,)
                 |. Parser.keyword "ISO-1303-21;"
                 |. whitespace
                 |= header
                 |. whitespace
-                |= entities
+                |= Parser.repeat Parser.zeroOrMore entityInstance
                 |. whitespace
                 |. Parser.keyword "END-ISO-10303-21;"
                 |. whitespace
