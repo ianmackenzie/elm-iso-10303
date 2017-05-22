@@ -297,10 +297,10 @@ attribute =
         Parser.oneOf
             [ defaultAttribute
             , nullAttribute
+            , enumAttribute
             , numericAttribute
             , stringAttribute
             , binaryAttribute
-            , enumAttribute
             , unevaluatedReference
             , typedAttribute
             , attributeList
