@@ -1,4 +1,4 @@
-module OpenSolid.Step.Parse exposing (file, attribute, entity, entityInstance)
+module OpenSolid.Step.Parse exposing (file, attribute, entity, entityInstance, date)
 
 import OpenSolid.Step exposing (Header, Entity)
 import OpenSolid.Step.Types as Types
@@ -9,6 +9,7 @@ import Char
 import String
 import String.Extra as String
 import Bitwise
+import Date exposing (Date)
 
 
 type ParsedAttribute
@@ -358,3 +359,36 @@ entityInstance =
         |= entity
         |. whitespace
         |. Parser.symbol ";"
+
+
+date : Parser Date
+date =
+    let
+        toDate string =
+            Date.fromString string |> Result.withDefault (Date.fromTime 0)
+    in
+        Parser.succeed toDate
+            |. Parser.symbol "'"
+            |= Parser.source
+                (Parser.succeed ()
+                    |. Parser.ignore (Parser.Exactly 4) Char.isDigit
+                    |. Parser.symbol "-"
+                    |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                    |. Parser.symbol "-"
+                    |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                    |. Parser.symbol "T"
+                    |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                    |. Parser.symbol ":"
+                    |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                    |. Parser.symbol ":"
+                    |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                    |. Parser.oneOf
+                        [ Parser.succeed ()
+                            |. Parser.oneOf [ Parser.symbol "+", Parser.symbol "-" ]
+                            |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                            |. Parser.symbol ":"
+                            |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                        , Parser.succeed ()
+                        ]
+                )
+            |. Parser.symbol "'"
