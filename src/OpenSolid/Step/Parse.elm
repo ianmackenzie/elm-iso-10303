@@ -85,7 +85,7 @@ whitespace : Parser ()
 whitespace =
     let
         spaces =
-            Parser.ignore Parser.zeroOrMore (\character -> character == ' ')
+            Parser.ignore Parser.oneOrMore (\character -> character == ' ')
 
         comment =
             Parser.symbol "/*" |. Parser.ignoreUntil "*/"
