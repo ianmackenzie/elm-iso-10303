@@ -10,6 +10,7 @@ import String
 import String.Extra as String
 import Bitwise
 import Date exposing (Date)
+import Dict
 
 
 type ParsedAttribute
@@ -408,6 +409,18 @@ isValidCharacter character =
         (code >= 0x20 && code <= 0x7E) || (code >= 0x80)
 
 
+resolveEntities : List ParsedEntityInstance -> List Entity
+resolveEntities parsedEntities =
+    let
+        parsedMap =
+            Dict.fromList parsedEntities
+
+        resolvedMap =
+            Dict.empty
+    in
+        []
+
+
 file : String -> Result Parser.Error ( Header, List Entity )
 file string =
     let
@@ -436,4 +449,4 @@ file string =
                 |. Parser.end
     in
         Parser.run parser contents
-            |> Result.map (Tuple.mapSecond (always []))
+            |> Result.map (Tuple.mapSecond resolveEntities)
