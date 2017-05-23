@@ -2,7 +2,6 @@ module OpenSolid.Step.Parse exposing (Error(..), file)
 
 import OpenSolid.Step exposing (Header, Entity)
 import OpenSolid.Step.Types as Types
-import OpenSolid.Step.Format as Format
 import Parser exposing (Parser, (|.), (|=))
 import Parser.LanguageKit
 import Char
