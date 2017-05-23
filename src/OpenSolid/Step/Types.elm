@@ -43,3 +43,23 @@ type Attribute
     | ReferenceTo Entity
     | TypedAttribute TypeName Attribute
     | AttributeList (List Attribute)
+
+
+type ParsedAttribute
+    = ParsedDefaultAttribute
+    | ParsedNullAttribute
+    | ParsedBoolAttribute Bool
+    | ParsedIntAttribute Int
+    | ParsedFloatAttribute Float
+    | ParsedStringAttribute String
+    | ParsedBinaryAttribute String
+    | ParsedEnumAttribute EnumName
+    | ParsedReference Int
+    | ParsedTypedAttribute TypeName ParsedAttribute
+    | ParsedAttributeList (List ParsedAttribute)
+
+
+type alias ParsedEntity =
+    { typeName : TypeName
+    , parsedAttributes : List ParsedAttribute
+    }

@@ -1,4 +1,4 @@
-module OpenSolid.Step.Parse exposing (file, attribute, entity, entityInstance, date)
+module OpenSolid.Step.Parse exposing (Error(..), file)
 
 import OpenSolid.Step exposing (Header, Entity)
 import OpenSolid.Step.Types as Types
@@ -10,38 +10,28 @@ import String
 import String.Extra as String
 import Bitwise
 import Date exposing (Date)
-import Dict
+import Dict exposing (Dict)
+import OpenSolid.Step.EntityResolution as EntityResolution
 
 
-type ParsedAttribute
-    = ParsedDefaultAttribute
-    | ParsedNullAttribute
-    | ParsedBoolAttribute Bool
-    | ParsedIntAttribute Int
-    | ParsedFloatAttribute Float
-    | ParsedStringAttribute String
-    | ParsedBinaryAttribute String
-    | ParsedEnumAttribute Types.EnumName
-    | ParsedReference Int
-    | ParsedTypedAttribute Types.TypeName ParsedAttribute
-    | ParsedAttributeList (List ParsedAttribute)
+type Error
+    = ParseError Int Int String
+    | ResolveError Int
 
 
-type alias ParsedEntity =
-    { typeName : Types.TypeName
-    , parsedAttributes : List ParsedAttribute
-    }
-
-
-type alias ParsedEntityInstance =
-    ( Int, ParsedEntity )
+isWhitespace : Char -> Bool
+isWhitespace character =
+    (character == ' ')
+        || (character == '\t')
+        || (character == '\n')
+        || (character == '\x0D')
 
 
 whitespace : Parser ()
 whitespace =
     let
         spaces =
-            Parser.ignore Parser.oneOrMore (\character -> character == ' ')
+            Parser.ignore Parser.oneOrMore isWhitespace
 
         comment =
             Parser.symbol "/*" |. Parser.ignoreUntil "*/"
@@ -224,17 +214,17 @@ id =
         |= Parser.int
 
 
-attribute : Parser ParsedAttribute
+attribute : Parser Types.ParsedAttribute
 attribute =
     let
         defaultAttribute =
-            default |> Parser.map (\() -> ParsedDefaultAttribute)
+            default |> Parser.map (\() -> Types.ParsedDefaultAttribute)
 
         nullAttribute =
-            null |> Parser.map (\() -> ParsedNullAttribute)
+            null |> Parser.map (\() -> Types.ParsedNullAttribute)
 
         boolAttribute =
-            bool |> Parser.map ParsedBoolAttribute
+            bool |> Parser.map Types.ParsedBoolAttribute
 
         numericAttribute =
             Parser.oneOf
@@ -248,25 +238,25 @@ attribute =
                 |> Parser.sourceMap
                     (\rawString parsedFloat ->
                         if String.contains "." rawString then
-                            ParsedFloatAttribute parsedFloat
+                            Types.ParsedFloatAttribute parsedFloat
                         else
-                            ParsedIntAttribute (round parsedFloat)
+                            Types.ParsedIntAttribute (round parsedFloat)
                     )
 
         stringAttribute =
-            string |> Parser.map ParsedStringAttribute
+            string |> Parser.map Types.ParsedStringAttribute
 
         binaryAttribute =
-            binary |> Parser.map ParsedBinaryAttribute
+            binary |> Parser.map Types.ParsedBinaryAttribute
 
         enumAttribute =
-            enum |> Parser.map ParsedEnumAttribute
+            enum |> Parser.map Types.ParsedEnumAttribute
 
         unevaluatedReference =
-            id |> Parser.map ParsedReference
+            id |> Parser.map Types.ParsedReference
 
         typedAttribute =
-            Parser.succeed ParsedTypedAttribute
+            Parser.succeed Types.ParsedTypedAttribute
                 |= typeName
                 |. whitespace
                 |. Parser.symbol "("
@@ -278,7 +268,7 @@ attribute =
         attributeList =
             Parser.LanguageKit.tuple whitespace
                 (Parser.lazy (\() -> attribute))
-                |> Parser.map ParsedAttributeList
+                |> Parser.map Types.ParsedAttributeList
     in
         Parser.oneOf
             [ defaultAttribute
@@ -294,15 +284,15 @@ attribute =
             ]
 
 
-entity : Parser ParsedEntity
+entity : Parser Types.ParsedEntity
 entity =
-    Parser.succeed ParsedEntity
+    Parser.succeed Types.ParsedEntity
         |= typeName
         |. whitespace
         |= Parser.LanguageKit.tuple whitespace attribute
 
 
-entityInstance : Parser ParsedEntityInstance
+entityInstance : Parser ( Int, Types.ParsedEntity )
 entityInstance =
     Parser.succeed (,)
         |= id
@@ -312,6 +302,7 @@ entityInstance =
         |= entity
         |. whitespace
         |. Parser.symbol ";"
+        |. whitespace
 
 
 date : Parser Date
@@ -400,53 +391,41 @@ header =
             |. end
 
 
-isValidCharacter : Char -> Bool
-isValidCharacter character =
-    let
-        code =
-            Char.toCode character
-    in
-        (code >= 0x20 && code <= 0x7E) || (code >= 0x80)
+fileParser : Parser ( Header, List ( Int, Types.ParsedEntity ) )
+fileParser =
+    Parser.succeed (,)
+        |. Parser.keyword "ISO-10303-21;"
+        |. whitespace
+        |. Parser.keyword "HEADER;"
+        |. whitespace
+        |= header
+        |. whitespace
+        |. Parser.keyword "ENDSEC;"
+        |. whitespace
+        |. Parser.keyword "DATA;"
+        |. whitespace
+        |= Parser.repeat Parser.zeroOrMore entityInstance
+        |. whitespace
+        |. Parser.keyword "ENDSEC;"
+        |. whitespace
+        |. Parser.keyword "END-ISO-10303-21;"
+        |. whitespace
+        |. Parser.end
 
 
-resolveEntities : List ParsedEntityInstance -> List Entity
-resolveEntities parsedEntities =
-    let
-        parsedMap =
-            Dict.fromList parsedEntities
-
-        resolvedMap =
-            Dict.empty
-    in
-        []
-
-
-file : String -> Result Parser.Error ( Header, List Entity )
+file : String -> Result Error ( Header, Dict Int Entity )
 file string =
-    let
-        contents =
-            String.filter isValidCharacter string
-
-        parser : Parser ( Header, List ParsedEntityInstance )
-        parser =
-            Parser.succeed (,)
-                |. Parser.keyword "ISO-10303-21;"
-                |. whitespace
-                |. Parser.keyword "HEADER;"
-                |. whitespace
-                |= header
-                |. whitespace
-                |. Parser.keyword "ENDSEC;"
-                |. whitespace
-                |. Parser.keyword "DATA;"
-                |. whitespace
-                |= Parser.repeat Parser.zeroOrMore entityInstance
-                |. whitespace
-                |. Parser.keyword "ENDSEC;"
-                |. whitespace
-                |. Parser.keyword "END-ISO-10303-21;"
-                |. whitespace
-                |. Parser.end
-    in
-        Parser.run parser contents
-            |> Result.map (Tuple.mapSecond resolveEntities)
+    Parser.run fileParser string
+        |> Result.mapError
+            (\{ row, col, problem } ->
+                ParseError row col (toString problem)
+            )
+        |> Result.andThen
+            (\( header, parsedEntityInstances ) ->
+                EntityResolution.resolve parsedEntityInstances
+                    |> Result.mapError
+                        (\(EntityResolution.NonexistentEntity id) ->
+                            ResolveError id
+                        )
+                    |> Result.map (\entities -> ( header, entities ))
+            )
