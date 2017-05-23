@@ -6,7 +6,6 @@ module OpenSolid.Step.EntityMap
         , toList
         )
 
-import OpenSolid.Step.Types exposing (..)
 import Dict exposing (Dict)
 
 
