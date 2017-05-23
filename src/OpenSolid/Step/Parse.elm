@@ -22,12 +22,16 @@ import OpenSolid.Step.EntityResolution as EntityResolution
 
 {-| Types of errors that can be encountered when parsing a file:
 
-    - A `ParseError` means an error actually parsing STEP text; this means that
-      either the STEP file is improperly formatted or (more likely!) it uses
-      an aspect of STEP syntax that is not yet supported by this package.
-    - A `ResolveError` means that the file was parsed OK, but an error occurred
-      when a reference such as `#23` was found in one entity but no entity with
-      that ID existed in the file.
+  - A `ParseError` means an error actually parsing STEP text; this means that
+    either the STEP file is improperly formatted or (more likely!) it uses
+    an aspect of STEP syntax that is not yet supported by this package. The
+    three parameters are the row and column number where the error occurred,
+    and an error string that can be used for debugging (not suitable to be
+    shown to end users).
+  - A `ResolveError` means that the file was parsed OK, but an error occurred
+    when a reference such as `#23` was found in one entity but no entity with
+    that ID existed in the file. The integer parameter is the ID of the
+    nonexistent entity.
 
 -}
 type Error
