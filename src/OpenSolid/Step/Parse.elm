@@ -10,7 +10,6 @@ module OpenSolid.Step.Parse exposing (Error(..), file)
 import OpenSolid.Step exposing (Header, Entity)
 import OpenSolid.Step.Types as Types
 import Parser exposing (Parser, (|.), (|=))
-import Parser.LanguageKit
 import Char
 import String
 import String.Extra as String
@@ -58,6 +57,33 @@ whitespace =
     in
         Parser.repeat Parser.zeroOrMore (Parser.oneOf [ spaces, comment ])
             |> Parser.map (always ())
+
+
+comma : Parser ()
+comma =
+    Parser.succeed ()
+        |. whitespace
+        |. Parser.symbol ","
+        |. whitespace
+
+
+list : Parser a -> Parser (List a)
+list item =
+    Parser.succeed identity
+        |. Parser.symbol "("
+        |. whitespace
+        |= Parser.oneOf
+            [ Parser.symbol ")" |> Parser.map (\() -> [])
+            , Parser.succeed (\first rest -> first :: rest)
+                |= item
+                |= Parser.repeat Parser.zeroOrMore
+                    (Parser.succeed identity
+                        |. comma
+                        |= item
+                    )
+                |. whitespace
+                |. Parser.symbol ")"
+            ]
 
 
 keyword : Parser String
@@ -286,8 +312,7 @@ attribute =
                 |. Parser.symbol ")"
 
         attributeList =
-            Parser.LanguageKit.tuple whitespace
-                (Parser.lazy (\() -> attribute))
+            list (Parser.lazy (\() -> attribute))
                 |> Parser.map Types.ParsedAttributeList
     in
         Parser.oneOf
@@ -309,7 +334,7 @@ entity =
     Parser.succeed Types.ParsedEntity
         |= typeName
         |. whitespace
-        |= Parser.LanguageKit.tuple whitespace attribute
+        |= list attribute
 
 
 entityInstance : Parser ( Int, Types.ParsedEntity )
@@ -368,12 +393,6 @@ header =
                 |. Parser.symbol "("
                 |. whitespace
 
-        comma =
-            Parser.succeed ()
-                |. whitespace
-                |. Parser.symbol ","
-                |. whitespace
-
         end =
             Parser.succeed ()
                 |. whitespace
@@ -383,7 +402,7 @@ header =
                 |. whitespace
 
         stringList =
-            Parser.LanguageKit.tuple whitespace string
+            list string
     in
         Parser.succeed Header
             |. start "FILE_DESCRIPTION"
