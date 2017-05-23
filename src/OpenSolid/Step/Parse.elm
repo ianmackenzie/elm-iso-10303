@@ -1,5 +1,12 @@
 module OpenSolid.Step.Parse exposing (Error(..), file)
 
+{-| Functionality for parsing STEP files to produce a `Header` and a list of
+`Entity` values.
+
+@docs Error, file
+
+-}
+
 import OpenSolid.Step exposing (Header, Entity)
 import OpenSolid.Step.Types as Types
 import Parser exposing (Parser, (|.), (|=))
@@ -13,6 +20,16 @@ import Dict exposing (Dict)
 import OpenSolid.Step.EntityResolution as EntityResolution
 
 
+{-| Types of errors that can be encountered when parsing a file:
+
+    - A `ParseError` means an error actually parsing STEP text; this means that
+      either the STEP file is improperly formatted or (more likely!) it uses
+      an aspect of STEP syntax that is not yet supported by this package.
+    - A `ResolveError` means that the file was parsed OK, but an error occurred
+      when a reference such as `#23` was found in one entity but no entity with
+      that ID existed in the file.
+
+-}
 type Error
     = ParseError Int Int String
     | ResolveError Int
@@ -412,6 +429,10 @@ fileParser =
         |. Parser.end
 
 
+{-| Attempt to parse a string of text loaded from a STEP file. On success,
+returns a record containing information from the file header and a `Dict`
+containing `Entity` values indexed by their ID.
+-}
 file : String -> Result Error ( Header, Dict Int Entity )
 file string =
     Parser.run fileParser string
