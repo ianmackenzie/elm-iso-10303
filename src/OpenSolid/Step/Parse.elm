@@ -452,6 +452,16 @@ fileParser =
         |. Parser.end
 
 
+toParseError : Parser.Error -> Error
+toParseError { row, col, problem } =
+    ParseError row col (toString problem)
+
+
+toResolveError : EntityResolution.Error -> Error
+toResolveError (EntityResolution.NonexistentEntity id) =
+    ResolveError id
+
+
 {-| Attempt to parse a string of text loaded from a STEP file. On success,
 returns a record containing information from the file header and a `Dict`
 containing `Entity` values indexed by their ID.
@@ -459,16 +469,10 @@ containing `Entity` values indexed by their ID.
 file : String -> Result Error ( Header, Dict Int Entity )
 file string =
     Parser.run fileParser string
-        |> Result.mapError
-            (\{ row, col, problem } ->
-                ParseError row col (toString problem)
-            )
+        |> Result.mapError toParseError
         |> Result.andThen
             (\( header, parsedEntityInstances ) ->
                 EntityResolution.resolve parsedEntityInstances
-                    |> Result.mapError
-                        (\(EntityResolution.NonexistentEntity id) ->
-                            ResolveError id
-                        )
+                    |> Result.mapError toResolveError
                     |> Result.map (\entities -> ( header, entities ))
             )
