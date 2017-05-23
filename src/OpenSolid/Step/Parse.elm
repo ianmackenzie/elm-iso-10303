@@ -38,19 +38,16 @@ type Error
     | ResolveError Int
 
 
-isWhitespace : Char -> Bool
-isWhitespace character =
-    (character == ' ')
-        || (character == '\t')
-        || (character == '\n')
-        || (character == '\x0D')
+isSpace : Char -> Bool
+isSpace character =
+    character == ' '
 
 
 whitespace : Parser ()
 whitespace =
     let
         spaces =
-            Parser.ignore Parser.oneOrMore isWhitespace
+            Parser.ignore Parser.oneOrMore isSpace
 
         comment =
             Parser.symbol "/*" |. Parser.ignoreUntil "*/"
@@ -108,13 +105,7 @@ typeName =
 
 isBasic : Char -> Bool
 isBasic character =
-    let
-        code =
-            Char.toCode character
-    in
-        (code >= 0x20 && code <= 0x7E)
-            && (character /= '\'')
-            && (character /= '\\')
+    character /= '\'' && character /= '\\'
 
 
 isHexCharacter : Char -> Bool
@@ -468,7 +459,7 @@ containing `Entity` values indexed by their ID.
 -}
 file : String -> Result Error ( Header, Dict Int Entity )
 file string =
-    Parser.run fileParser string
+    Parser.run fileParser (String.concat (String.lines string))
         |> Result.mapError toParseError
         |> Result.andThen
             (\( header, parsedEntityInstances ) ->
