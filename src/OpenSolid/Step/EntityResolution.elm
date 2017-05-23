@@ -143,11 +143,17 @@ addEntities parsedEntityInstances entityResolution =
             Ok entityResolution
 
         ( id, parsedEntity ) :: rest ->
-            addEntity id parsedEntity entityResolution
-                |> Result.andThen
-                    (\( _, updatedResolution ) ->
+            let
+                addResult =
+                    addEntity id parsedEntity entityResolution
+                        |> Result.map Tuple.second
+            in
+                case addResult of
+                    Ok updatedResolution ->
                         addEntities rest updatedResolution
-                    )
+
+                    Err _ ->
+                        addResult
 
 
 resolve : List ( Int, Types.ParsedEntity ) -> Result Error (Dict Int Types.Entity)
