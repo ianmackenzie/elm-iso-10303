@@ -270,8 +270,7 @@ enum value =
 
 
 {-| Construct a binary-valued attribute. The provided string is assumed to
-already be hex encoded as required by the STEP standard (i.e., every four bits
-are represented by one hexadecimal character).
+already be hex encoded as required by the STEP standard.
 -}
 binary : String -> Attribute
 binary value =
