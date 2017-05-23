@@ -57,7 +57,7 @@ whitespace =
             Parser.symbol "/*" |. Parser.ignoreUntil "*/"
     in
         Parser.repeat Parser.zeroOrMore (Parser.oneOf [ spaces, comment ])
-            |> Parser.andThen (always (Parser.succeed ()))
+            |> Parser.map (always ())
 
 
 keyword : Parser String
