@@ -1,34 +1,80 @@
 module Read exposing (..)
 
+import OpenSolid.Step as Step
 import OpenSolid.Step.Parse as Parse
-import RemoteData exposing (WebData)
-import Dict
+import RemoteData exposing (RemoteData)
+import Dict exposing (Dict)
 import Json.Decode as Decode
 import Http
 import Kintail.InputWidget as InputWidget
 import Html exposing (Html)
 import Html.Events
+import Time exposing (Time)
+import Task exposing (Task)
+import Process
 
 
-type alias StepData =
-    WebData String
+type StepFile
+    = Unparsed String
+    | Parsed ( Time, Dict Int Step.Entity )
 
 
 type alias Model =
     { fileName : String
-    , stepData : StepData
+    , stepData : RemoteData String StepFile
     }
 
 
 type Msg
     = FileNameEdited String
     | LoadRequested
-    | DataReceived StepData
+    | DataReceived String
+    | LoadFailed
+    | FileParsed ( Time, Dict Int Step.Entity )
+    | ParseFailed String
 
 
 init : ( Model, Cmd Msg )
 init =
     ( { fileName = "", stepData = RemoteData.NotAsked }, Cmd.none )
+
+
+parse : String -> Task String ( Time, Dict Int Step.Entity )
+parse string =
+    Process.sleep (0.1 * Time.second)
+        |> Task.andThen
+            (\() ->
+                Time.now
+                    |> Task.andThen
+                        (\startTime ->
+                            case Parse.file string of
+                                Ok ( header, entities ) ->
+                                    Time.now
+                                        |> Task.map
+                                            (\finishTime ->
+                                                ( finishTime - startTime
+                                                , entities
+                                                )
+                                            )
+
+                                Err (Parse.ParseError row column message) ->
+                                    Task.fail
+                                        ("Parse error at row "
+                                            ++ toString row
+                                            ++ ", column "
+                                            ++ toString column
+                                            ++ ": "
+                                            ++ message
+                                        )
+
+                                Err (Parse.ResolveError id) ->
+                                    Task.fail
+                                        ("Nonexistent entity with id "
+                                            ++ toString id
+                                            ++ " referenced"
+                                        )
+                        )
+            )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -51,13 +97,50 @@ update message model =
                         , timeout = Nothing
                         , withCredentials = False
                         }
+
+                handleResult result =
+                    case result of
+                        Ok string ->
+                            DataReceived string
+
+                        Err _ ->
+                            LoadFailed
             in
                 ( { model | stepData = RemoteData.Loading }
-                , RemoteData.sendRequest request |> Cmd.map DataReceived
+                , Http.send handleResult request
                 )
 
-        DataReceived stepData ->
-            ( { model | stepData = stepData }, Cmd.none )
+        DataReceived string ->
+            let
+                handleResult result =
+                    case result of
+                        Ok tuple ->
+                            FileParsed tuple
+
+                        Err message ->
+                            ParseFailed message
+
+                parseCmd =
+                    Task.attempt handleResult (parse string)
+            in
+                ( { model | stepData = RemoteData.Success (Unparsed string) }
+                , parseCmd
+                )
+
+        LoadFailed ->
+            ( { model | stepData = RemoteData.Failure "Could not load file" }
+            , Cmd.none
+            )
+
+        FileParsed tuple ->
+            ( { model | stepData = RemoteData.Success (Parsed tuple) }
+            , Cmd.none
+            )
+
+        ParseFailed message ->
+            ( { model | stepData = RemoteData.Failure message }
+            , Cmd.none
+            )
 
 
 view : Model -> Html Msg
@@ -76,41 +159,21 @@ view model =
                 RemoteData.Loading ->
                     [ Html.text "Loading..." ]
 
-                RemoteData.Failure _ ->
-                    [ Html.text "Load failed" ]
+                RemoteData.Failure message ->
+                    [ Html.text message ]
 
                 RemoteData.Success stepData ->
-                    case Parse.file stepData of
-                        Ok ( header, entities ) ->
+                    case stepData of
+                        Unparsed _ ->
+                            [ Html.text "Parsing..." ]
+
+                        Parsed ( time, entities ) ->
                             [ Html.text
-                                (toString (Dict.size entities) ++ " entities")
-                            ]
-
-                        Err (Parse.ParseError row column message) ->
-                            [ Html.div []
-                                [ Html.text
-                                    ("Parse error at row "
-                                        ++ toString row
-                                        ++ ", column "
-                                        ++ toString column
-                                        ++ ": "
-                                        ++ message
-                                    )
-                                ]
-                            , Html.div []
-                                [ Html.text stepData ]
-                            ]
-
-                        Err (Parse.ResolveError id) ->
-                            [ Html.div []
-                                [ Html.text
-                                    ("Nonexistent entity with id "
-                                        ++ toString id
-                                        ++ " referenced"
-                                    )
-                                ]
-                            , Html.div []
-                                [ Html.text stepData ]
+                                (toString (Dict.size entities)
+                                    ++ " entities, parsed in "
+                                    ++ toString (Time.inSeconds time)
+                                    ++ " seconds"
+                                )
                             ]
             )
         ]
