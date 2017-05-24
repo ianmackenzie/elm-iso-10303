@@ -38,22 +38,16 @@ type Error
     | ResolveError Int
 
 
-isWhitespace : Char -> Bool
-isWhitespace character =
-    character == ' ' || character == '\n'
-
-
 whitespace : Parser ()
 whitespace =
-    let
-        spaces =
-            Parser.ignore Parser.oneOrMore isWhitespace
-
-        comment =
-            Parser.symbol "/*" |. Parser.ignoreUntil "*/"
-    in
-        Parser.repeat Parser.zeroOrMore (Parser.oneOf [ spaces, comment ])
-            |> Parser.map (always ())
+    Parser.repeat Parser.zeroOrMore
+        (Parser.oneOf
+            [ Parser.symbol " "
+            , Parser.symbol "\n"
+            , Parser.symbol "/*" |. Parser.ignoreUntil "*/"
+            ]
+        )
+        |> Parser.map (always ())
 
 
 comma : Parser ()
