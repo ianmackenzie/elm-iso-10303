@@ -38,16 +38,16 @@ type Error
     | ResolveError Int
 
 
-isSpace : Char -> Bool
-isSpace character =
-    character == ' '
+isWhitespace : Char -> Bool
+isWhitespace character =
+    character == ' ' || character == '\n'
 
 
 whitespace : Parser ()
 whitespace =
     let
         spaces =
-            Parser.ignore Parser.oneOrMore isSpace
+            Parser.ignore Parser.oneOrMore isWhitespace
 
         comment =
             Parser.symbol "/*" |. Parser.ignoreUntil "*/"
@@ -459,7 +459,7 @@ containing `Entity` values indexed by their ID.
 -}
 file : String -> Result Error ( Header, Dict Int Entity )
 file string =
-    Parser.run fileParser (String.concat (String.lines string))
+    Parser.run fileParser (String.join "\n" (String.lines string))
         |> Result.mapError toParseError
         |> Result.andThen
             (\( header, parsedEntityInstances ) ->
