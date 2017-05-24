@@ -263,21 +263,50 @@ attribute =
         boolAttribute =
             bool |> Parser.map Types.ParsedBoolAttribute
 
-        numericAttribute =
+        optionalSign =
             Parser.oneOf
-                [ Parser.symbol "+"
-                    |> Parser.andThen (\() -> Parser.float)
-                , Parser.symbol "-"
-                    |> Parser.andThen (\() -> Parser.float)
-                    |> Parser.map negate
-                , Parser.float
-                ]
-                |> Parser.sourceMap
-                    (\rawString parsedFloat ->
-                        if String.contains "." rawString then
-                            Types.ParsedFloatAttribute parsedFloat
+                [ Parser.symbol "+", Parser.symbol "-", Parser.succeed () ]
+
+        digits =
+            Parser.ignore Parser.oneOrMore Char.isDigit
+
+        optionalDigits =
+            Parser.ignore Parser.zeroOrMore Char.isDigit
+
+        numericAttribute =
+            Parser.sourceMap (,)
+                (Parser.succeed identity
+                    |. optionalSign
+                    |. digits
+                    |= Parser.oneOf
+                        [ Parser.succeed True
+                            |. Parser.symbol "."
+                            |. optionalDigits
+                            |. Parser.oneOf
+                                [ Parser.symbol "E" |. optionalSign |. digits
+                                , Parser.succeed ()
+                                ]
+                        , Parser.succeed False
+                        ]
+                )
+                |> Parser.andThen
+                    (\( string, isFloat ) ->
+                        if isFloat then
+                            case String.toFloat string of
+                                Ok value ->
+                                    Parser.succeed
+                                        (Types.ParsedFloatAttribute value)
+
+                                Err message ->
+                                    Parser.fail message
                         else
-                            Types.ParsedIntAttribute (round parsedFloat)
+                            case String.toInt string of
+                                Ok value ->
+                                    Parser.succeed
+                                        (Types.ParsedIntAttribute value)
+
+                                Err message ->
+                                    Parser.fail message
                     )
 
         stringAttribute =
