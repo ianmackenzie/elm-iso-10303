@@ -49,8 +49,8 @@ fail description =
 
 
 entity : a -> Decoder Entity a
-entity value =
-    Decoder (always (Ok value))
+entity constructor =
+    Decoder (always (Ok constructor))
 
 
 attribute : Int -> Decoder Attribute a -> Decoder Entity (a -> b) -> Decoder Entity b
