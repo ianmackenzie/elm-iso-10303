@@ -1,13 +1,14 @@
 module OpenSolid.Step
     exposing
         ( Attribute
+        , Decoder
         , Entity
         , Header
         )
 
 {-| Read and write STEP files in Elm.
 
-@docs Header, Entity, Attribute
+@docs Header, Entity, Attribute, Decoder
 
 -}
 
@@ -42,3 +43,11 @@ GUID string, or a reference to another entity.
 -}
 type alias Attribute =
     Types.Attribute
+
+
+{-| A `Decoder` describes how to attempt to decode a given `Entity` or
+`Attribute` to produce a value of another type. See the `Decode` module for
+details on how to use and construct decoders.
+-}
+type alias Decoder i a =
+    Types.Decoder i a

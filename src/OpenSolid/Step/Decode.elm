@@ -1,7 +1,6 @@
 module OpenSolid.Step.Decode
     exposing
-        ( Decoder
-        , attribute
+        ( attribute
         , bool
         , decodeAttribute
         , decodeEntity
@@ -19,13 +18,9 @@ module OpenSolid.Step.Decode
 
 import List
 import List.Extra as List
-import OpenSolid.Step exposing (Attribute, Entity, Header)
+import OpenSolid.Step exposing (Attribute, Decoder, Entity, Header)
 import OpenSolid.Step.Types as Types
 import Parser
-
-
-type Decoder i a
-    = Decoder (i -> Result String a)
 
 
 decodeFile : Decoder Entity a -> String -> Result String (List a)
