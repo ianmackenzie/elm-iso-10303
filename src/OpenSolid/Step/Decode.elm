@@ -2,9 +2,9 @@ module OpenSolid.Step.Decode
     exposing
         ( attribute
         , bool
-        , decodeFile
         , entity
         , fail
+        , file
         , float
         , int
         , map
@@ -22,8 +22,8 @@ import OpenSolid.Step.Types as Types
 import Parser
 
 
-decodeFile : Decoder Entity a -> String -> Result String (List a)
-decodeFile entityDecoder string =
+file : Decoder Entity a -> String -> Result String (List a)
+file entityDecoder string =
     Err "Not implemented"
 
 
