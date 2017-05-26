@@ -1,8 +1,8 @@
 module OpenSolid.Step
     exposing
-        ( Header
+        ( Attribute
         , Entity
-        , Attribute
+        , Header
         )
 
 {-| Read and write STEP files in Elm.
@@ -11,8 +11,8 @@ module OpenSolid.Step
 
 -}
 
-import OpenSolid.Step.Types
 import Date exposing (Date)
+import OpenSolid.Step.Types
 
 
 {-| Represents the data stored in the header section of a STEP file.

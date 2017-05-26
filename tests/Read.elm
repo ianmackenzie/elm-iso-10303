@@ -1,17 +1,17 @@
 module Read exposing (..)
 
-import OpenSolid.Step as Step
-import OpenSolid.Step.Parse as Parse
-import RemoteData exposing (RemoteData)
 import Dict exposing (Dict)
-import Json.Decode as Decode
-import Http
-import Kintail.InputWidget as InputWidget
 import Html exposing (Html)
 import Html.Events
-import Time exposing (Time)
-import Task exposing (Task)
+import Http
+import Json.Decode as Decode
+import Kintail.InputWidget as InputWidget
+import OpenSolid.Step as Step
+import OpenSolid.Step.Parse as Parse
 import Process
+import RemoteData exposing (RemoteData)
+import Task exposing (Task)
+import Time exposing (Time)
 
 
 type StepFile
@@ -106,9 +106,9 @@ update message model =
                         Err _ ->
                             LoadFailed
             in
-                ( { model | stepData = RemoteData.Loading }
-                , Http.send handleResult request
-                )
+            ( { model | stepData = RemoteData.Loading }
+            , Http.send handleResult request
+            )
 
         DataReceived string ->
             let
@@ -123,9 +123,9 @@ update message model =
                 parseCmd =
                     Task.attempt handleResult (parse string)
             in
-                ( { model | stepData = RemoteData.Success (Unparsed string) }
-                , parseCmd
-                )
+            ( { model | stepData = RemoteData.Success (Unparsed string) }
+            , parseCmd
+            )
 
         LoadFailed ->
             ( { model | stepData = RemoteData.Failure "Could not load file" }

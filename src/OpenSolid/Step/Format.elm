@@ -1,32 +1,32 @@
 module OpenSolid.Step.Format
     exposing
-        ( stringAttribute
-        , binaryAttribute
-        , enumAttribute
-        , date
+        ( binaryAttribute
         , boolAttribute
-        , intAttribute
-        , floatAttribute
-        , referenceTo
+        , date
         , defaultAttribute
-        , nullAttribute
-        , listAttribute
-        , typeName
-        , enumName
-        , typedAttribute
-        , id
         , entity
+        , enumAttribute
+        , enumName
+        , floatAttribute
+        , id
+        , intAttribute
+        , listAttribute
+        , nullAttribute
+        , referenceTo
+        , stringAttribute
+        , typeName
+        , typedAttribute
         )
 
 {-| Various string-formatting utilities, many of which wrap their result in
 a type such as AttributeValue to improve type safety.
 -}
 
-import String.Extra
-import Char
 import Bitwise
+import Char
 import Date exposing (Date, Month)
 import OpenSolid.Step.Types as Types
+import String.Extra
 
 
 attributeValue : String -> Types.AttributeValue
@@ -42,7 +42,7 @@ stringAttribute value =
                 |> List.map codePointToString
                 |> String.concat
     in
-        attributeValue ("'" ++ encoded ++ "'")
+    attributeValue ("'" ++ encoded ++ "'")
 
 
 apostropheCodePoint : Int
@@ -82,7 +82,7 @@ hexEncode size value =
             List.range 1 size
                 |> List.map (\i -> hexCharacterAtIndex (size - i) value)
     in
-        String.concat characters
+    String.concat characters
 
 
 hexCharacterAtIndex : Int -> Int -> String
@@ -91,12 +91,12 @@ hexCharacterAtIndex index value =
         hexDigit =
             Bitwise.and 0x0F (Bitwise.shiftRightBy (index * 4) value)
     in
-        if hexDigit >= 0 && hexDigit <= 9 then
-            String.fromChar (Char.fromCode (Char.toCode '0' + hexDigit))
-        else if hexDigit >= 0 && hexDigit <= 15 then
-            String.fromChar (Char.fromCode (Char.toCode 'A' + (hexDigit - 10)))
-        else
-            ""
+    if hexDigit >= 0 && hexDigit <= 9 then
+        String.fromChar (Char.fromCode (Char.toCode '0' + hexDigit))
+    else if hexDigit >= 0 && hexDigit <= 15 then
+        String.fromChar (Char.fromCode (Char.toCode 'A' + (hexDigit - 10)))
+    else
+        ""
 
 
 binaryAttribute : String -> Types.AttributeValue
@@ -238,7 +238,7 @@ listAttribute attributeValues =
                         rawAttributeValue
                     )
     in
-        attributeValue ("(" ++ String.join "," rawAttributeValues ++ ")")
+    attributeValue ("(" ++ String.join "," rawAttributeValues ++ ")")
 
 
 typeName : String -> Types.TypeName
@@ -271,4 +271,4 @@ entity (Types.TypeName rawTypeName) attributeValues =
                         rawAttributeValue
                     )
     in
-        rawTypeName ++ "(" ++ String.join "," rawAttributeValues ++ ")"
+    rawTypeName ++ "(" ++ String.join "," rawAttributeValues ++ ")"

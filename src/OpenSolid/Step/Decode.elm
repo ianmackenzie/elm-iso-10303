@@ -1,27 +1,27 @@
 module OpenSolid.Step.Decode
     exposing
         ( Decoder
-        , decodeFile
-        , decodeEntity
-        , decodeAttribute
-        , succeed
-        , fail
-        , entity
         , attribute
-        , map
-        , toEntity
-        , toAttribute
         , bool
-        , int
+        , decodeAttribute
+        , decodeEntity
+        , decodeFile
+        , entity
+        , fail
         , float
+        , int
+        , map
         , string
+        , succeed
+        , toAttribute
+        , toEntity
         )
 
-import OpenSolid.Step exposing (Header, Entity, Attribute)
-import OpenSolid.Step.Types as Types
-import Parser
 import List
 import List.Extra as List
+import OpenSolid.Step exposing (Attribute, Entity, Header)
+import OpenSolid.Step.Types as Types
+import Parser
 
 
 type Decoder i a

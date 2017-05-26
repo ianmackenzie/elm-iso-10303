@@ -7,16 +7,16 @@ module OpenSolid.Step.Parse exposing (Error(..), file)
 
 -}
 
-import OpenSolid.Step exposing (Header, Entity)
-import OpenSolid.Step.Types as Types
-import Parser exposing (Parser, (|.), (|=))
-import Char
-import String
-import String.Extra as String
 import Bitwise
+import Char
 import Date exposing (Date)
 import Dict exposing (Dict)
+import OpenSolid.Step exposing (Entity, Header)
 import OpenSolid.Step.EntityResolution as EntityResolution
+import OpenSolid.Step.Types as Types
+import Parser exposing ((|.), (|=), Parser)
+import String
+import String.Extra as String
 
 
 {-| Types of errors that can be encountered when parsing a file:
@@ -86,10 +86,10 @@ keyword =
         validOtherCharacter character =
             validFirstCharacter character || Char.isDigit character
     in
-        Parser.source
-            (Parser.ignore (Parser.Exactly 1) validFirstCharacter
-                |. Parser.ignore Parser.zeroOrMore validOtherCharacter
-            )
+    Parser.source
+        (Parser.ignore (Parser.Exactly 1) validFirstCharacter
+            |. Parser.ignore Parser.zeroOrMore validOtherCharacter
+        )
 
 
 typeName : Parser Types.TypeName
@@ -140,11 +140,11 @@ x2 hexDigits =
     let
         codePoint ( a, b, c, d ) =
             d
-                + (Bitwise.shiftLeftBy 4 c)
-                + (Bitwise.shiftLeftBy 8 b)
-                + (Bitwise.shiftLeftBy 12 a)
+                + Bitwise.shiftLeftBy 4 c
+                + Bitwise.shiftLeftBy 8 b
+                + Bitwise.shiftLeftBy 12 a
     in
-        String.fromCodePoints (List.map codePoint hexDigits)
+    String.fromCodePoints (List.map codePoint hexDigits)
 
 
 x4 : List ( Int, Int, Int, Int, Int, Int ) -> String
@@ -152,13 +152,13 @@ x4 hexDigits =
     let
         codePoint ( a, b, c, d, e, f ) =
             f
-                + (Bitwise.shiftLeftBy 4 e)
-                + (Bitwise.shiftLeftBy 8 d)
-                + (Bitwise.shiftLeftBy 12 c)
-                + (Bitwise.shiftLeftBy 16 b)
-                + (Bitwise.shiftLeftBy 20 a)
+                + Bitwise.shiftLeftBy 4 e
+                + Bitwise.shiftLeftBy 8 d
+                + Bitwise.shiftLeftBy 12 c
+                + Bitwise.shiftLeftBy 16 b
+                + Bitwise.shiftLeftBy 20 a
     in
-        String.fromCodePoints (List.map codePoint hexDigits)
+    String.fromCodePoints (List.map codePoint hexDigits)
 
 
 string : Parser String
@@ -329,18 +329,18 @@ attribute =
             list (Parser.lazy (\() -> attribute))
                 |> Parser.map Types.ParsedAttributeList
     in
-        Parser.oneOf
-            [ defaultAttribute
-            , nullAttribute
-            , boolAttribute
-            , enumAttribute
-            , numericAttribute
-            , stringAttribute
-            , binaryAttribute
-            , unevaluatedReference
-            , typedAttribute
-            , attributeList
-            ]
+    Parser.oneOf
+        [ defaultAttribute
+        , nullAttribute
+        , boolAttribute
+        , enumAttribute
+        , numericAttribute
+        , stringAttribute
+        , binaryAttribute
+        , unevaluatedReference
+        , typedAttribute
+        , attributeList
+        ]
 
 
 entity : Parser Types.ParsedEntity
@@ -370,31 +370,31 @@ date =
         toDate string =
             Date.fromString string |> Result.withDefault (Date.fromTime 0)
     in
-        Parser.succeed toDate
-            |. Parser.symbol "'"
-            |= Parser.source
-                (Parser.succeed ()
-                    |. Parser.ignore (Parser.Exactly 4) Char.isDigit
-                    |. Parser.symbol "-"
-                    |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                    |. Parser.symbol "-"
-                    |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                    |. Parser.symbol "T"
-                    |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                    |. Parser.symbol ":"
-                    |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                    |. Parser.symbol ":"
-                    |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                    |. Parser.oneOf
-                        [ Parser.succeed ()
-                            |. Parser.oneOf [ Parser.symbol "+", Parser.symbol "-" ]
-                            |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                            |. Parser.symbol ":"
-                            |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                        , Parser.succeed ()
-                        ]
-                )
-            |. Parser.symbol "'"
+    Parser.succeed toDate
+        |. Parser.symbol "'"
+        |= Parser.source
+            (Parser.succeed ()
+                |. Parser.ignore (Parser.Exactly 4) Char.isDigit
+                |. Parser.symbol "-"
+                |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                |. Parser.symbol "-"
+                |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                |. Parser.symbol "T"
+                |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                |. Parser.symbol ":"
+                |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                |. Parser.symbol ":"
+                |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                |. Parser.oneOf
+                    [ Parser.succeed ()
+                        |. Parser.oneOf [ Parser.symbol "+", Parser.symbol "-" ]
+                        |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                        |. Parser.symbol ":"
+                        |. Parser.ignore (Parser.Exactly 2) Char.isDigit
+                    , Parser.succeed ()
+                    ]
+            )
+        |. Parser.symbol "'"
 
 
 header : Parser Header
@@ -418,30 +418,30 @@ header =
         stringList =
             list string
     in
-        Parser.succeed Header
-            |. start "FILE_DESCRIPTION"
-            |= stringList
-            |. comma
-            |. Parser.keyword "'2;1'"
-            |. end
-            |. start "FILE_NAME"
-            |= string
-            |. comma
-            |= date
-            |. comma
-            |= stringList
-            |. comma
-            |= stringList
-            |. comma
-            |= string
-            |. comma
-            |= string
-            |. comma
-            |= string
-            |. end
-            |. start "FILE_SCHEMA"
-            |= stringList
-            |. end
+    Parser.succeed Header
+        |. start "FILE_DESCRIPTION"
+        |= stringList
+        |. comma
+        |. Parser.keyword "'2;1'"
+        |. end
+        |. start "FILE_NAME"
+        |= string
+        |. comma
+        |= date
+        |. comma
+        |= stringList
+        |. comma
+        |= stringList
+        |. comma
+        |= string
+        |. comma
+        |= string
+        |. comma
+        |= string
+        |. end
+        |. start "FILE_SCHEMA"
+        |= stringList
+        |. end
 
 
 fileParser : Parser ( Header, List ( Int, Types.ParsedEntity ) )

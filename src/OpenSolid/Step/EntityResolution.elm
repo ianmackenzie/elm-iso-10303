@@ -1,7 +1,7 @@
 module OpenSolid.Step.EntityResolution exposing (Error(..), resolve)
 
-import OpenSolid.Step.Types as Types
 import Dict exposing (Dict)
+import OpenSolid.Step.Types as Types
 
 
 type Error
@@ -45,7 +45,7 @@ addEntity id parsedEntity entityResolution =
                             updatedResolution =
                                 store id entity resolutionWithAttributes
                         in
-                            ( entity, updatedResolution )
+                        ( entity, updatedResolution )
                     )
 
 
@@ -148,12 +148,12 @@ addEntities parsedEntityInstances entityResolution =
                     addEntity id parsedEntity entityResolution
                         |> Result.map Tuple.second
             in
-                case addResult of
-                    Ok updatedResolution ->
-                        addEntities rest updatedResolution
+            case addResult of
+                Ok updatedResolution ->
+                    addEntities rest updatedResolution
 
-                    Err _ ->
-                        addResult
+                Err _ ->
+                    addResult
 
 
 resolve : List ( Int, Types.ParsedEntity ) -> Result Error (Dict Int Types.Entity)
@@ -162,5 +162,5 @@ resolve parsedEntityInstances =
         entityResolution =
             init parsedEntityInstances
     in
-        addEntities parsedEntityInstances entityResolution
-            |> Result.map .resolvedMap
+    addEntities parsedEntityInstances entityResolution
+        |> Result.map .resolvedMap

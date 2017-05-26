@@ -1,22 +1,22 @@
 module OpenSolid.Step.Encode
     exposing
-        ( file
-        , entity
-        , referenceTo
-        , default
-        , null
-        , int
-        , float
-        , string
-        , enum
-        , binary
-        , list
-        , intAs
-        , floatAs
-        , stringAs
-        , enumAs
+        ( binary
         , binaryAs
+        , default
+        , entity
+        , enum
+        , enumAs
+        , file
+        , float
+        , floatAs
+        , int
+        , intAs
+        , list
         , listAs
+        , null
+        , referenceTo
+        , string
+        , stringAs
         )
 
 {-| Functions for encoding data in STEP format.
@@ -45,10 +45,10 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 
 -}
 
-import OpenSolid.Step exposing (Header, Entity, Attribute)
-import OpenSolid.Step.Types as Types
+import OpenSolid.Step exposing (Attribute, Entity, Header)
 import OpenSolid.Step.EntityMap as EntityMap exposing (EntityMap)
 import OpenSolid.Step.Format as Format
+import OpenSolid.Step.Types as Types
 
 
 {-| Create a STEP-encoded string that can be written out to a file.
@@ -101,9 +101,9 @@ headerString header =
                 |> addEntity fileSchemaEntity
                 |> Tuple.second
     in
-        EntityMap.toList entityMap
-            |> List.map Tuple.second
-            |> String.join "\n"
+    EntityMap.toList entityMap
+        |> List.map Tuple.second
+        |> String.join "\n"
 
 
 entitiesString : List Entity -> String
@@ -117,9 +117,9 @@ entitiesString entities =
                 EntityMap.empty
                 entities
     in
-        EntityMap.toList entityMap
-            |> List.map (\( id, string ) -> Format.id id ++ "=" ++ string)
-            |> String.join "\n"
+    EntityMap.toList entityMap
+        |> List.map (\( id, string ) -> Format.id id ++ "=" ++ string)
+        |> String.join "\n"
 
 
 addEntity : Entity -> EntityMap -> ( Int, EntityMap )
@@ -131,7 +131,7 @@ addEntity (Types.Entity typeName attributes) entityMap =
         entityString =
             Format.entity typeName attributeValues
     in
-        EntityMap.add entityString mapWithAttributes
+    EntityMap.add entityString mapWithAttributes
 
 
 addAttributes : List Attribute -> EntityMap -> ( List Types.AttributeValue, EntityMap )
@@ -142,9 +142,9 @@ addAttributes attributes entityMap =
                 ( attributeValue, mapWithAttribute ) =
                     addAttribute attribute accumulatedMap
             in
-                ( attributeValue :: accumulatedAttributeValues
-                , mapWithAttribute
-                )
+            ( attributeValue :: accumulatedAttributeValues
+            , mapWithAttribute
+            )
         )
         ( [], entityMap )
         attributes
@@ -183,21 +183,21 @@ addAttribute attribute entityMap =
                 ( entityId, updatedMap ) =
                     addEntity entity entityMap
             in
-                ( Format.referenceTo entityId, updatedMap )
+            ( Format.referenceTo entityId, updatedMap )
 
         Types.TypedAttribute typeName attribute ->
             let
                 ( attributeValue, updatedMap ) =
                     addAttribute attribute entityMap
             in
-                ( Format.typedAttribute typeName attributeValue, updatedMap )
+            ( Format.typedAttribute typeName attributeValue, updatedMap )
 
         Types.AttributeList attributes ->
             let
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap
             in
-                ( Format.listAttribute attributeValues, mapWithAttributes )
+            ( Format.listAttribute attributeValues, mapWithAttributes )
 
 
 {-| Construct a single STEP entity from a type name and list of attributes.

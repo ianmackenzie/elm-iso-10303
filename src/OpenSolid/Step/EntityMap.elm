@@ -1,8 +1,8 @@
 module OpenSolid.Step.EntityMap
     exposing
         ( EntityMap
-        , empty
         , add
+        , empty
         , toList
         )
 
