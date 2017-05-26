@@ -2,14 +2,13 @@ module OpenSolid.Step.Decode
     exposing
         ( attribute
         , bool
-        , decodeAttribute
-        , decodeEntity
         , decodeFile
         , entity
         , fail
         , float
         , int
         , map
+        , run
         , string
         , succeed
         , toAttribute
@@ -28,14 +27,9 @@ decodeFile entityDecoder string =
     Err "Not implemented"
 
 
-decodeEntity : Decoder Entity a -> Entity -> Result String a
-decodeEntity (Decoder function) entity =
-    function entity
-
-
-decodeAttribute : Decoder Attribute a -> Attribute -> Result String a
-decodeAttribute (Decoder function) attribute =
-    function attribute
+run : Decoder i a -> i -> Result String a
+run (Decoder function) input =
+    function input
 
 
 succeed : a -> Decoder i a
