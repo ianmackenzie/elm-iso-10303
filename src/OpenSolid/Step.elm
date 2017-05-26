@@ -12,7 +12,7 @@ module OpenSolid.Step
 -}
 
 import Date exposing (Date)
-import OpenSolid.Step.Types
+import OpenSolid.Step.Types as Types
 
 
 {-| Represents the data stored in the header section of a STEP file.
@@ -34,11 +34,11 @@ type alias Header =
 as a point, curve, assembly or entire building.
 -}
 type alias Entity =
-    OpenSolid.Step.Types.Entity
+    Types.Entity
 
 
 {-| Represents a single attribute of a STEP entity, such as X coordinate value,
 GUID string, or a reference to another entity.
 -}
 type alias Attribute =
-    OpenSolid.Step.Types.Attribute
+    Types.Attribute
