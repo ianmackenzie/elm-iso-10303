@@ -9,8 +9,7 @@
     "exposed-modules": [
         "OpenSolid.Step",
         "OpenSolid.Step.Encode",
-        "OpenSolid.Step.Entity",
-        "OpenSolid.Step.Parse"
+        "OpenSolid.Step.Entity"
     ],
     "dependencies": {
         "elm-community/list-extra": "6.1.0 <= v < 7.0.0",

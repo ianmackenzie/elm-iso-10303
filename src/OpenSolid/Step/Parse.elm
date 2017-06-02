@@ -15,6 +15,8 @@ import OpenSolid.Step exposing (Entity, Header)
 import OpenSolid.Step.EntityResolution as EntityResolution
 import OpenSolid.Step.Types as Types
 import Parser exposing ((|.), (|=), Parser)
+import Parser.LowLevel
+import Regex exposing (Regex)
 import String
 import String.Extra as String
 
@@ -444,7 +446,14 @@ header =
         |. end
 
 
-fileParser : Parser ( Header, List ( Int, Types.ParsedEntity ) )
+entitiesString : Parser String
+entitiesString =
+    Parser.succeed String.dropLeft
+        |= Parser.LowLevel.getOffset
+        |= Parser.LowLevel.getSource
+
+
+fileParser : Parser ( Header, String )
 fileParser =
     Parser.succeed (,)
         |. Parser.keyword "ISO-10303-21;"
@@ -457,13 +466,7 @@ fileParser =
         |. whitespace
         |. Parser.keyword "DATA;"
         |. whitespace
-        |= Parser.repeat Parser.zeroOrMore entityInstance
-        |. whitespace
-        |. Parser.keyword "ENDSEC;"
-        |. whitespace
-        |. Parser.keyword "END-ISO-10303-21;"
-        |. whitespace
-        |. Parser.end
+        |= entitiesString
 
 
 toParseError : Parser.Error -> Error
@@ -476,17 +479,55 @@ toResolveError (EntityResolution.NonexistentEntity id) =
     ResolveError id
 
 
+entityRegex : Regex
+entityRegex =
+    Regex.regex "#(\\d+)\\s*=\\s*(\\w+)\\(((?:.|\\n)*?)\\);\\s*\\n(?=(?:#(?:\\d+)\\s*=)|(?:ENDSEC;\\s*\\n))"
+
+
+matchToUnparsedEntity : Regex.Match -> Maybe ( Int, String, String )
+matchToUnparsedEntity match =
+    case match.submatches of
+        [ Just idString, Just typeName, Just attributesString ] ->
+            case String.toInt idString of
+                Ok id ->
+                    Just ( id, typeName, attributesString )
+
+                Err message ->
+                    let
+                        _ =
+                            Debug.log "Couldn't parse ID" idString
+                    in
+                    Nothing
+
+        _ ->
+            let
+                _ =
+                    Debug.log "Bad submatches" match.submatches
+            in
+            Nothing
+
+
+unparsedEntities : String -> List ( Int, String, String )
+unparsedEntities string =
+    Regex.find Regex.All entityRegex string
+        |> List.filterMap matchToUnparsedEntity
+
+
 {-| Attempt to parse a string of text loaded from a STEP file. On success,
 returns a record containing information from the file header and a `Dict`
 containing `Entity` values indexed by their ID.
 -}
-file : String -> Result Error ( Header, Dict Int Entity )
+file : String -> Result Error ( Header, List ( Int, String, String ) )
 file string =
     Parser.run fileParser (String.join "\n" (String.lines string))
         |> Result.mapError toParseError
-        |> Result.andThen
-            (\( header, parsedEntityInstances ) ->
-                EntityResolution.resolve parsedEntityInstances
-                    |> Result.mapError toResolveError
-                    |> Result.map (\entities -> ( header, entities ))
-            )
+        |> Result.map (Tuple.mapSecond unparsedEntities)
+
+
+
+--|> Result.andThen
+--    (\( header, parsedEntityInstances ) ->
+--        EntityResolution.resolve parsedEntityInstances
+--            |> Result.mapError toResolveError
+--            |> Result.map (\entities -> ( header, entities ))
+--    )
