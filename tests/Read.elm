@@ -2,7 +2,8 @@ module Read exposing (..)
 
 import Dict exposing (Dict)
 import Html exposing (Html)
-import Html.Events
+import Html.Attributes as Attributes
+import Html.Events as Events
 import Http
 import Json.Decode as Decode
 import Kintail.InputWidget as InputWidget
@@ -16,7 +17,7 @@ import Time exposing (Time)
 
 type StepFile
     = Unparsed String
-    | Parsed ( Time, Dict Int Step.Entity )
+    | Parsed ( Time, List ( Int, String, String ) )
 
 
 type alias Model =
@@ -30,7 +31,7 @@ type Msg
     | LoadRequested
     | DataReceived String
     | LoadFailed
-    | FileParsed ( Time, Dict Int Step.Entity )
+    | FileParsed ( Time, List ( Int, String, String ) )
     | ParseFailed String
 
 
@@ -39,7 +40,7 @@ init =
     ( { fileName = "", stepData = RemoteData.NotAsked }, Cmd.none )
 
 
-parse : String -> Task String ( Time, Dict Int Step.Entity )
+parse : String -> Task String ( Time, List ( Int, String, String ) )
 parse string =
     Process.sleep (0.1 * Time.second)
         |> Task.andThen
@@ -48,12 +49,12 @@ parse string =
                     |> Task.andThen
                         (\startTime ->
                             case Parse.file string of
-                                Ok ( header, entities ) ->
+                                Ok ( header, unparsedEntities ) ->
                                     Time.now
                                         |> Task.map
                                             (\finishTime ->
                                                 ( finishTime - startTime
-                                                , entities
+                                                , unparsedEntities
                                                 )
                                             )
 
@@ -148,7 +149,7 @@ view model =
     Html.div []
         [ Html.div []
             [ InputWidget.lineEdit [] model.fileName |> Html.map FileNameEdited
-            , Html.button [ Html.Events.onClick LoadRequested ]
+            , Html.button [ Events.onClick LoadRequested ]
                 [ Html.text "Load" ]
             ]
         , Html.div []
@@ -167,13 +168,15 @@ view model =
                         Unparsed _ ->
                             [ Html.text "Parsing..." ]
 
-                        Parsed ( time, entities ) ->
-                            [ Html.text
-                                (toString (Dict.size entities)
-                                    ++ " entities, parsed in "
-                                    ++ toString (Time.inSeconds time)
-                                    ++ " seconds"
-                                )
+                        Parsed ( time, unparsedEntities ) ->
+                            [ Html.div []
+                                [ Html.text
+                                    (toString (List.length unparsedEntities)
+                                        ++ " parsed in "
+                                        ++ toString (Time.inSeconds time)
+                                        ++ " seconds"
+                                    )
+                                ]
                             ]
             )
         ]
