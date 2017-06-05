@@ -481,7 +481,21 @@ toResolveError (EntityResolution.NonexistentEntity id) =
 
 entityRegex : Regex
 entityRegex =
-    Regex.regex "#(\\d+)\\s*=\\s*(\\w+)\\(((?:.|\\n)*?)\\);\\s*\\n(?=(?:#(?:\\d+)\\s*=)|(?:ENDSEC;\\s*\\n))"
+    Regex.regex <|
+        String.concat
+            [ "#(\\d+)" -- entity ID (capture #1)
+            , "\\s*=\\s*" -- equals
+            , "(\\w+)" -- entity type (capture #2)
+            , "\\(" -- opening parenthesis
+            , "((?:.|\\n)*?)" -- all attributes (capture #3)
+            , "\\);" -- closing parenthesis
+            , "\\s*\\n" -- newline
+            , "(?=" -- followed by (lookahead assertion):
+            , "(?:#(?:\\d+)\\s*=)" -- the start of another entity
+            , "|" -- OR
+            , "(?:ENDSEC;\\s*\\n)" -- the end of the data section
+            , ")"
+            ]
 
 
 matchToUnparsedEntity : Regex.Match -> Maybe ( Int, String, String )
