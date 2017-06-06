@@ -498,13 +498,148 @@ entityRegex =
             ]
 
 
+atMostOne : Regex.HowMany
+atMostOne =
+    Regex.AtMost 1
+
+
+leadingAttributeRegex : String -> Regex
+leadingAttributeRegex pattern =
+    Regex.regex <|
+        String.concat
+            [ "^" -- start of string
+            , pattern -- may or may not be captured - up to caller
+            , "(?:\\s|\\n)*" -- optional whitespace
+            , "," -- comma
+            , "(?:\\s|\\n)*" -- optional whitespace
+            , "((?:.|\\n)*)" -- remaining attribute data (captured)
+            ]
+
+
+drop : String -> Types.ParsedAttribute -> String -> String -> Result String ( Types.ParsedAttribute, String )
+drop attributeType parsedAttribute pattern =
+    let
+        leadingRegex =
+            leadingAttributeRegex pattern
+
+        error attributesString =
+            Err
+                ("Could not parse "
+                    ++ attributeType
+                    ++ " from \""
+                    ++ attributesString
+                    ++ "\""
+                )
+    in
+    \attributesString ->
+        case Regex.find atMostOne leadingRegex attributesString of
+            [ match ] ->
+                case match.submatches of
+                    [ Just remainingString ] ->
+                        Ok ( parsedAttribute, remainingString )
+
+                    _ ->
+                        error attributesString
+
+            _ ->
+                error attributesString
+
+
+read : String -> (a -> Types.ParsedAttribute) -> (String -> Result String a) -> String -> String -> Result String ( Types.ParsedAttribute, String )
+read attributeType constructor parseValue pattern =
+    let
+        leadingRegex =
+            leadingAttributeRegex pattern
+
+        error attributesString =
+            Err
+                ("Could not parse "
+                    ++ attributeType
+                    ++ " from \""
+                    ++ attributesString
+                    ++ "\""
+                )
+    in
+    \attributesString ->
+        case Regex.find atMostOne leadingRegex attributesString of
+            [ match ] ->
+                case match.submatches of
+                    [ Just valueString, Just remainingString ] ->
+                        parseValue valueString
+                            |> Result.map
+                                (\value ->
+                                    ( constructor value, remainingString )
+                                )
+
+                    _ ->
+                        error attributesString
+
+            _ ->
+                error attributesString
+
+
+consumeDefault : String -> Result String ( Types.ParsedAttribute, String )
+consumeDefault =
+    drop "default attribute" Types.ParsedDefaultAttribute "\\*"
+
+
+consumeNull : String -> Result String ( Types.ParsedAttribute, String )
+consumeNull =
+    drop "null attribute" Types.ParsedNullAttribute "\\$"
+
+
+consumeEntityReference : String -> Result String ( Types.ParsedAttribute, String )
+consumeEntityReference =
+    read "entity reference" Types.ParsedReference String.toInt "#(\\d+)"
+
+
+consumeTrue : String -> Result String ( Types.ParsedAttribute, String )
+consumeTrue =
+    drop "true value" (Types.ParsedBoolAttribute True) "\\.T\\."
+
+
+consumeFalse : String -> Result String ( Types.ParsedAttribute, String )
+consumeFalse =
+    drop "false value" (Types.ParsedBoolAttribute False) "\\.F\\."
+
+
+consumeEnum : String -> Result String ( Types.ParsedAttribute, String )
+consumeEnum =
+    let
+        parseEnumName string =
+            Ok (Types.EnumName string)
+    in
+    read "enum value"
+        Types.ParsedEnumAttribute
+        parseEnumName
+        "\\.([A-Z_][A-Z_0-9]*)\\."
+
+
+readAttribute : String -> Result String ( Types.ParsedAttribute, String )
+readAttribute attributesString =
+    if String.startsWith "*" attributesString then
+        consumeDefault attributesString
+    else if String.startsWith "$" attributesString then
+        consumeNull attributesString
+    else if String.startsWith "#" attributesString then
+        consumeEntityReference attributesString
+    else if String.startsWith ".T." attributesString then
+        consumeTrue attributesString
+    else if String.startsWith ".F." attributesString then
+        consumeFalse attributesString
+    else if String.startsWith "." attributesString then
+        consumeEnum attributesString
+    else
+        Err ("Could not parse attributes string \"" ++ attributesString ++ "\"")
+
+
 matchToUnparsedEntity : Regex.Match -> Maybe ( Int, String, String )
 matchToUnparsedEntity match =
     case match.submatches of
         [ Just idString, Just typeName, Just attributesString ] ->
             case String.toInt idString of
                 Ok id ->
-                    Just ( id, typeName, attributesString )
+                    Just ( id, typeName, String.trimLeft attributesString )
 
                 Err message ->
                     let
