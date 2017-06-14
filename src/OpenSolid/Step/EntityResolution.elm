@@ -127,13 +127,18 @@ addAttributeListHelp parsedAttributeList reversedAttributeList entityResolution 
             Ok ( reversedAttributeList, entityResolution )
 
         first :: rest ->
-            addAttribute first entityResolution
-                |> Result.andThen
-                    (\( attribute, updatedResolution ) ->
-                        addAttributeListHelp rest
-                            (attribute :: reversedAttributeList)
-                            updatedResolution
-                    )
+            let
+                addResult =
+                    addAttribute first entityResolution
+            in
+            case addResult of
+                Ok ( attribute, updatedResolution ) ->
+                    addAttributeListHelp rest
+                        (attribute :: reversedAttributeList)
+                        updatedResolution
+
+                Err error ->
+                    Err error
 
 
 addEntities : List ( Int, Types.ParsedEntity ) -> EntityResolution -> Result Error EntityResolution
