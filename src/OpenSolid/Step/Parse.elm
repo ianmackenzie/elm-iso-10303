@@ -111,13 +111,13 @@ attribute : Parser Types.ParsedAttribute
 attribute =
     let
         defaultAttribute =
-            default |> Parser.map (\() -> Types.ParsedDefaultAttribute)
             Parser.symbol "*"
                 |> Parser.map (\() -> Types.ParsedDefaultAttribute)
 
         nullAttribute =
             Parser.symbol "$"
                 |> Parser.map (\() -> Types.ParsedNullAttribute)
+
         trueAttribute =
             Parser.keyword ".T."
                 |> Parser.map (\() -> Types.ParsedBoolAttribute True)
