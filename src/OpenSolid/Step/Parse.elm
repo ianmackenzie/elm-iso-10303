@@ -15,6 +15,7 @@ import OpenSolid.Step exposing (Entity, Header)
 import OpenSolid.Step.EntityResolution as EntityResolution
 import OpenSolid.Step.Types as Types
 import Parser exposing ((|.), (|=), Parser)
+import Regex
 import String
 import String.Extra as String
 
@@ -38,31 +39,15 @@ type Error
     | ResolveError Int
 
 
-whitespace : Parser ()
-whitespace =
-    Parser.repeat Parser.zeroOrMore
-        (Parser.oneOf
-            [ Parser.symbol " "
-            , Parser.symbol "\n"
-            , Parser.symbol "/*" |. Parser.ignoreUntil "*/"
-            ]
-        )
-        |> Parser.map (always ())
-
-
 comma : Parser ()
 comma =
-    Parser.succeed ()
-        |. whitespace
-        |. Parser.symbol ","
-        |. whitespace
+    Parser.symbol ","
 
 
 list : Parser a -> Parser (List a)
 list item =
     Parser.succeed identity
         |. Parser.symbol "("
-        |. whitespace
         |= Parser.oneOf
             [ Parser.symbol ")" |> Parser.map (\() -> [])
             , Parser.succeed (\first rest -> first :: rest)
@@ -72,7 +57,6 @@ list item =
                         |. comma
                         |= item
                     )
-                |. whitespace
                 |. Parser.symbol ")"
             ]
 
@@ -97,145 +81,23 @@ typeName =
     keyword |> Parser.map Types.TypeName
 
 
-isBasic : Char -> Bool
-isBasic character =
-    character /= '\'' && character /= '\\'
-
-
-isHexCharacter : Char -> Bool
-isHexCharacter character =
-    (character >= '0' && character <= '9')
-        || (character >= 'A' && character <= 'F')
-
-
-hexDigit : Parser Int
-hexDigit =
-    Parser.oneOf
-        [ Parser.symbol "0" |> Parser.map (\() -> 0)
-        , Parser.symbol "1" |> Parser.map (\() -> 1)
-        , Parser.symbol "2" |> Parser.map (\() -> 2)
-        , Parser.symbol "3" |> Parser.map (\() -> 3)
-        , Parser.symbol "4" |> Parser.map (\() -> 4)
-        , Parser.symbol "5" |> Parser.map (\() -> 5)
-        , Parser.symbol "6" |> Parser.map (\() -> 6)
-        , Parser.symbol "7" |> Parser.map (\() -> 7)
-        , Parser.symbol "8" |> Parser.map (\() -> 8)
-        , Parser.symbol "9" |> Parser.map (\() -> 9)
-        , Parser.symbol "A" |> Parser.map (\() -> 10)
-        , Parser.symbol "B" |> Parser.map (\() -> 11)
-        , Parser.symbol "C" |> Parser.map (\() -> 12)
-        , Parser.symbol "D" |> Parser.map (\() -> 13)
-        , Parser.symbol "E" |> Parser.map (\() -> 14)
-        , Parser.symbol "F" |> Parser.map (\() -> 15)
-        ]
-
-
-x0 : Int -> Int -> String
-x0 high low =
-    String.fromCodePoints [ Bitwise.shiftLeftBy 4 high + low ]
-
-
-x2 : List ( Int, Int, Int, Int ) -> String
-x2 hexDigits =
-    let
-        codePoint ( a, b, c, d ) =
-            d
-                + Bitwise.shiftLeftBy 4 c
-                + Bitwise.shiftLeftBy 8 b
-                + Bitwise.shiftLeftBy 12 a
-    in
-    String.fromCodePoints (List.map codePoint hexDigits)
-
-
-x4 : List ( Int, Int, Int, Int, Int, Int ) -> String
-x4 hexDigits =
-    let
-        codePoint ( a, b, c, d, e, f ) =
-            f
-                + Bitwise.shiftLeftBy 4 e
-                + Bitwise.shiftLeftBy 8 d
-                + Bitwise.shiftLeftBy 12 c
-                + Bitwise.shiftLeftBy 16 b
-                + Bitwise.shiftLeftBy 20 a
-    in
-    String.fromCodePoints (List.map codePoint hexDigits)
-
-
 string : Parser String
 string =
-    Parser.succeed String.concat
-        |. Parser.symbol "'"
-        |= Parser.repeat Parser.zeroOrMore
-            (Parser.oneOf
-                [ Parser.symbol "''" |> Parser.map (\() -> "'")
-                , Parser.symbol "\\\\" |> Parser.map (\() -> "\\")
-                , Parser.succeed x0
-                    |. Parser.symbol "\\X\\"
-                    |= hexDigit
-                    |= hexDigit
-                , Parser.succeed x2
-                    |. Parser.symbol "\\X2\\"
-                    |= Parser.repeat Parser.oneOrMore
-                        (Parser.succeed (,,,)
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                        )
-                    |. Parser.symbol "\\X0\\"
-                , Parser.succeed x4
-                    |. Parser.symbol "\\X4\\"
-                    |= Parser.repeat Parser.oneOrMore
-                        (Parser.succeed (,,,,,)
-                            |. Parser.symbol "0"
-                            |. Parser.symbol "0"
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                        )
-                    |. Parser.symbol "\\X0\\"
-                , Parser.keep Parser.oneOrMore isBasic
-                ]
-            )
-        |. Parser.symbol "'"
-
-
-bool : Parser Bool
-bool =
-    Parser.oneOf
-        [ Parser.keyword ".T." |> Parser.map (\() -> True)
-        , Parser.keyword ".F." |> Parser.map (\() -> False)
-        ]
-
-
-default : Parser ()
-default =
-    Parser.symbol "*"
-
-
-null : Parser ()
-null =
-    Parser.symbol "$"
+    Parser.repeat Parser.oneOrMore
+        (Parser.source (Parser.symbol "'" |. Parser.ignoreUntil "'"))
+        |> Parser.map (String.concat >> String.slice 1 -1)
 
 
 binary : Parser String
 binary =
-    Parser.succeed identity
-        |. Parser.symbol "\""
-        |= Parser.keep Parser.oneOrMore isHexCharacter
-        |. Parser.symbol "\""
+    Parser.source (Parser.symbol "\"" |. Parser.ignoreUntil "\"")
+        |> Parser.map (String.slice 1 -1)
 
 
 enum : Parser Types.EnumName
 enum =
-    Parser.succeed identity
-        |. Parser.symbol "."
-        |= keyword
-        |. Parser.symbol "."
-        |> Parser.map Types.EnumName
+    Parser.source (Parser.symbol "." |. Parser.ignoreUntil ".")
+        |> Parser.map (String.slice 1 -1 >> Types.EnumName)
 
 
 id : Parser Int
@@ -250,12 +112,19 @@ attribute =
     let
         defaultAttribute =
             default |> Parser.map (\() -> Types.ParsedDefaultAttribute)
+            Parser.symbol "*"
+                |> Parser.map (\() -> Types.ParsedDefaultAttribute)
 
         nullAttribute =
-            null |> Parser.map (\() -> Types.ParsedNullAttribute)
+            Parser.symbol "$"
+                |> Parser.map (\() -> Types.ParsedNullAttribute)
+        trueAttribute =
+            Parser.keyword ".T."
+                |> Parser.map (\() -> Types.ParsedBoolAttribute True)
 
-        boolAttribute =
-            bool |> Parser.map Types.ParsedBoolAttribute
+        falseAttribute =
+            Parser.keyword ".F."
+                |> Parser.map (\() -> Types.ParsedBoolAttribute False)
 
         optionalSign =
             Parser.oneOf
@@ -318,11 +187,8 @@ attribute =
         typedAttribute =
             Parser.succeed Types.ParsedTypedAttribute
                 |= typeName
-                |. whitespace
                 |. Parser.symbol "("
-                |. whitespace
                 |= Parser.lazy (\() -> attribute)
-                |. whitespace
                 |. Parser.symbol ")"
 
         attributeList =
@@ -332,7 +198,8 @@ attribute =
     Parser.oneOf
         [ defaultAttribute
         , nullAttribute
-        , boolAttribute
+        , trueAttribute
+        , falseAttribute
         , enumAttribute
         , numericAttribute
         , stringAttribute
@@ -347,7 +214,6 @@ entity : Parser Types.ParsedEntity
 entity =
     Parser.succeed Types.ParsedEntity
         |= typeName
-        |. whitespace
         |= list attribute
 
 
@@ -355,13 +221,9 @@ entityInstance : Parser ( Int, Types.ParsedEntity )
 entityInstance =
     Parser.succeed (,)
         |= id
-        |. whitespace
         |. Parser.symbol "="
-        |. whitespace
         |= entity
-        |. whitespace
         |. Parser.symbol ";"
-        |. whitespace
 
 
 date : Parser Date
@@ -401,19 +263,10 @@ header : Parser Header
 header =
     let
         start typeName =
-            Parser.succeed ()
-                |. Parser.keyword typeName
-                |. whitespace
-                |. Parser.symbol "("
-                |. whitespace
+            Parser.symbol (typeName ++ "(")
 
         end =
-            Parser.succeed ()
-                |. whitespace
-                |. Parser.symbol ")"
-                |. whitespace
-                |. Parser.symbol ";"
-                |. whitespace
+            Parser.symbol ");"
 
         stringList =
             list string
@@ -448,22 +301,51 @@ fileParser : Parser ( Header, List ( Int, Types.ParsedEntity ) )
 fileParser =
     Parser.succeed (,)
         |. Parser.keyword "ISO-10303-21;"
-        |. whitespace
         |. Parser.keyword "HEADER;"
-        |. whitespace
         |= header
-        |. whitespace
         |. Parser.keyword "ENDSEC;"
-        |. whitespace
         |. Parser.keyword "DATA;"
-        |. whitespace
         |= Parser.repeat Parser.zeroOrMore entityInstance
-        |. whitespace
         |. Parser.keyword "ENDSEC;"
-        |. whitespace
         |. Parser.keyword "END-ISO-10303-21;"
-        |. whitespace
         |. Parser.end
+
+
+{-| Pre-process the file contents to make them easier to parse
+-}
+prepareString : String -> String
+prepareString =
+    let
+        joinLines =
+            String.lines >> String.join ""
+
+        removeMatches regex =
+            Regex.replace Regex.All regex (always "")
+
+        commentRegex =
+            Regex.regex "/\\*.*?\\*/"
+
+        stripComments =
+            removeMatches commentRegex
+
+        whitespaceRegex =
+            Regex.regex "[ \\n\\r]+"
+
+        chunkRegex =
+            Regex.regex "(?:[^']+)|(?:'[^']*')"
+
+        chunkReplacement { match } =
+            if String.startsWith "'" match then
+                -- Don't do anything to string chunks
+                match
+            else
+                -- Strip whitespace out of everything else
+                removeMatches whitespaceRegex match
+
+        stripWhitespaceOutsideStrings =
+            Regex.replace Regex.All chunkRegex chunkReplacement
+    in
+    joinLines >> stripComments >> stripWhitespaceOutsideStrings
 
 
 toParseError : Parser.Error -> Error
@@ -482,7 +364,7 @@ containing `Entity` values indexed by their ID.
 -}
 file : String -> Result Error ( Header, Dict Int Entity )
 file string =
-    Parser.run fileParser (String.join "\n" (String.lines string))
+    Parser.run fileParser (prepareString string)
         |> Result.mapError toParseError
         |> Result.andThen
             (\( header, parsedEntityInstances ) ->
