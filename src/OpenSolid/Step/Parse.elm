@@ -311,6 +311,12 @@ fileParser =
         |. Parser.end
 
 
+type ChunkState
+    = InComment
+    | InString
+    | Neither
+
+
 {-| Pre-process the file contents to make them easier to parse
 -}
 prepareString : String -> String
@@ -319,33 +325,61 @@ prepareString =
         joinLines =
             String.lines >> String.join ""
 
-        removeMatches regex =
-            Regex.replace Regex.All regex (always "")
+        separatorRegex =
+            Regex.regex "(?=/\\*|\\*/|')"
 
-        commentRegex =
-            Regex.regex "/\\*.*?\\*/"
+        stripSpaces =
+            Regex.replace Regex.All (Regex.regex " ") (always "")
 
-        stripComments =
-            removeMatches commentRegex
+        stripWhitespace string =
+            let
+                chunks =
+                    Regex.split Regex.All separatorRegex string
 
-        whitespaceRegex =
-            Regex.regex "[ \\n\\r]+"
+                initialState =
+                    ( Neither, "" )
 
-        chunkRegex =
-            Regex.regex "(?:[^']+)|(?:'[^']*')"
+                update chunk ( currentState, _ ) =
+                    if String.startsWith "'" chunk then
+                        case currentState of
+                            InComment ->
+                                ( InComment, "" )
 
-        chunkReplacement { match } =
-            if String.startsWith "'" match then
-                -- Don't do anything to string chunks
-                match
-            else
-                -- Strip whitespace out of everything else
-                removeMatches whitespaceRegex match
+                            InString ->
+                                ( Neither, stripSpaces chunk )
 
-        stripWhitespaceOutsideStrings =
-            Regex.replace Regex.All chunkRegex chunkReplacement
+                            Neither ->
+                                ( InString, chunk )
+                    else if String.startsWith "/*" chunk then
+                        case currentState of
+                            InComment ->
+                                ( InComment, "" )
+
+                            InString ->
+                                ( InString, chunk )
+
+                            Neither ->
+                                ( InComment, "" )
+                    else if String.startsWith "*/" chunk then
+                        case currentState of
+                            InComment ->
+                                ( Neither
+                                , stripSpaces (String.dropLeft 2 chunk)
+                                )
+
+                            InString ->
+                                ( InString, chunk )
+
+                            Neither ->
+                                ( Neither, chunk )
+                    else
+                        ( Neither, stripSpaces chunk )
+            in
+            List.scanl update initialState chunks
+                |> List.map Tuple.second
+                |> String.concat
     in
-    joinLines >> stripComments >> stripWhitespaceOutsideStrings
+    joinLines >> stripWhitespace
 
 
 toParseError : Parser.Error -> Error
