@@ -7,7 +7,6 @@ module OpenSolid.Step.Parse exposing (Error(..), file)
 
 -}
 
-import Bitwise
 import Char
 import Date exposing (Date)
 import Dict exposing (Dict)
@@ -17,7 +16,6 @@ import OpenSolid.Step.Types as Types
 import Parser exposing ((|.), (|=), Parser)
 import Regex
 import String
-import String.Extra as String
 
 
 {-| Types of errors that can be encountered when parsing a file:
