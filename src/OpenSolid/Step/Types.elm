@@ -43,7 +43,6 @@ type Attribute
     | ReferenceTo Entity
     | TypedAttribute TypeName Attribute
     | AttributeList (List Attribute)
-    | CircularReference Int
 
 
 type ParsedAttribute

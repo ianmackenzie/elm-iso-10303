@@ -1,12 +1,13 @@
 module OpenSolid.Step.EntityResolution exposing (Error(..), resolve)
 
 import Dict exposing (Dict)
+import OpenSolid.Step.EntityStack as EntityStack exposing (EntityStack)
 import OpenSolid.Step.Types as Types
-import Set exposing (Set)
 
 
 type Error
     = NonexistentEntity Int
+    | CircularReference (List Int)
 
 
 type alias EntityResolution =
@@ -29,14 +30,14 @@ store id entity entityResolution =
     }
 
 
-addEntity : Int -> Types.ParsedEntity -> EntityResolution -> Set Int -> Result Error ( Types.Entity, EntityResolution )
-addEntity id { typeName, parsedAttributes } entityResolution parentIds =
+addEntity : Int -> Types.ParsedEntity -> EntityResolution -> EntityStack -> Result Error ( Types.Entity, EntityResolution )
+addEntity id { typeName, parsedAttributes } entityResolution entityStack =
     case Dict.get id entityResolution.resolvedMap of
         Just entity ->
             Ok ( entity, entityResolution )
 
         Nothing ->
-            addAttributeList parsedAttributes entityResolution parentIds
+            addAttributeList parsedAttributes entityResolution entityStack
                 |> Result.map
                     (\( attributeList, resolutionWithAttributes ) ->
                         let
@@ -50,8 +51,8 @@ addEntity id { typeName, parsedAttributes } entityResolution parentIds =
                     )
 
 
-addAttribute : Types.ParsedAttribute -> EntityResolution -> Set Int -> Result Error ( Types.Attribute, EntityResolution )
-addAttribute parsedAttribute entityResolution parentIds =
+addAttribute : Types.ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( Types.Attribute, EntityResolution )
+addAttribute parsedAttribute entityResolution entityStack =
     case parsedAttribute of
         Types.ParsedDefaultAttribute ->
             Ok ( Types.DefaultAttribute, entityResolution )
@@ -87,34 +88,33 @@ addAttribute parsedAttribute entityResolution parentIds =
                     case Dict.get id entityResolution.parsedMap of
                         Just parsedEntity ->
                             -- Found a parsed but not yet resolved entity
-                            if Set.member id parentIds then
-                                -- Referenced entity is a parent of the given
-                                -- entity (or equal to it)
-                                Ok
-                                    ( Types.CircularReference id
-                                    , entityResolution
-                                    )
-                            else
-                                -- Referenced entity is not a parent of (or
-                                -- equal to) the current entity, so recursively
-                                -- add it
-                                addEntity id
-                                    parsedEntity
-                                    entityResolution
-                                    (Set.insert id parentIds)
-                                    |> Result.map
-                                        (\( entity, updatedResolution ) ->
-                                            ( Types.ReferenceTo entity
-                                            , updatedResolution
+                            case EntityStack.push id entityStack of
+                                Ok updatedStack ->
+                                    -- Referenced entity is not an ancestor of
+                                    -- (or equal to) the current entity, so
+                                    -- recursively add it
+                                    addEntity id
+                                        parsedEntity
+                                        entityResolution
+                                        updatedStack
+                                        |> Result.map
+                                            (\( entity, updatedResolution ) ->
+                                                ( Types.ReferenceTo entity
+                                                , updatedResolution
+                                                )
                                             )
-                                        )
+
+                                Err chain ->
+                                    -- Referenced entity is an ancestor of (or
+                                    -- equal to) the given entity
+                                    Err (CircularReference chain)
 
                         -- Error - no entity found with the given ID
                         Nothing ->
                             Err (NonexistentEntity id)
 
         Types.ParsedTypedAttribute name nestedParsedAttribute ->
-            addAttribute nestedParsedAttribute entityResolution parentIds
+            addAttribute nestedParsedAttribute entityResolution entityStack
                 |> Result.map
                     (\( nestedAttribute, updatedResolution ) ->
                         ( Types.TypedAttribute name nestedAttribute
@@ -123,7 +123,7 @@ addAttribute parsedAttribute entityResolution parentIds =
                     )
 
         Types.ParsedAttributeList parsedAttributeList ->
-            addAttributeList parsedAttributeList entityResolution parentIds
+            addAttributeList parsedAttributeList entityResolution entityStack
                 |> Result.map
                     (\( attributeList, updatedResolution ) ->
                         ( Types.AttributeList attributeList
@@ -132,14 +132,14 @@ addAttribute parsedAttribute entityResolution parentIds =
                     )
 
 
-addAttributeList : List Types.ParsedAttribute -> EntityResolution -> Set Int -> Result Error ( List Types.Attribute, EntityResolution )
-addAttributeList parsedAttributeList entityResolution parentIds =
-    addAttributeListHelp parsedAttributeList [] entityResolution parentIds
+addAttributeList : List Types.ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( List Types.Attribute, EntityResolution )
+addAttributeList parsedAttributeList entityResolution entityStack =
+    addAttributeListHelp parsedAttributeList [] entityResolution entityStack
         |> Result.map (Tuple.mapFirst List.reverse)
 
 
-addAttributeListHelp : List Types.ParsedAttribute -> List Types.Attribute -> EntityResolution -> Set Int -> Result Error ( List Types.Attribute, EntityResolution )
-addAttributeListHelp parsedAttributeList reversedAttributeList entityResolution parentIds =
+addAttributeListHelp : List Types.ParsedAttribute -> List Types.Attribute -> EntityResolution -> EntityStack -> Result Error ( List Types.Attribute, EntityResolution )
+addAttributeListHelp parsedAttributeList reversedAttributeList entityResolution entityStack =
     case parsedAttributeList of
         [] ->
             Ok ( reversedAttributeList, entityResolution )
@@ -147,14 +147,14 @@ addAttributeListHelp parsedAttributeList reversedAttributeList entityResolution 
         first :: rest ->
             let
                 addResult =
-                    addAttribute first entityResolution parentIds
+                    addAttribute first entityResolution entityStack
             in
             case addResult of
                 Ok ( attribute, updatedResolution ) ->
                     addAttributeListHelp rest
                         (attribute :: reversedAttributeList)
                         updatedResolution
-                        parentIds
+                        entityStack
 
                 Err error ->
                     Err error
@@ -168,11 +168,11 @@ addEntities parsedEntityInstances entityResolution =
 
         ( id, parsedEntity ) :: rest ->
             let
-                parentIds =
-                    Set.singleton id
+                entityStack =
+                    EntityStack.singleton id
 
                 addResult =
-                    addEntity id parsedEntity entityResolution parentIds
+                    addEntity id parsedEntity entityResolution entityStack
                         |> Result.map Tuple.second
             in
             case addResult of

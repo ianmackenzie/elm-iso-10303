@@ -25,18 +25,24 @@ import String.Extra as String
   - A `ParseError` means an error actually parsing STEP text; this means that
     either the STEP file is improperly formatted or (more likely!) it uses
     an aspect of STEP syntax that is not yet supported by this package. The
-    three parameters are the row and column number where the error occurred,
-    and an error string that can be used for debugging (not suitable to be
-    shown to end users).
-  - A `ResolveError` means that the file was parsed OK, but an error occurred
-    when a reference such as `#23` was found in one entity but no entity with
-    that ID existed in the file. The integer parameter is the ID of the
-    nonexistent entity.
+    parameter is an error string that can be used for debugging (not suitable to
+    be shown to end users).
+  - A `NonexistentEntity` means that the file was parsed OK, but an error
+    occurred when a reference such as `#23` was found in one entity but no
+    entity with that ID existed in the file. The integer parameter is the ID of
+    the nonexistent entity.
+  - A `CircularReference` means that the files was parsed OK, but a circular
+    reference was found between entities (this is possible in STEP but not
+    currently supported by this package). The parameter is the circular
+    reference chain: `[34, 34]` means that entity #34 refers to itself, while
+    `[34, 5, 126, 34]` means that entity #34 refers to #5, which refers to #126,
+    which refers back to #34.
 
 -}
 type Error
-    = ParseError Int Int String
-    | ResolveError Int
+    = ParseError String
+    | NonexistentEntity Int
+    | CircularReference (List Int)
 
 
 comma : Parser ()
@@ -383,13 +389,18 @@ prepareString =
 
 
 toParseError : Parser.Error -> Error
-toParseError { row, col, problem } =
-    ParseError row col (toString problem)
+toParseError { problem } =
+    ParseError (toString problem)
 
 
 toResolveError : EntityResolution.Error -> Error
-toResolveError (EntityResolution.NonexistentEntity id) =
-    ResolveError id
+toResolveError resolutionError =
+    case resolutionError of
+        EntityResolution.NonexistentEntity id ->
+            NonexistentEntity id
+
+        EntityResolution.CircularReference chain ->
+            CircularReference chain
 
 
 {-| Attempt to parse a string of text loaded from a STEP file. On success,

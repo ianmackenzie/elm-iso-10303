@@ -57,21 +57,21 @@ parse string =
                                                 )
                                             )
 
-                                Err (Parse.ParseError row column message) ->
+                                Err (Parse.ParseError message) ->
                                     Task.fail
-                                        ("Parse error at row "
-                                            ++ toString row
-                                            ++ ", column "
-                                            ++ toString column
-                                            ++ ": "
-                                            ++ message
-                                        )
+                                        ("Parse error: " ++ message)
 
-                                Err (Parse.ResolveError id) ->
+                                Err (Parse.NonexistentEntity id) ->
                                     Task.fail
                                         ("Nonexistent entity with id "
                                             ++ toString id
                                             ++ " referenced"
+                                        )
+
+                                Err (Parse.CircularReference chain) ->
+                                    Task.fail
+                                        ("Circular reference detected: "
+                                            ++ toString chain
                                         )
                         )
             )
