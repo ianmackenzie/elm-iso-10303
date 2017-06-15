@@ -50,41 +50,46 @@ comma =
     Parser.symbol ","
 
 
+listTail : Parser a -> Parser (List a)
+listTail item =
+    Parser.oneOf
+        [ Parser.symbol ")" |> Parser.map (\() -> [])
+        , Parser.succeed (\first rest -> first :: rest)
+            |= item
+            |= Parser.repeat Parser.zeroOrMore
+                (Parser.succeed identity
+                    |. comma
+                    |= item
+                )
+            |. Parser.symbol ")"
+        ]
+
+
 list : Parser a -> Parser (List a)
 list item =
     Parser.succeed identity
         |. Parser.symbol "("
-        |= Parser.oneOf
-            [ Parser.symbol ")" |> Parser.map (\() -> [])
-            , Parser.succeed (\first rest -> first :: rest)
-                |= item
-                |= Parser.repeat Parser.zeroOrMore
-                    (Parser.succeed identity
-                        |. comma
-                        |= item
-                    )
-                |. Parser.symbol ")"
-            ]
+        |= listTail item
 
 
-keyword : Parser String
-keyword =
+typeNameWithOpeningParenthesis : Parser Types.TypeName
+typeNameWithOpeningParenthesis =
     let
-        validFirstCharacter character =
-            Char.isUpper character || character == '_'
-
-        validOtherCharacter character =
-            validFirstCharacter character || Char.isDigit character
+        regex =
+            Regex.regex "^[A-Z_][A-Z_0-9]*$"
     in
-    Parser.source
-        (Parser.ignore (Parser.Exactly 1) validFirstCharacter
-            |. Parser.ignore Parser.zeroOrMore validOtherCharacter
-        )
-
-
-typeName : Parser Types.TypeName
-typeName =
-    keyword |> Parser.map Types.TypeName
+    Parser.source (Parser.ignoreUntil "(")
+        |> Parser.andThen
+            (\source ->
+                let
+                    name =
+                        String.dropRight 1 source
+                in
+                if Regex.contains regex name then
+                    Parser.succeed (Types.TypeName name)
+                else
+                    Parser.fail ("Expected valid type name, got " ++ name)
+            )
 
 
 string : Parser String
@@ -190,16 +195,15 @@ attribute =
         unevaluatedReference =
             id |> Parser.map Types.ParsedReference
 
+        attributeList =
+            Parser.succeed Types.ParsedAttributeList
+                |= list (Parser.lazy (\() -> attribute))
+
         typedAttribute =
             Parser.succeed Types.ParsedTypedAttribute
-                |= typeName
-                |. Parser.symbol "("
+                |= typeNameWithOpeningParenthesis
                 |= Parser.lazy (\() -> attribute)
                 |. Parser.symbol ")"
-
-        attributeList =
-            list (Parser.lazy (\() -> attribute))
-                |> Parser.map Types.ParsedAttributeList
     in
     Parser.oneOf
         [ defaultAttribute
@@ -211,16 +215,16 @@ attribute =
         , stringAttribute
         , binaryAttribute
         , unevaluatedReference
-        , typedAttribute
         , attributeList
+        , typedAttribute
         ]
 
 
 entity : Parser Types.ParsedEntity
 entity =
     Parser.succeed Types.ParsedEntity
-        |= typeName
-        |= list attribute
+        |= typeNameWithOpeningParenthesis
+        |= listTail attribute
 
 
 entityInstance : Parser ( Int, Types.ParsedEntity )
@@ -268,8 +272,8 @@ date =
 header : Parser Header
 header =
     let
-        start typeName =
-            Parser.symbol (typeName ++ "(")
+        start name =
+            Parser.symbol (name ++ "(")
 
         end =
             Parser.symbol ");"
