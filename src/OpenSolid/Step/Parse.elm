@@ -200,10 +200,9 @@ attribute =
                 |= list (Parser.lazy (\() -> attribute))
 
         typedAttribute =
-            Parser.succeed Types.ParsedTypedAttribute
-                |= typeNameWithOpeningParenthesis
-                |= Parser.lazy (\() -> attribute)
-                |. Parser.symbol ")"
+            Parser.delayedCommitMap Types.ParsedTypedAttribute
+                typeNameWithOpeningParenthesis
+                (Parser.lazy (\() -> attribute) |. Parser.symbol ")")
     in
     Parser.oneOf
         [ defaultAttribute
