@@ -32,45 +32,50 @@ type Error
     | DecodeError String
 
 
-collectDecodedValues : (i -> Maybe (Decoder i a)) -> List a -> List i -> Result String (List a)
-collectDecodedValues decoderForInput collected inputs =
-    case inputs of
+collectDecodedEntities : (Entity -> Maybe (Decoder Entity a)) -> List a -> List ( Int, Entity ) -> Result String (List a)
+collectDecodedEntities decoderForEntity collected entities =
+    case entities of
         [] ->
-            -- No more inputs to decode, so succeed with all the results we
+            -- No more entities to decode, so succeed with all the results we
             -- have collected so far
             Ok (List.reverse collected)
 
-        first :: rest ->
-            case decoderForInput first of
-                Just (Types.Decoder decode) ->
-                    -- There is a decoder for this input, so try decoding it
-                    case decode first of
-                        -- Decoding succeeded on this input: continue with the
+        ( id, entity ) :: rest ->
+            case decoderForEntity entity of
+                Just decoder ->
+                    -- There is a decoder for this entity, so try decoding it
+                    case run decoder entity of
+                        -- Decoding succeeded on this entity: continue with the
                         -- rest
                         Ok result ->
-                            collectDecodedValues decoderForInput
+                            collectDecodedEntities decoderForEntity
                                 (result :: collected)
                                 rest
 
-                        -- Decoding failed on this input: immediately abort
+                        -- Decoding failed on this entity: immediately abort
                         -- with the returned error message
                         Err message ->
-                            Err message
+                            Err
+                                ("In entity #"
+                                    ++ toString id
+                                    ++ ": "
+                                    ++ message
+                                )
 
                 Nothing ->
-                    -- No decoder for this input, so skip it and continue with
+                    -- No decoder for this entity, so skip it and continue with
                     -- the rest
-                    collectDecodedValues decoderForInput collected rest
+                    collectDecodedEntities decoderForEntity collected rest
 
 
 file : (Entity -> Maybe (Decoder Entity a)) -> String -> Result Error (List a)
 file decoderForEntity fileContents =
     Parse.file fileContents
-        |> Result.map (\( header, entities ) -> Dict.values entities)
+        |> Result.map (\( header, entities ) -> Dict.toList entities)
         |> Result.mapError ParseError
         |> Result.andThen
             (\entities ->
-                collectDecodedValues decoderForEntity [] entities
+                collectDecodedEntities decoderForEntity [] entities
                     |> Result.mapError DecodeError
             )
 
@@ -96,12 +101,24 @@ entity constructor =
 
 
 attribute : Int -> Decoder Attribute a -> Decoder Entity (a -> b) -> Decoder Entity b
-attribute index (Types.Decoder f) (Types.Decoder g) =
+attribute index attributeDecoder entityDecoder =
     Types.Decoder
-        (\((Types.Entity _ attributes) as entity) ->
+        (\((Types.Entity typeName attributes) as entity) ->
             case List.getAt index attributes of
                 Just attribute ->
-                    Result.map2 (|>) (f attribute) (g entity)
+                    case run attributeDecoder attribute of
+                        Ok value ->
+                            run entityDecoder entity
+                                |> Result.map
+                                    (\constructor -> constructor value)
+
+                        Err message ->
+                            Err
+                                ("At attribute index "
+                                    ++ toString index
+                                    ++ ": "
+                                    ++ message
+                                )
 
                 Nothing ->
                     Err ("No attribute at index " ++ toString index)
@@ -111,6 +128,11 @@ attribute index (Types.Decoder f) (Types.Decoder g) =
 map : (a -> b) -> Decoder i a -> Decoder i b
 map mapFunction (Types.Decoder function) =
     Types.Decoder (function >> Result.map mapFunction)
+
+
+mapError : (String -> String) -> Decoder i a -> Decoder i a
+mapError mapFunction (Types.Decoder function) =
+    Types.Decoder (function >> Result.mapError mapFunction)
 
 
 toEntity : Decoder Entity Entity
@@ -175,16 +197,34 @@ string =
         )
 
 
+collectDecodedAttributes : Decoder Attribute a -> List a -> List Attribute -> Result String (List a)
+collectDecodedAttributes decoder collected attributes =
+    case attributes of
+        [] ->
+            -- No more attributes to decode, so succeed with all the results we
+            -- have collected so far
+            Ok (List.reverse collected)
+
+        first :: rest ->
+            case run decoder first of
+                -- Decoding succeeded on this attribute: continue with the
+                -- rest
+                Ok result ->
+                    collectDecodedAttributes decoder (result :: collected) rest
+
+                -- Decoding failed on this attribute: immediately abort
+                -- with the returned error message
+                Err message ->
+                    Err message
+
+
 list : Decoder Attribute a -> Decoder Attribute (List a)
 list itemDecoder =
     Types.Decoder
         (\attribute ->
             case attribute of
                 Types.AttributeList attributes ->
-                    collectDecodedValues
-                        (always (Just itemDecoder))
-                        []
-                        attributes
+                    collectDecodedAttributes itemDecoder [] attributes
 
                 _ ->
                     Err "Expected a list"
@@ -218,5 +258,6 @@ tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
                         (run thirdDecoder thirdAttribute)
 
                 _ ->
-                    Err "Expected a list of two items"
+                    Err "Expected a list of three items"
+        )
         )
