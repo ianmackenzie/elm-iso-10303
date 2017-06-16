@@ -1565,3 +1565,28 @@ $,'012120','France',('555-56784321'),('555-12348765'),(),$,
 ENDSEC;
 END-ISO-10303-21;
 """
+
+
+encodedStrings : String
+encodedStrings =
+    """
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('Encoded strings'),'2;1');
+FILE_NAME('Test STEP file', '2017-06-16T17:30:00', ('Ian Mackenzie'), (), '', '', '');
+FILE_SCHEMA(('ENCODED_STRINGS'));
+ENDSEC;
+DATA;
+#1=STRING_TEST('CAT');
+#2=STRING_TEST('Don''t');
+#3=STRING_TEST('''');
+#4=STRING_TEST('');
+#5=STRING_TEST('\\X2\\03C0\\X0\\');
+#6=STRING_TEST('\\X2\\03B103B203B3\\X0\\');
+#7=STRING_TEST('\\X4\\0001F600\\X0\\');
+#8=STRING_TEST('\\X4\\0001F6000001F638\\X0\\');
+#9=STRING_TEST('see \\X\\A7 4.1');
+#10=STRING_TEST('line one\\X\\0Aline two');
+ENDSEC;
+END-ISO-10303-21;
+"""
