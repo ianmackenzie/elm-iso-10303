@@ -1,6 +1,6 @@
 module OpenSolid.Step.Types exposing (..)
 
-{-| The core STEP types used during both encoding and decoding.
+{-| The internal STEP types used during both encoding and decoding.
 -}
 
 
@@ -45,6 +45,9 @@ type Attribute
     | AttributeList (List Attribute)
 
 
+{-| An attribute that has been parsed but not yet resolved (may be an
+unresolved entity reference).
+-}
 type ParsedAttribute
     = ParsedDefaultAttribute
     | ParsedNullAttribute
@@ -59,6 +62,9 @@ type ParsedAttribute
     | ParsedAttributeList (List ParsedAttribute)
 
 
+{-| An entity that has been parsed but not yet resolved (whose attributes may
+contain unresolved entity references).
+-}
 type alias ParsedEntity =
     { typeName : TypeName
     , parsedAttributes : List ParsedAttribute
