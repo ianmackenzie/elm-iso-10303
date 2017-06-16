@@ -1,6 +1,7 @@
 module OpenSolid.Step.Decode
     exposing
         ( Error(..)
+        , andThen
         , attribute
         , bool
         , default
@@ -9,6 +10,7 @@ module OpenSolid.Step.Decode
         , file
         , float
         , int
+        , lazy
         , list
         , map
         , null
@@ -339,3 +341,20 @@ default value =
 withDefault : a -> Decoder Attribute a -> Decoder Attribute a
 withDefault value decoder =
     oneOf [ decoder, default value ]
+
+
+andThen : (a -> Decoder i b) -> Decoder i a -> Decoder i b
+andThen function decoder =
+    Types.Decoder
+        (\input ->
+            run decoder input
+                |> Result.andThen
+                    (\result ->
+                        run (function result) input
+                    )
+        )
+
+
+lazy : (() -> Decoder i a) -> Decoder i a
+lazy constructor =
+    Types.Decoder (\input -> run (constructor ()) input)
