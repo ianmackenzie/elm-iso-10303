@@ -29,36 +29,35 @@ type Error
     | DecodeError String
 
 
-collectDecodedValues : (Entity -> Maybe (Decoder Entity a)) -> List a -> List Entity -> Result Error (List a)
-collectDecodedValues decoderForEntity collected entities =
-    case entities of
+collectDecodedValues : (i -> Maybe (Decoder i a)) -> List a -> List i -> Result String (List a)
+collectDecodedValues decoderForInput collected inputs =
+    case inputs of
         [] ->
-            -- No more entities to decode, so succeed with all the results we
+            -- No more inputs to decode, so succeed with all the results we
             -- have collected so far
             Ok (List.reverse collected)
 
         first :: rest ->
-            case decoderForEntity first of
+            case decoderForInput first of
                 Just (Types.Decoder decode) ->
-                    -- There is a decoder for this entity, so try decoding
+                    -- There is a decoder for this input, so try decoding it
                     case decode first of
-                        -- Decoding succeeded on this entity: continue with the
+                        -- Decoding succeeded on this input: continue with the
                         -- rest
                         Ok result ->
-                            collectDecodedValues
-                                decoderForEntity
+                            collectDecodedValues decoderForInput
                                 (result :: collected)
                                 rest
 
-                        -- Decoding failed on this entity: immediately abort
+                        -- Decoding failed on this input: immediately abort
                         -- with the returned error message
                         Err message ->
-                            Err (DecodeError message)
+                            Err message
 
                 Nothing ->
-                    -- No decoder for this entity, so skip it and continue with
+                    -- No decoder for this input, so skip it and continue with
                     -- the rest
-                    collectDecodedValues decoderForEntity collected rest
+                    collectDecodedValues decoderForInput collected rest
 
 
 file : (Entity -> Maybe (Decoder Entity a)) -> String -> Result Error (List a)
@@ -66,7 +65,11 @@ file decoderForEntity fileContents =
     Parse.file fileContents
         |> Result.map (\( header, entities ) -> Dict.values entities)
         |> Result.mapError ParseError
-        |> Result.andThen (collectDecodedValues decoderForEntity [])
+        |> Result.andThen
+            (\entities ->
+                collectDecodedValues decoderForEntity [] entities
+                    |> Result.mapError DecodeError
+            )
 
 
 run : Decoder i a -> i -> Result String a
