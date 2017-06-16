@@ -1,5 +1,10 @@
 module Read exposing (..)
 
+import Bootstrap.Button as Button
+import Bootstrap.CDN
+import Bootstrap.Form.Input as Input
+import Bootstrap.Form.InputGroup as InputGroup
+import Bootstrap.Grid as Grid
 import Dict exposing (Dict)
 import Html exposing (Html)
 import Html.Events
@@ -145,37 +150,48 @@ update message model =
 
 view : Model -> Html Msg
 view model =
-    Html.div []
-        [ Html.div []
-            [ InputWidget.lineEdit [] model.fileName |> Html.map FileNameEdited
-            , Html.button [ Html.Events.onClick LoadRequested ]
-                [ Html.text "Load" ]
-            ]
-        , Html.div []
-            (case model.stepData of
-                RemoteData.NotAsked ->
-                    [ Html.text "" ]
-
-                RemoteData.Loading ->
-                    [ Html.text "Loading..." ]
-
-                RemoteData.Failure message ->
-                    [ Html.text message ]
-
-                RemoteData.Success stepData ->
-                    case stepData of
-                        Unparsed _ ->
-                            [ Html.text "Parsing..." ]
-
-                        Parsed ( time, entities ) ->
-                            [ Html.text
-                                (toString (Dict.size entities)
-                                    ++ " entities, parsed in "
-                                    ++ toString (Time.inSeconds time)
-                                    ++ " seconds"
-                                )
+    Grid.container []
+        [ Bootstrap.CDN.stylesheet
+        , Grid.row []
+            [ Grid.col []
+                [ InputGroup.config
+                    (InputGroup.text
+                        [ Input.defaultValue "", Input.onInput FileNameEdited ]
+                    )
+                    |> InputGroup.successors
+                        [ InputGroup.button
+                            [ Button.primary
+                            , Button.onClick LoadRequested
                             ]
-            )
+                            [ Html.text "Load" ]
+                        ]
+                    |> InputGroup.small
+                    |> InputGroup.view
+                ]
+            ]
+        , Grid.row []
+            [ Grid.col []
+                [ Html.text <|
+                    case model.stepData of
+                        RemoteData.NotAsked ->
+                            ""
+
+                        RemoteData.Loading ->
+                            "Loading..."
+
+                        RemoteData.Failure message ->
+                            message
+
+                        RemoteData.Success (Unparsed _) ->
+                            "Parsing..."
+
+                        RemoteData.Success (Parsed ( time, entities )) ->
+                            toString (Dict.size entities)
+                                ++ " entities, parsed in "
+                                ++ toString (Time.inSeconds time)
+                                ++ " seconds"
+                ]
+            ]
         ]
 
 
