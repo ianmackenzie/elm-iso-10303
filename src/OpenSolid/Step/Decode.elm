@@ -3,6 +3,7 @@ module OpenSolid.Step.Decode
         ( Error(..)
         , attribute
         , bool
+        , default
         , entity
         , fail
         , file
@@ -10,6 +11,8 @@ module OpenSolid.Step.Decode
         , int
         , list
         , map
+        , null
+        , oneOf
         , referenced
         , run
         , string
@@ -18,6 +21,7 @@ module OpenSolid.Step.Decode
         , toEntity
         , tuple2
         , tuple3
+        , withDefault
         )
 
 import Dict
@@ -274,3 +278,64 @@ referenced decoder =
                 _ ->
                     Err "Expected a referenced entity"
         )
+
+
+try : List (Decoder i a) -> List String -> i -> Result String a
+try decoders errorMessages input =
+    case decoders of
+        [] ->
+            -- No more decoders to try: fail with an error message that
+            -- aggregates all the individual error messages
+            Err
+                ("All possible decoders failed (error messages: \""
+                    ++ String.join "\", \"" (List.reverse errorMessages)
+                    ++ "\")"
+                )
+
+        first :: rest ->
+            -- At least one decoder left to try, so try it
+            case run first input of
+                -- Decoding succeeded: return the result
+                Ok result ->
+                    Ok result
+
+                -- Decoding failed: move on to the next one, but save the error
+                -- message in case *all* decoders fail (see above)
+                Err message ->
+                    try rest (message :: errorMessages) input
+
+
+oneOf : List (Decoder i a) -> Decoder i a
+oneOf decoders =
+    Types.Decoder (try decoders [])
+
+
+null : a -> Decoder Attribute a
+null value =
+    Types.Decoder
+        (\attribute ->
+            case attribute of
+                Types.NullAttribute ->
+                    Ok value
+
+                _ ->
+                    Err "Expecting null attribute ($)"
+        )
+
+
+default : a -> Decoder Attribute a
+default value =
+    Types.Decoder
+        (\attribute ->
+            case attribute of
+                Types.DefaultAttribute ->
+                    Ok value
+
+                _ ->
+                    Err "Expecting 'default value' attribute (*)"
+        )
+
+
+withDefault : a -> Decoder Attribute a -> Decoder Attribute a
+withDefault value decoder =
+    oneOf [ decoder, default value ]
