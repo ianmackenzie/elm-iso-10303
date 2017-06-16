@@ -62,9 +62,9 @@ parse string =
                                                 )
                                             )
 
-                                Err (Parse.ParseError message) ->
+                                Err (Parse.SyntaxError message) ->
                                     Task.fail
-                                        ("Parse error: " ++ message)
+                                        ("Syntax error: " ++ message)
 
                                 Err (Parse.NonexistentEntity id) ->
                                     Task.fail

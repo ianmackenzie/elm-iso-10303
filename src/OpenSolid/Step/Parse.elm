@@ -20,7 +20,7 @@ import String
 
 {-| Types of errors that can be encountered when parsing a file:
 
-  - A `ParseError` means an error actually parsing STEP text; this means that
+  - A `SyntaxError` means an error actually parsing STEP text; this means that
     either the STEP file is improperly formatted or (more likely!) it uses
     an aspect of STEP syntax that is not yet supported by this package. The
     parameter is an error string that can be used for debugging (not suitable to
@@ -38,7 +38,7 @@ import String
 
 -}
 type Error
-    = ParseError String
+    = SyntaxError String
     | NonexistentEntity Int
     | CircularReference (List Int)
 
@@ -389,13 +389,13 @@ prepareString =
     joinLines >> stripWhitespace
 
 
-toParseError : Parser.Error -> Error
-toParseError { problem } =
-    ParseError (toString problem)
+toSyntaxError : Parser.Error -> Error
+toSyntaxError { problem } =
+    SyntaxError (toString problem)
 
 
-toResolveError : EntityResolution.Error -> Error
-toResolveError resolutionError =
+extractResolutionError : EntityResolution.Error -> Error
+extractResolutionError resolutionError =
     case resolutionError of
         EntityResolution.NonexistentEntity id ->
             NonexistentEntity id
@@ -411,10 +411,10 @@ containing `Entity` values indexed by their ID.
 file : String -> Result Error ( Header, Dict Int Entity )
 file string =
     Parser.run fileParser (prepareString string)
-        |> Result.mapError toParseError
+        |> Result.mapError toSyntaxError
         |> Result.andThen
             (\( header, parsedEntityInstances ) ->
                 EntityResolution.resolve parsedEntityInstances
-                    |> Result.mapError toResolveError
+                    |> Result.mapError extractResolutionError
                     |> Result.map (\entities -> ( header, entities ))
             )
