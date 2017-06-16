@@ -8,12 +8,15 @@ module OpenSolid.Step.Decode
         , file
         , float
         , int
+        , list
         , map
         , run
         , string
         , succeed
         , toAttribute
         , toEntity
+        , tuple2
+        , tuple3
         )
 
 import Dict
@@ -169,4 +172,51 @@ string =
 
                 _ ->
                     Err "Expected a string"
+        )
+
+
+list : Decoder Attribute a -> Decoder Attribute (List a)
+list itemDecoder =
+    Types.Decoder
+        (\attribute ->
+            case attribute of
+                Types.AttributeList attributes ->
+                    collectDecodedValues
+                        (always (Just itemDecoder))
+                        []
+                        attributes
+
+                _ ->
+                    Err "Expected a list"
+        )
+
+
+tuple2 : ( Decoder Attribute a, Decoder Attribute b ) -> Decoder Attribute ( a, b )
+tuple2 ( firstDecoder, secondDecoder ) =
+    Types.Decoder
+        (\attribute ->
+            case attribute of
+                Types.AttributeList [ firstAttribute, secondAttribute ] ->
+                    Result.map2 (,)
+                        (run firstDecoder firstAttribute)
+                        (run secondDecoder secondAttribute)
+
+                _ ->
+                    Err "Expected a list of two items"
+        )
+
+
+tuple3 : ( Decoder Attribute a, Decoder Attribute b, Decoder Attribute c ) -> Decoder Attribute ( a, b, c )
+tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
+    Types.Decoder
+        (\attribute ->
+            case attribute of
+                Types.AttributeList [ firstAttribute, secondAttribute, thirdAttribute ] ->
+                    Result.map3 (,,)
+                        (run firstDecoder firstAttribute)
+                        (run secondDecoder secondAttribute)
+                        (run thirdDecoder thirdAttribute)
+
+                _ ->
+                    Err "Expected a list of two items"
         )
