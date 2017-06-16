@@ -26,12 +26,15 @@ module OpenSolid.Step.Decode
         , withDefault
         )
 
+import Bitwise
 import Dict
 import List
 import List.Extra as List
 import OpenSolid.Step exposing (Attribute, Decoder, Entity, Header)
 import OpenSolid.Step.Parse as Parse
 import OpenSolid.Step.Types as Types
+import Parser exposing ((|.), (|=), Parser)
+import String.Extra as String
 
 
 type Error
@@ -191,13 +194,119 @@ float =
         )
 
 
+isBasic : Char -> Bool
+isBasic character =
+    character /= '\'' && character /= '\\'
+
+
+hexDigit : Parser Int
+hexDigit =
+    Parser.oneOf
+        [ Parser.symbol "0" |> Parser.map (\() -> 0)
+        , Parser.symbol "1" |> Parser.map (\() -> 1)
+        , Parser.symbol "2" |> Parser.map (\() -> 2)
+        , Parser.symbol "3" |> Parser.map (\() -> 3)
+        , Parser.symbol "4" |> Parser.map (\() -> 4)
+        , Parser.symbol "5" |> Parser.map (\() -> 5)
+        , Parser.symbol "6" |> Parser.map (\() -> 6)
+        , Parser.symbol "7" |> Parser.map (\() -> 7)
+        , Parser.symbol "8" |> Parser.map (\() -> 8)
+        , Parser.symbol "9" |> Parser.map (\() -> 9)
+        , Parser.symbol "A" |> Parser.map (\() -> 10)
+        , Parser.symbol "B" |> Parser.map (\() -> 11)
+        , Parser.symbol "C" |> Parser.map (\() -> 12)
+        , Parser.symbol "D" |> Parser.map (\() -> 13)
+        , Parser.symbol "E" |> Parser.map (\() -> 14)
+        , Parser.symbol "F" |> Parser.map (\() -> 15)
+        ]
+
+
+x0 : Int -> Int -> String
+x0 high low =
+    String.fromCodePoints [ Bitwise.shiftLeftBy 4 high + low ]
+
+
+x2 : List ( Int, Int, Int, Int ) -> String
+x2 hexDigits =
+    let
+        codePoint ( a, b, c, d ) =
+            d
+                + Bitwise.shiftLeftBy 4 c
+                + Bitwise.shiftLeftBy 8 b
+                + Bitwise.shiftLeftBy 12 a
+    in
+    String.fromCodePoints (List.map codePoint hexDigits)
+
+
+x4 : List ( Int, Int, Int, Int, Int, Int ) -> String
+x4 hexDigits =
+    let
+        codePoint ( a, b, c, d, e, f ) =
+            f
+                + Bitwise.shiftLeftBy 4 e
+                + Bitwise.shiftLeftBy 8 d
+                + Bitwise.shiftLeftBy 12 c
+                + Bitwise.shiftLeftBy 16 b
+                + Bitwise.shiftLeftBy 20 a
+    in
+    String.fromCodePoints (List.map codePoint hexDigits)
+
+
+decodeString : Parser String
+decodeString =
+    Parser.succeed String.concat
+        |= Parser.repeat Parser.zeroOrMore
+            (Parser.oneOf
+                [ Parser.symbol "''" |> Parser.map (\() -> "'")
+                , Parser.symbol "\\\\" |> Parser.map (\() -> "\\")
+                , Parser.succeed x0
+                    |. Parser.symbol "\\X\\"
+                    |= hexDigit
+                    |= hexDigit
+                , Parser.succeed x2
+                    |. Parser.symbol "\\X2\\"
+                    |= Parser.repeat Parser.oneOrMore
+                        (Parser.succeed (,,,)
+                            |= hexDigit
+                            |= hexDigit
+                            |= hexDigit
+                            |= hexDigit
+                        )
+                    |. Parser.symbol "\\X0\\"
+                , Parser.succeed x4
+                    |. Parser.symbol "\\X4\\"
+                    |= Parser.repeat Parser.oneOrMore
+                        (Parser.succeed (,,,,,)
+                            |. Parser.symbol "0"
+                            |. Parser.symbol "0"
+                            |= hexDigit
+                            |= hexDigit
+                            |= hexDigit
+                            |= hexDigit
+                            |= hexDigit
+                            |= hexDigit
+                        )
+                    |. Parser.symbol "\\X0\\"
+                , Parser.keep Parser.oneOrMore isBasic
+                ]
+            )
+
+
 string : Decoder Attribute String
 string =
     Types.Decoder
         (\attribute ->
             case attribute of
-                Types.StringAttribute value ->
-                    Ok value
+                Types.StringAttribute encodedString ->
+                    case Parser.run decodeString encodedString of
+                        Ok decodedString ->
+                            Ok decodedString
+
+                        Err err ->
+                            Err
+                                ("Could not parse encoded string '"
+                                    ++ encodedString
+                                )
 
                 _ ->
                     Err "Expected a string"
