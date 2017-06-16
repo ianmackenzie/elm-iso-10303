@@ -28,28 +28,28 @@ file entityDecoder string =
 
 
 run : Decoder i a -> i -> Result String a
-run (Decoder function) input =
+run (Types.Decoder function) input =
     function input
 
 
 succeed : a -> Decoder i a
 succeed value =
-    Decoder (always (Ok value))
+    Types.Decoder (always (Ok value))
 
 
 fail : String -> Decoder i a
 fail description =
-    Decoder (always (Err description))
+    Types.Decoder (always (Err description))
 
 
 entity : a -> Decoder Entity a
 entity constructor =
-    Decoder (always (Ok constructor))
+    Types.Decoder (always (Ok constructor))
 
 
 attribute : Int -> Decoder Attribute a -> Decoder Entity (a -> b) -> Decoder Entity b
-attribute index (Decoder f) (Decoder g) =
-    Decoder
+attribute index (Types.Decoder f) (Types.Decoder g) =
+    Types.Decoder
         (\((Types.Entity _ attributes) as entity) ->
             case List.getAt index attributes of
                 Just attribute ->
@@ -61,23 +61,23 @@ attribute index (Decoder f) (Decoder g) =
 
 
 map : (a -> b) -> Decoder i a -> Decoder i b
-map mapFunction (Decoder function) =
-    Decoder (function >> Result.map mapFunction)
+map mapFunction (Types.Decoder function) =
+    Types.Decoder (function >> Result.map mapFunction)
 
 
 toEntity : Decoder Entity Entity
 toEntity =
-    Decoder Ok
+    Types.Decoder Ok
 
 
 toAttribute : Decoder Attribute Attribute
 toAttribute =
-    Decoder Ok
+    Types.Decoder Ok
 
 
 bool : Decoder Attribute Bool
 bool =
-    Decoder
+    Types.Decoder
         (\attribute ->
             case attribute of
                 Types.BoolAttribute value ->
@@ -90,7 +90,7 @@ bool =
 
 int : Decoder Attribute Int
 int =
-    Decoder
+    Types.Decoder
         (\attribute ->
             case attribute of
                 Types.IntAttribute value ->
@@ -103,7 +103,7 @@ int =
 
 float : Decoder Attribute Float
 float =
-    Decoder
+    Types.Decoder
         (\attribute ->
             case attribute of
                 Types.FloatAttribute value ->
@@ -116,7 +116,7 @@ float =
 
 string : Decoder Attribute String
 string =
-    Decoder
+    Types.Decoder
         (\attribute ->
             case attribute of
                 Types.StringAttribute value ->
