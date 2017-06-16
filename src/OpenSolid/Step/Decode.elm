@@ -10,6 +10,7 @@ module OpenSolid.Step.Decode
         , int
         , list
         , map
+        , referenced
         , run
         , string
         , succeed
@@ -260,4 +261,16 @@ tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
                 _ ->
                     Err "Expected a list of three items"
         )
+
+
+referenced : Decoder Entity a -> Decoder Attribute a
+referenced decoder =
+    Types.Decoder
+        (\attribute ->
+            case attribute of
+                Types.ReferenceTo entity ->
+                    run decoder entity
+
+                _ ->
+                    Err "Expected a referenced entity"
         )
