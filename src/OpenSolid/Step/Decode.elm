@@ -15,6 +15,7 @@ module OpenSolid.Step.Decode
         , map
         , null
         , oneOf
+        , optional
         , referenced
         , run
         , string
@@ -450,6 +451,13 @@ default value =
 withDefault : a -> Decoder Attribute a -> Decoder Attribute a
 withDefault value decoder =
     oneOf [ decoder, default value ]
+
+
+optional : Decoder Attribute a -> Decoder Attribute (Maybe a)
+optional decoder =
+    decoder
+        |> map Just
+        |> withDefault Nothing
 
 
 andThen : (a -> Decoder i b) -> Decoder i a -> Decoder i b
