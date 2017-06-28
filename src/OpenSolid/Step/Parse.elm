@@ -1,7 +1,6 @@
 module OpenSolid.Step.Parse exposing (Error(..), file)
 
-{-| Functionality for parsing STEP files to produce a `Header` and a list of
-`Entity` values.
+{-| Functionality for parsing STEP files.
 
 @docs Error, file
 
@@ -10,7 +9,7 @@ module OpenSolid.Step.Parse exposing (Error(..), file)
 import Char
 import Date exposing (Date)
 import Dict exposing (Dict)
-import OpenSolid.Step exposing (Entity, Header)
+import OpenSolid.Step exposing (Entity, File, Header)
 import OpenSolid.Step.EntityResolution as EntityResolution
 import OpenSolid.Step.Types as Types
 import Parser exposing ((|.), (|=), Parser)
@@ -404,11 +403,9 @@ extractResolutionError resolutionError =
             CircularReference chain
 
 
-{-| Attempt to parse a string of text loaded from a STEP file. On success,
-returns a record containing information from the file header and a `Dict`
-containing `Entity` values indexed by their ID.
+{-| Attempt to parse a string of text loaded from a STEP file.
 -}
-file : String -> Result Error ( Header, Dict Int Entity )
+file : String -> Result Error File
 file string =
     Parser.run fileParser (prepareString string)
         |> Result.mapError toSyntaxError
@@ -416,5 +413,10 @@ file string =
             (\( header, parsedEntityInstances ) ->
                 EntityResolution.resolve parsedEntityInstances
                     |> Result.mapError extractResolutionError
-                    |> Result.map (\entities -> ( header, entities ))
+                    |> Result.map
+                        (\entities ->
+                            { header = header
+                            , entities = Dict.values entities
+                            }
+                        )
             )

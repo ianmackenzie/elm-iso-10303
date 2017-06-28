@@ -6,7 +6,6 @@ module OpenSolid.Step.Encode
         , entity
         , enum
         , enumAs
-        , file
         , float
         , floatAs
         , int
@@ -21,11 +20,6 @@ module OpenSolid.Step.Encode
         )
 
 {-| Functions for encoding data in STEP format.
-
-
-# Files
-
-@docs file
 
 
 # Entities
@@ -46,160 +40,9 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 
 -}
 
-import OpenSolid.Step exposing (Attribute, Entity, Header)
-import OpenSolid.Step.EntityMap as EntityMap exposing (EntityMap)
+import OpenSolid.Step exposing (Attribute, Entity)
 import OpenSolid.Step.Format as Format
 import OpenSolid.Step.Types as Types
-
-
-{-| Create a STEP-encoded string that can be written out to a file. Entities
-will have integer IDs generated automatically.
--}
-file : Header -> List Entity -> String
-file header entities =
-    String.join "\n"
-        [ "ISO-10303-21;"
-        , "HEADER;"
-        , headerString header
-        , "ENDSEC;"
-        , "DATA;"
-        , entitiesString entities
-        , "ENDSEC;"
-        , "END-ISO-10303-21;\n"
-        ]
-
-
-headerString : Header -> String
-headerString header =
-    let
-        fileDescriptionEntity =
-            entity "FILE_DESCRIPTION"
-                [ list (List.map string header.fileDescription)
-                , string "2;1"
-                ]
-
-        fileNameEntity =
-            entity "FILE_NAME"
-                [ string header.fileName
-                , string (Format.date header.timeStamp)
-                , list (List.map string header.author)
-                , list (List.map string header.organization)
-                , string header.preprocessorVersion
-                , string header.originatingSystem
-                , string header.authorization
-                ]
-
-        fileSchemaEntity =
-            entity "FILE_SCHEMA"
-                [ list (List.map string header.schemaIdentifiers)
-                ]
-
-        entityMap =
-            EntityMap.empty
-                |> addEntity fileDescriptionEntity
-                |> Tuple.second
-                |> addEntity fileNameEntity
-                |> Tuple.second
-                |> addEntity fileSchemaEntity
-                |> Tuple.second
-    in
-    EntityMap.toList entityMap
-        |> List.map Tuple.second
-        |> String.join "\n"
-
-
-entitiesString : List Entity -> String
-entitiesString entities =
-    let
-        entityMap =
-            List.foldl
-                (\entity accumulatedMap ->
-                    addEntity entity accumulatedMap |> Tuple.second
-                )
-                EntityMap.empty
-                entities
-    in
-    EntityMap.toList entityMap
-        |> List.map (\( id, string ) -> Format.id id ++ "=" ++ string)
-        |> String.join "\n"
-
-
-addEntity : Entity -> EntityMap -> ( Int, EntityMap )
-addEntity (Types.Entity typeName attributes) entityMap =
-    let
-        ( attributeValues, mapWithAttributes ) =
-            addAttributes attributes entityMap
-
-        entityString =
-            Format.entity typeName attributeValues
-    in
-    EntityMap.add entityString mapWithAttributes
-
-
-addAttributes : List Attribute -> EntityMap -> ( List Types.AttributeValue, EntityMap )
-addAttributes attributes entityMap =
-    List.foldl
-        (\attribute ( accumulatedAttributeValues, accumulatedMap ) ->
-            let
-                ( attributeValue, mapWithAttribute ) =
-                    addAttribute attribute accumulatedMap
-            in
-            ( attributeValue :: accumulatedAttributeValues
-            , mapWithAttribute
-            )
-        )
-        ( [], entityMap )
-        attributes
-        |> Tuple.mapFirst List.reverse
-
-
-addAttribute : Attribute -> EntityMap -> ( Types.AttributeValue, EntityMap )
-addAttribute attribute entityMap =
-    case attribute of
-        Types.DefaultAttribute ->
-            ( Format.defaultAttribute, entityMap )
-
-        Types.NullAttribute ->
-            ( Format.nullAttribute, entityMap )
-
-        Types.BoolAttribute bool ->
-            ( Format.boolAttribute bool, entityMap )
-
-        Types.IntAttribute int ->
-            ( Format.intAttribute int, entityMap )
-
-        Types.FloatAttribute float ->
-            ( Format.floatAttribute float, entityMap )
-
-        Types.StringAttribute string ->
-            ( Format.stringAttribute string, entityMap )
-
-        Types.BinaryAttribute string ->
-            ( Format.binaryAttribute string, entityMap )
-
-        Types.EnumAttribute enumName ->
-            ( Format.enumAttribute enumName, entityMap )
-
-        Types.ReferenceTo entity ->
-            let
-                ( entityId, updatedMap ) =
-                    addEntity entity entityMap
-            in
-            ( Format.referenceTo entityId, updatedMap )
-
-        Types.TypedAttribute typeName attribute ->
-            let
-                ( attributeValue, updatedMap ) =
-                    addAttribute attribute entityMap
-            in
-            ( Format.typedAttribute typeName attributeValue, updatedMap )
-
-        Types.AttributeList attributes ->
-            let
-                ( attributeValues, mapWithAttributes ) =
-                    addAttributes attributes entityMap
-            in
-            ( Format.listAttribute attributeValues, mapWithAttributes )
 
 
 {-| Construct a single STEP entity from a type name and list of attributes.

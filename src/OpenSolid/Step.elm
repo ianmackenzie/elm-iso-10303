@@ -3,17 +3,26 @@ module OpenSolid.Step
         ( Attribute
         , Decoder
         , Entity
+        , File
         , Header
         )
 
 {-| Read and write STEP files in Elm.
 
-@docs Header, Entity, Attribute, Decoder
+@docs File, Header, Entity, Attribute, Decoder
 
 -}
 
 import Date exposing (Date)
 import OpenSolid.Step.Types as Types
+
+
+{-| A STEP file consists of a header and a list of entities.
+-}
+type alias File =
+    { header : Header
+    , entities : List Entity
+    }
 
 
 {-| Represents the data stored in the header section of a STEP file.

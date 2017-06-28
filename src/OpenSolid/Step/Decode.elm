@@ -1,7 +1,6 @@
 module OpenSolid.Step.Decode
     exposing
-        ( Error(..)
-        , andThen
+        ( andThen
         , attribute
         , bool
         , default
@@ -31,64 +30,16 @@ import Bitwise
 import Dict
 import List
 import List.Extra as List
-import OpenSolid.Step exposing (Attribute, Decoder, Entity, Header)
+import OpenSolid.Step exposing (Attribute, Decoder, Entity, File, Header)
 import OpenSolid.Step.Parse as Parse
 import OpenSolid.Step.Types as Types
 import Parser exposing ((|.), (|=), Parser)
 import String.Extra as String
 
 
-type Error
-    = ParseError Parse.Error
-    | DecodeError String
-
-
-collectDecodedEntities : (Entity -> Maybe (Decoder Entity a)) -> List a -> List ( Int, Entity ) -> Result String (List a)
-collectDecodedEntities decoderForEntity collected entities =
-    case entities of
-        [] ->
-            -- No more entities to decode, so succeed with all the results we
-            -- have collected so far
-            Ok (List.reverse collected)
-
-        ( id, entity ) :: rest ->
-            case decoderForEntity entity of
-                Just decoder ->
-                    -- There is a decoder for this entity, so try decoding it
-                    case run decoder entity of
-                        -- Decoding succeeded on this entity: continue with the
-                        -- rest
-                        Ok result ->
-                            collectDecodedEntities decoderForEntity
-                                (result :: collected)
-                                rest
-
-                        -- Decoding failed on this entity: immediately abort
-                        -- with the returned error message
-                        Err message ->
-                            Err
-                                ("In entity #"
-                                    ++ toString id
-                                    ++ ": "
-                                    ++ message
-                                )
-
-                Nothing ->
-                    -- No decoder for this entity, so skip it and continue with
-                    -- the rest
-                    collectDecodedEntities decoderForEntity collected rest
-
-
-file : (Entity -> Maybe (Decoder Entity a)) -> String -> Result Error (List a)
-file decoderForEntity fileContents =
-    Parse.file fileContents
-        |> Result.map (\( header, entities ) -> Dict.toList entities)
-        |> Result.mapError ParseError
-        |> Result.andThen
-            (\entities ->
-                collectDecodedEntities decoderForEntity [] entities
-                    |> Result.mapError DecodeError
-            )
+file : (Header -> a) -> Decoder File a
+file function =
+    Types.Decoder (\file -> Ok (function file.header))
 
 
 run : Decoder i a -> i -> Result String a
