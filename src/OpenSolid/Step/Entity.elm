@@ -1,10 +1,15 @@
-module OpenSolid.Step.Entity exposing (attributes, typeName)
+module OpenSolid.Step.Entity
+    exposing
+        ( attributes
+        , hasType
+        , typeName
+        )
 
 {-| Accessors for `Entity` values. Usually you will not need this module,
 instead using the `Decode` module to decode entities directly, but it may come
 in handy in weird cases.
 
-@docs typeName, attributes
+@docs typeName, hasType, attributes
 
 -}
 
