@@ -52,7 +52,8 @@ import OpenSolid.Step.Format as Format
 import OpenSolid.Step.Types as Types
 
 
-{-| Create a STEP-encoded string that can be written out to a file.
+{-| Create a STEP-encoded string that can be written out to a file. Entities
+will have integer IDs generated automatically.
 -}
 file : Header -> List Entity -> String
 file header entities =
