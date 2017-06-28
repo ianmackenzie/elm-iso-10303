@@ -37,11 +37,6 @@ import Parser exposing ((|.), (|=), Parser)
 import String.Extra as String
 
 
-file : (Header -> a) -> Decoder File a
-file function =
-    Types.Decoder (\file -> Ok (function file.header))
-
-
 run : Decoder i a -> i -> Result String a
 run (Types.Decoder function) input =
     function input
@@ -55,6 +50,11 @@ succeed value =
 fail : String -> Decoder i a
 fail description =
     Types.Decoder (always (Err description))
+
+
+file : a -> Decoder File a
+file constructor =
+    succeed constructor
 
 
 entity : a -> Decoder Entity a

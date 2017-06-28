@@ -2,12 +2,22 @@ module OpenSolid.Step.Decode.File
     exposing
         ( entities
         , entity
+        , header
         )
 
-import OpenSolid.Step exposing (Decoder, Entity, File)
+import OpenSolid.Step exposing (Decoder, Entity, File, Header)
 import OpenSolid.Step.Decode as Decode
 import OpenSolid.Step.Entity as Entity
 import OpenSolid.Step.Types as Types
+
+
+header : Decoder File (Header -> a) -> Decoder File a
+header fileDecoder =
+    Types.Decoder
+        (\file ->
+            Decode.run fileDecoder file
+                |> Result.map (\constructor -> constructor file.header)
+        )
 
 
 entity : String -> Decoder Entity a -> Decoder File (a -> b) -> Decoder File b
