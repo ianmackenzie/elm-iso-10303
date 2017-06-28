@@ -14,6 +14,7 @@ module OpenSolid.Step.Encode
         , list
         , listAs
         , null
+        , optional
         , referenceTo
         , string
         , stringAs
@@ -336,3 +337,13 @@ listAs typeName attributes =
 typedAttribute : String -> Attribute -> Attribute
 typedAttribute typeName attribute =
     Types.TypedAttribute (Format.typeName typeName) attribute
+
+
+optional : (a -> Attribute) -> Maybe a -> Attribute
+optional valueEncoder maybe =
+    case maybe of
+        Just value ->
+            valueEncoder value
+
+        Nothing ->
+            null
