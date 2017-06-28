@@ -12,7 +12,7 @@ import OpenSolid.Step exposing (Attribute, Entity)
 import OpenSolid.Step.Types as Types
 
 
-{-| Get the type of an entity. This will always be capitalized, for example
+{-| Get the type of an entity. This will always be all caps, for example
 `"IFCWALL"` or `"PRODUCT_CONTEXT"`.
 -}
 typeName : Entity -> String
