@@ -9,6 +9,7 @@ in handy in weird cases.
 -}
 
 import OpenSolid.Step exposing (Attribute, Entity)
+import OpenSolid.Step.Format as Format
 import OpenSolid.Step.Types as Types
 
 
@@ -18,6 +19,28 @@ import OpenSolid.Step.Types as Types
 typeName : Entity -> String
 typeName (Types.Entity (Types.TypeName string) _) =
     string
+
+
+{-| Check if an entity has the given type. It is preferred to use
+
+    Entity.hasType someType someEntity
+
+over
+
+    Entity.typeName someEntity == someType
+
+since in the first case the comparison is done in a case-insensitive way while
+in the second case will only work if you ensure that the `someType` string is in
+all caps.
+
+-}
+hasType : String -> Entity -> Bool
+hasType givenTypeName =
+    let
+        (Types.TypeName formattedTypeName) =
+            Format.typeName givenTypeName
+    in
+    \entity -> typeName entity == formattedTypeName
 
 
 {-| Get the attributes of an entity, in the order they are given in the STEP
