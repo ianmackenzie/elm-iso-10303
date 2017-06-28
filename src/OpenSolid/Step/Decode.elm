@@ -455,9 +455,7 @@ withDefault value decoder =
 
 optional : Decoder Attribute a -> Decoder Attribute (Maybe a)
 optional decoder =
-    decoder
-        |> map Just
-        |> withDefault Nothing
+    oneOf [ map Just decoder, null Nothing ]
 
 
 andThen : (a -> Decoder i b) -> Decoder i a -> Decoder i b
