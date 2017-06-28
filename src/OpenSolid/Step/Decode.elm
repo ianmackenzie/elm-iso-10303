@@ -59,7 +59,7 @@ fail description =
 
 entity : a -> Decoder Entity a
 entity constructor =
-    Types.Decoder (always (Ok constructor))
+    succeed constructor
 
 
 attribute : Int -> Decoder Attribute a -> Decoder Entity (a -> b) -> Decoder Entity b
