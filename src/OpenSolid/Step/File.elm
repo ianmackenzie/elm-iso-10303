@@ -1,13 +1,13 @@
 module OpenSolid.Step.File
     exposing
         ( Error(..)
-        , decode
-        , encode
+        , read
+        , write
         )
 
 {-| Functions for converting STEP files to and from strings.
 
-@docs encode, Error, decode
+@docs Error, read, write
 
 -}
 
@@ -30,8 +30,8 @@ type Error
 {-| Create a STEP-encoded string that can be written out to a file. Entities
 will have integer IDs generated automatically.
 -}
-encode : File -> String
-encode file =
+write : File -> String
+write file =
     String.join "\n"
         [ "ISO-10303-21;"
         , "HEADER;"
@@ -180,8 +180,8 @@ addAttribute attribute entityMap =
 {-| Attempt to parse a STEP file and then decode the resulting data with the
 given decoder.
 -}
-decode : Decoder File a -> String -> Result Error a
-decode fileDecoder fileContents =
+read : Decoder File a -> String -> Result Error a
+read fileDecoder fileContents =
     Parse.file fileContents
         |> Result.mapError ParseError
         |> Result.andThen
