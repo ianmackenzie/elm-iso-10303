@@ -6,8 +6,10 @@ module OpenSolid.Step.Encode
         , entity
         , enum
         , enumAs
+        , file
         , float
         , floatAs
+        , header
         , int
         , intAs
         , list
@@ -22,9 +24,9 @@ module OpenSolid.Step.Encode
 {-| Functions for encoding data in STEP format.
 
 
-# Entities
+# Basics
 
-@docs entity
+@docs file, header, entity
 
 
 # Attributes
@@ -40,9 +42,103 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 
 -}
 
-import OpenSolid.Step exposing (Attribute, Entity)
+import Date exposing (Date)
+import Dict exposing (Dict)
+import OpenSolid.Step exposing (Attribute, Entity, File, Header)
+import OpenSolid.Step.Entities as Entities
 import OpenSolid.Step.Format as Format
 import OpenSolid.Step.Types as Types
+
+
+headerString : Header -> String
+headerString (Types.Header header) =
+    let
+        fileDescriptionEntity =
+            entity "FILE_DESCRIPTION"
+                [ list (List.map string header.fileDescription)
+                , string "2;1"
+                ]
+
+        fileNameEntity =
+            entity "FILE_NAME"
+                [ string header.fileName
+                , string (Format.date header.timeStamp)
+                , list (List.map string header.author)
+                , list (List.map string header.organization)
+                , string header.preprocessorVersion
+                , string header.originatingSystem
+                , string header.authorization
+                ]
+
+        fileSchemaEntity =
+            entity "FILE_SCHEMA"
+                [ list (List.map string header.schemaIdentifiers)
+                ]
+
+        headerEntities =
+            [ fileDescriptionEntity, fileNameEntity, fileSchemaEntity ]
+    in
+    Entities.compile headerEntities
+        |> List.map (\( id, entity, entityString ) -> entityString)
+        |> String.join "\n"
+
+
+{-| Construct a complete STEP file from its header and a list of entities.
+Entities will be assigned integer IDs automatically.
+-}
+file : Header -> List Entity -> File
+file header entities =
+    let
+        compiledEntities =
+            Entities.compile entities
+
+        toKeyValuePair ( id, entity, entityString ) =
+            ( id, entity )
+
+        indexedEntities =
+            compiledEntities |> List.map toKeyValuePair |> Dict.fromList
+
+        toEntityLine ( id, entity, entityString ) =
+            Format.id id ++ "=" ++ entityString
+
+        entitiesString =
+            compiledEntities |> List.map toEntityLine |> String.join "\n"
+
+        contents =
+            String.join "\n"
+                [ "ISO-10303-21;"
+                , "HEADER;"
+                , headerString header
+                , "ENDSEC;"
+                , "DATA;"
+                , entitiesString
+                , "ENDSEC;"
+                , "END-ISO-10303-21;\n"
+                ]
+    in
+    Types.File
+        { header = header
+        , entities = indexedEntities
+        , contents = contents
+        }
+
+
+{-| Construct the header section of a STEP file.
+-}
+header :
+    { fileDescription : List String
+    , fileName : String
+    , timeStamp : Date
+    , author : List String
+    , organization : List String
+    , preprocessorVersion : String
+    , originatingSystem : String
+    , authorization : String
+    , schemaIdentifiers : List String
+    }
+    -> Header
+header properties =
+    Types.Header properties
 
 
 {-| Construct a single STEP entity from a type name and list of attributes.

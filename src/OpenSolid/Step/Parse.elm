@@ -277,7 +277,20 @@ header =
         stringList =
             list string
     in
-    Parser.succeed Header
+    Parser.succeed
+        (\fileDescription fileName timeStamp author organization preprocessorVersion originatingSystem authorization schemaIdentifiers ->
+            Types.Header
+                { fileDescription = fileDescription
+                , fileName = fileName
+                , timeStamp = timeStamp
+                , author = author
+                , organization = organization
+                , preprocessorVersion = preprocessorVersion
+                , originatingSystem = originatingSystem
+                , authorization = authorization
+                , schemaIdentifiers = schemaIdentifiers
+                }
+        )
         |. start "FILE_DESCRIPTION"
         |= stringList
         |. comma
@@ -415,8 +428,10 @@ file string =
                     |> Result.mapError extractResolutionError
                     |> Result.map
                         (\entities ->
-                            { header = header
-                            , entities = Dict.values entities
-                            }
+                            Types.File
+                                { header = header
+                                , entities = entities
+                                , contents = string
+                                }
                         )
             )

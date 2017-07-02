@@ -3,6 +3,9 @@ module OpenSolid.Step.Types exposing (..)
 {-| The internal STEP types used during both encoding and decoding.
 -}
 
+import Date exposing (Date)
+import Dict exposing (Dict)
+
 
 {-| An attribute value string such as "1", "2.", "'some string'", ".STEEL." or
 "#34".
@@ -73,3 +76,25 @@ type alias ParsedEntity =
 
 type Decoder i a
     = Decoder (i -> Result String a)
+
+
+type File
+    = File
+        { header : Header
+        , entities : Dict Int Entity
+        , contents : String
+        }
+
+
+type Header
+    = Header
+        { fileDescription : List String
+        , fileName : String
+        , timeStamp : Date
+        , author : List String
+        , organization : List String
+        , preprocessorVersion : String
+        , originatingSystem : String
+        , authorization : String
+        , schemaIdentifiers : List String
+        }

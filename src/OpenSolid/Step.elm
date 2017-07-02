@@ -20,24 +20,13 @@ import OpenSolid.Step.Types as Types
 {-| A STEP file consists of a header and a list of entities.
 -}
 type alias File =
-    { header : Header
-    , entities : List Entity
-    }
+    Types.File
 
 
 {-| Represents the data stored in the header section of a STEP file.
 -}
 type alias Header =
-    { fileDescription : List String
-    , fileName : String
-    , timeStamp : Date
-    , author : List String
-    , organization : List String
-    , preprocessorVersion : String
-    , originatingSystem : String
-    , authorization : String
-    , schemaIdentifiers : List String
-    }
+    Types.Header
 
 
 {-| Represents a single entity storied in the data section of a STEP file, such

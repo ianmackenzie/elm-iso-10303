@@ -4,7 +4,11 @@ module OpenSolid.Step.Decode
         , attribute
         , bool
         , default
+        , entitiesOfType
+        , entitiesWhere
         , entity
+        , entityOfType
+        , entityWhere
         , fail
         , file
         , float
@@ -31,6 +35,7 @@ import Dict
 import List
 import List.Extra as List
 import OpenSolid.Step exposing (Attribute, Decoder, Entity, File, Header)
+import OpenSolid.Step.Entity as Entity
 import OpenSolid.Step.Parse as Parse
 import OpenSolid.Step.Types as Types
 import Parser exposing ((|.), (|=), Parser)
@@ -57,6 +62,129 @@ file constructor =
     succeed constructor
 
 
+decodeAll : Decoder i a -> List i -> List a -> Result String (List a)
+decodeAll decoder inputs accumulated =
+    case inputs of
+        [] ->
+            Ok (List.reverse accumulated)
+
+        first :: rest ->
+            case run decoder first of
+                Ok value ->
+                    decodeAll decoder rest (value :: accumulated)
+
+                Err message ->
+                    Err message
+
+
+header : Decoder File (Header -> b) -> Decoder File b
+header fileDecoder =
+    Types.Decoder
+        (\((Types.File { header }) as file) ->
+            run fileDecoder file
+                |> Result.map (\constructor -> constructor header)
+        )
+
+
+filterEntities : (Entity -> Bool) -> File -> List Entity
+filterEntities predicate (Types.File { entities }) =
+    let
+        accumulate id entity accumulated =
+            if predicate entity then
+                entity :: accumulated
+            else
+                accumulated
+    in
+    Dict.foldr accumulate [] entities
+
+
+entityOfType : String -> Decoder Entity a -> Decoder File (a -> b) -> Decoder File b
+entityOfType typeName entityDecoder fileDecoder =
+    Types.Decoder
+        (\file ->
+            case filterEntities (Entity.hasType typeName) file of
+                [ singleEntity ] ->
+                    case run entityDecoder singleEntity of
+                        Ok value ->
+                            run fileDecoder file
+                                |> Result.map
+                                    (\constructor -> constructor value)
+
+                        Err message ->
+                            Err
+                                ("In entity of type '"
+                                    ++ typeName
+                                    ++ "': "
+                                    ++ message
+                                )
+
+                _ ->
+                    Err
+                        ("Expecting a single entity of type '"
+                            ++ typeName
+                            ++ "'"
+                        )
+        )
+
+
+entityWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder File (a -> b) -> Decoder File b
+entityWhere predicate entityDecoder fileDecoder =
+    Types.Decoder
+        (\file ->
+            case filterEntities predicate file of
+                [ singleEntity ] ->
+                    case run entityDecoder singleEntity of
+                        Ok value ->
+                            run fileDecoder file
+                                |> Result.map
+                                    (\constructor -> constructor value)
+
+                        Err message ->
+                            Err message
+
+                _ ->
+                    Err "Expecting a single matching entity"
+        )
+
+
+entitiesOfType : String -> Decoder Entity a -> Decoder File (List a -> b) -> Decoder File b
+entitiesOfType typeName entityDecoder fileDecoder =
+    Types.Decoder
+        (\file ->
+            let
+                filteredEntities =
+                    filterEntities (Entity.hasType typeName) file
+            in
+            case decodeAll entityDecoder filteredEntities [] of
+                Ok values ->
+                    run fileDecoder file
+                        |> Result.map
+                            (\constructor -> constructor values)
+
+                Err message ->
+                    Err message
+        )
+
+
+entitiesWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder File (List a -> b) -> Decoder File b
+entitiesWhere predicate entityDecoder fileDecoder =
+    Types.Decoder
+        (\file ->
+            let
+                filteredEntities =
+                    filterEntities predicate file
+            in
+            case decodeAll entityDecoder filteredEntities [] of
+                Ok values ->
+                    run fileDecoder file
+                        |> Result.map
+                            (\constructor -> constructor values)
+
+                Err message ->
+                    Err message
+        )
+
+
 entity : a -> Decoder Entity a
 entity constructor =
     succeed constructor
@@ -65,8 +193,8 @@ entity constructor =
 attribute : Int -> Decoder Attribute a -> Decoder Entity (a -> b) -> Decoder Entity b
 attribute index attributeDecoder entityDecoder =
     Types.Decoder
-        (\((Types.Entity typeName attributes) as entity) ->
-            case List.getAt index attributes of
+        (\entity ->
+            case List.getAt index (Entity.attributes entity) of
                 Just attribute ->
                     case run attributeDecoder attribute of
                         Ok value ->
