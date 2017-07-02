@@ -5,6 +5,10 @@ module OpenSolid.Step.EntityStack
         , singleton
         )
 
+{-| Helper data structure for detecting and reporting circular references
+between STEP entities.
+-}
+
 import List.Extra as List
 import Set exposing (Set)
 
