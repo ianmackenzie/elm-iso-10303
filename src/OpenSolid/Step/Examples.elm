@@ -244,6 +244,7 @@ END-ISO-10303-21;
 """
 
 
+wikipedia : String
 wikipedia =
     """ISO-10303-21;
 HEADER;
@@ -277,6 +278,7 @@ END-ISO-10303-21;
 """
 
 
+ifcR2TestCase : String
 ifcR2TestCase =
     """ISO-10303-21;
 HEADER;
