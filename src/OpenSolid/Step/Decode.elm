@@ -2,6 +2,7 @@ module OpenSolid.Step.Decode
     exposing
         ( andThen
         , attribute
+        , attributes
         , bool
         , default
         , entitiesOfType
@@ -27,6 +28,7 @@ module OpenSolid.Step.Decode
         , toEntity
         , tuple2
         , tuple3
+        , typeName
         , withDefault
         )
 
@@ -228,6 +230,16 @@ mapError mapFunction (Types.Decoder function) =
 toEntity : Decoder Entity Entity
 toEntity =
     Types.Decoder Ok
+
+
+typeName : Decoder Entity String
+typeName =
+    Types.Decoder (Ok << Entity.typeName)
+
+
+attributes : Decoder Entity (List Attribute)
+attributes =
+    Types.Decoder (Ok << Entity.attributes)
 
 
 toAttribute : Decoder Attribute Attribute
