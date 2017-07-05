@@ -19,7 +19,7 @@ module OpenSolid.Step.Decode
         , null
         , oneOf
         , optional
-        , referenced
+        , referencedEntity
         , run
         , string
         , succeed
@@ -458,13 +458,13 @@ tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
         )
 
 
-referenced : Decoder Entity a -> Decoder Attribute a
-referenced decoder =
+referencedEntity : Decoder Entity a -> Decoder Attribute a
+referencedEntity entityDecoder =
     Types.Decoder
         (\attribute ->
             case attribute of
                 Types.ReferenceTo entity ->
-                    run decoder entity
+                    run entityDecoder entity
 
                 _ ->
                     Err "Expected a referenced entity"
