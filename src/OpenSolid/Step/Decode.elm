@@ -17,6 +17,13 @@ module OpenSolid.Step.Decode
         , lazy
         , list
         , map
+        , map2
+        , map3
+        , map4
+        , map5
+        , map6
+        , map7
+        , map8
         , null
         , oneOf
         , optional
@@ -220,6 +227,146 @@ attribute index attributeDecoder entityDecoder =
 map : (a -> b) -> Decoder i a -> Decoder i b
 map mapFunction (Types.Decoder function) =
     Types.Decoder (function >> Result.map mapFunction)
+
+
+map2 :
+    (a -> b -> c)
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+map2 function (Types.Decoder functionA) (Types.Decoder functionB) =
+    Types.Decoder
+        (\input ->
+            Result.map2 function
+                (functionA input)
+                (functionB input)
+        )
+
+
+map3 :
+    (a -> b -> c -> d)
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+map3 function (Types.Decoder functionA) (Types.Decoder functionB) (Types.Decoder functionC) =
+    Types.Decoder
+        (\input ->
+            Result.map3 function
+                (functionA input)
+                (functionB input)
+                (functionC input)
+        )
+
+
+map4 :
+    (a -> b -> c -> d -> e)
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+    -> Decoder i e
+map4 function (Types.Decoder functionA) (Types.Decoder functionB) (Types.Decoder functionC) (Types.Decoder functionD) =
+    Types.Decoder
+        (\input ->
+            Result.map4 function
+                (functionA input)
+                (functionB input)
+                (functionC input)
+                (functionD input)
+        )
+
+
+map5 :
+    (a -> b -> c -> d -> e -> f)
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+    -> Decoder i e
+    -> Decoder i f
+map5 function (Types.Decoder functionA) (Types.Decoder functionB) (Types.Decoder functionC) (Types.Decoder functionD) (Types.Decoder functionE) =
+    Types.Decoder
+        (\input ->
+            Result.map5 function
+                (functionA input)
+                (functionB input)
+                (functionC input)
+                (functionD input)
+                (functionE input)
+        )
+
+
+map6 :
+    (a -> b -> c -> d -> e -> f -> g)
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+    -> Decoder i e
+    -> Decoder i f
+    -> Decoder i g
+map6 function decoderA decoderB decoderC decoderD decoderE decoderF =
+    decoderA
+        |> andThen
+            (\valueA ->
+                map5 (function valueA)
+                    decoderB
+                    decoderC
+                    decoderD
+                    decoderE
+                    decoderF
+            )
+
+
+map7 :
+    (a -> b -> c -> d -> e -> f -> g -> h)
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+    -> Decoder i e
+    -> Decoder i f
+    -> Decoder i g
+    -> Decoder i h
+map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG =
+    decoderA
+        |> andThen
+            (\valueA ->
+                map6 (function valueA)
+                    decoderB
+                    decoderC
+                    decoderD
+                    decoderE
+                    decoderF
+                    decoderG
+            )
+
+
+map8 :
+    (a -> b -> c -> d -> e -> f -> g -> h -> j)
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+    -> Decoder i e
+    -> Decoder i f
+    -> Decoder i g
+    -> Decoder i h
+    -> Decoder i j
+map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG decoderH =
+    decoderA
+        |> andThen
+            (\valueA ->
+                map7 (function valueA)
+                    decoderB
+                    decoderC
+                    decoderD
+                    decoderE
+                    decoderF
+                    decoderG
+                    decoderH
+            )
 
 
 mapError : (String -> String) -> Decoder i a -> Decoder i a
