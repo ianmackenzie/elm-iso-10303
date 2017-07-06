@@ -5,6 +5,7 @@ module OpenSolid.Step.Decode
         , attributes
         , bool
         , default
+        , entitiesBy
         , entitiesOfType
         , entitiesWhere
         , entityOfType
@@ -163,6 +164,36 @@ entitiesWhere predicate entityDecoder =
                     filterEntities predicate file
             in
             decodeAll entityDecoder filteredEntities []
+        )
+
+
+decodeAllBy : (i -> Maybe (Decoder i a)) -> List i -> List a -> Result String (List a)
+decodeAllBy decoderForInput inputs accumulated =
+    case inputs of
+        [] ->
+            Ok (List.reverse accumulated)
+
+        first :: rest ->
+            case decoderForInput first of
+                Just decoder ->
+                    case run decoder first of
+                        Ok value ->
+                            decodeAllBy decoderForInput
+                                rest
+                                (value :: accumulated)
+
+                        Err message ->
+                            Err message
+
+                Nothing ->
+                    decodeAllBy decoderForInput rest accumulated
+
+
+entitiesBy : (Entity -> Maybe (Decoder Entity a)) -> Decoder File (List a)
+entitiesBy decoderForEntity =
+    Types.Decoder
+        (\(Types.File { entities }) ->
+            decodeAllBy decoderForEntity (Dict.values entities) []
         )
 
 
