@@ -10,6 +10,7 @@
         "OpenSolid.Step",
         "OpenSolid.Step.Encode",
         "OpenSolid.Step.Entity",
+        "OpenSolid.Step.File",
         "OpenSolid.Step.Parse"
     ],
     "dependencies": {
