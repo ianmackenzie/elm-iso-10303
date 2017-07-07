@@ -7,7 +7,10 @@ module OpenSolid.Step
         , Header
         )
 
-{-| Read and write STEP files in Elm.
+{-| The basic types used for representing and manipulating STEP files. For each
+type there is an associated module that typically provides accessors and other
+helper functions for working with values of that type; most of the 'real'
+functionality of this package is actually in the `Encode` and `Decode` modules.
 
 @docs File, Header, Entity, Attribute, Decoder
 
