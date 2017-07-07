@@ -84,7 +84,9 @@ headerString (Types.Header header) =
 
 
 {-| Construct a complete STEP file from its header and a list of entities.
-Entities will be assigned integer IDs automatically.
+Entities will be assigned integer IDs automatically, and nested entities
+(entities that reference other entities) will be 'flattened' to separate
+entities referring to each other by their automatically-generated IDs.
 -}
 file : Header -> List Entity -> File
 file header entities =
