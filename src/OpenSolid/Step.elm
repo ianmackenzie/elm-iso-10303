@@ -43,7 +43,7 @@ type alias Attribute =
     Types.Attribute
 
 
-{-| A `Decoder` describes how to attempt to decode a given `Entity` or
+{-| A `Decoder` describes how to attempt to decode a given `File`, `Entity` or
 `Attribute` to produce a value of another type. See the `Decode` module for
 details on how to use and construct decoders.
 -}
