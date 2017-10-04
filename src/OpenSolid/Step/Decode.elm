@@ -45,7 +45,6 @@ import List
 import List.Extra as List
 import OpenSolid.Step exposing (Attribute, Decoder, Entity, File, Header)
 import OpenSolid.Step.Entity as Entity
-import OpenSolid.Step.Parse as Parse
 import OpenSolid.Step.Types as Types
 import Parser exposing ((|.), (|=), Parser)
 import String.Extra as String
