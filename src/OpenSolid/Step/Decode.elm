@@ -144,14 +144,7 @@ entityWhere predicate entityDecoder =
 
 entitiesOfType : String -> Decoder Entity a -> Decoder File (List a)
 entitiesOfType typeName entityDecoder =
-    Types.Decoder
-        (\file ->
-            let
-                filteredEntities =
-                    filterEntities (Entity.hasType typeName) file
-            in
-            decodeAll entityDecoder filteredEntities []
-        )
+    entitiesWhere (Entity.hasType typeName) entityDecoder
 
 
 entitiesWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder File (List a)
