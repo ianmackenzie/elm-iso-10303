@@ -8,7 +8,6 @@ module OpenSolid.Step.Parse exposing (Error(..), file)
 
 import Char
 import Date exposing (Date)
-import Dict exposing (Dict)
 import OpenSolid.Step exposing (Entity, File, Header)
 import OpenSolid.Step.EntityResolution as EntityResolution
 import OpenSolid.Step.Types as Types

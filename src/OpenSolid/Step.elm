@@ -16,7 +16,6 @@ functionality of this package is actually in the `Encode` and `Decode` modules.
 
 -}
 
-import Date exposing (Date)
 import OpenSolid.Step.Types as Types
 
 
