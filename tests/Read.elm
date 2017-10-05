@@ -7,10 +7,7 @@ import Bootstrap.Form.InputGroup as InputGroup
 import Bootstrap.Grid as Grid
 import Dict exposing (Dict)
 import Html exposing (Html)
-import Html.Events
 import Http
-import Json.Decode as Decode
-import Kintail.InputWidget as InputWidget
 import OpenSolid.Step as Step
 import OpenSolid.Step.File as File
 import OpenSolid.Step.Parse as Parse
