@@ -1,8 +1,8 @@
-module OpenSolid.Step.Parse exposing (Error(..), file)
+module OpenSolid.Step.Parse exposing (Error(..), file, header, prepareString)
 
 {-| Functionality for parsing STEP files.
 
-@docs Error, file
+@docs Error, file, header, prepareString
 
 -}
 
@@ -264,6 +264,7 @@ date =
         |. Parser.symbol "'"
 
 
+{-| -}
 header : Parser Header
 header =
     let

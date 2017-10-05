@@ -7,7 +7,11 @@ module OpenSolid.Step.FastParse exposing (..)
 -}
 
 import OpenSolid.Step exposing (Entity, File, Header)
+import OpenSolid.Step.EntityResolution as EntityResolution
+import OpenSolid.Step.Parse as Parse
 import OpenSolid.Step.Types as Types
+import Parser exposing ((|.), (|=))
+import Parser.LowLevel
 import Regex exposing (Regex)
 
 
@@ -41,9 +45,22 @@ find =
     Regex.find (Regex.AtMost 1)
 
 
+inspect : String -> String
+inspect input =
+    if String.length input <= 20 then
+        "\"" ++ input ++ "\""
+    else
+        "\"" ++ String.left 17 input ++ "...\""
+
+
+err : String -> String -> Result String a
+err message input =
+    Err (message ++ " " ++ inspect input)
+
+
 stringRegex : Regex
 stringRegex =
-    Regex.regex "^'[^']*'"
+    Regex.regex "^('[^']*')+"
 
 
 parseString : String -> Result String ( Types.ParsedAttribute, String )
@@ -56,7 +73,7 @@ parseString input =
                 )
 
         _ ->
-            Err "Could not parse string"
+            err "Could not parse string" input
 
 
 binaryRegex : Regex
@@ -74,7 +91,7 @@ parseBinary input =
                 )
 
         _ ->
-            Err "Could not parse binary"
+            err "Could not parse binary" input
 
 
 numberRegex : Regex
@@ -96,7 +113,7 @@ parseNumber input =
                                 )
 
                         Err _ ->
-                            Err "Could not parse integer"
+                            err "Could not parse integer" input
 
                 _ ->
                     case String.toFloat match of
@@ -107,10 +124,10 @@ parseNumber input =
                                 )
 
                         Err _ ->
-                            Err "Could not parse float"
+                            err "Could not parse float" input
 
         _ ->
-            Err "Could not parse number"
+            err "Could not parse number" input
 
 
 enumRegex : Regex
@@ -147,31 +164,43 @@ parseEnum input =
                 Ok ( parsedAttribute, dropMatch match input )
 
             _ ->
-                Err "Could not parse enum"
+                err "Could not parse enum" input
 
 
-referenceRegex : Regex
-referenceRegex =
+idRegex : Regex
+idRegex =
     Regex.regex "#\\d+"
 
 
 parseReference : String -> Result String ( Types.ParsedAttribute, String )
 parseReference input =
-    case find referenceRegex input of
+    case find idRegex input of
         [ { match } ] ->
             case String.toInt (String.dropLeft 1 match) of
                 Ok value ->
                     Ok ( Types.ParsedReference value, dropMatch match input )
 
                 Err _ ->
-                    Err "Could not parse reference"
+                    Err ("Could not parse reference " ++ inspect input)
 
         _ ->
-            Err "Could not parse reference"
+            err "Could not parse reference" input
 
 
-parseAttributeList : String -> List Types.ParsedAttribute -> Result String ( Types.ParsedAttribute, String )
-parseAttributeList input accumulated =
+parseAttributes : String -> Result String ( List Types.ParsedAttribute, String )
+parseAttributes input =
+    let
+        inputPastParenthesis =
+            String.dropLeft 1 input
+    in
+    if String.startsWith ")" inputPastParenthesis then
+        Ok ( [], String.dropLeft 1 inputPastParenthesis )
+    else
+        accumulateAttributes inputPastParenthesis []
+
+
+accumulateAttributes : String -> List Types.ParsedAttribute -> Result String ( List Types.ParsedAttribute, String )
+accumulateAttributes input accumulated =
     case parseAttribute input of
         Ok ( parsedAttribute, remainingInput ) ->
             let
@@ -182,17 +211,27 @@ parseAttributeList input accumulated =
                     String.dropLeft 1 remainingInput
             in
             if String.startsWith "," remainingInput then
-                parseAttributeList followingInput prepended
+                accumulateAttributes followingInput prepended
             else if String.startsWith ")" remainingInput then
                 Ok
-                    ( Types.ParsedAttributeList (List.reverse prepended)
+                    ( List.reverse prepended
                     , followingInput
                     )
             else
-                Err "Could not parse attribute list"
+                err "Could not parse attributes" input
 
-        err ->
-            err
+        Err msg ->
+            Err msg
+
+
+parseAttributeList : String -> Result String ( Types.ParsedAttribute, String )
+parseAttributeList input =
+    case parseAttributes input of
+        Ok ( attributes, remainingInput ) ->
+            Ok ( Types.ParsedAttributeList attributes, remainingInput )
+
+        Err msg ->
+            Err msg
 
 
 typeNameRegex : Regex
@@ -218,13 +257,13 @@ parseTypedAttribute input =
                             , String.dropLeft 1 remainingInput
                             )
                     else
-                        Err "Could not parse typed attribute"
+                        err "Could not parse typed attribute" input
 
                 err ->
                     err
 
         _ ->
-            Err "Could not parse typed attribute"
+            err "Could not parse typed attribute " input
 
 
 parseAttribute : String -> Result String ( Types.ParsedAttribute, String )
@@ -285,12 +324,146 @@ parseAttribute input =
             parseBinary input
 
         "(" ->
-            parseAttributeList (String.dropLeft 1 input) []
+            parseAttributeList input
 
         _ ->
             parseTypedAttribute input
 
 
+parseEntity : String -> Result String ( Types.ParsedEntity, String )
+parseEntity input =
+    case find typeNameRegex input of
+        [ { match } ] ->
+            case parseAttributes (dropMatch match input) of
+                Ok ( parsedAttributes, remainingInput ) ->
+                    Ok
+                        ( { typeName = Types.TypeName match
+                          , parsedAttributes = parsedAttributes
+                          }
+                        , remainingInput
+                        )
+
+                Err msg ->
+                    Err msg
+
+        _ ->
+            err "Could not parse entity" input
+
+
+entityInstanceRegex : Regex
+entityInstanceRegex =
+    Regex.regex "#(\\d+)=([A-Z_][A-Z_0-9]*)(?=\\()"
+
+
+parseEntityInstance : String -> Result String ( ( Int, Types.ParsedEntity ), String )
+parseEntityInstance input =
+    case find entityInstanceRegex input of
+        [ { match, submatches } ] ->
+            case submatches of
+                [ Just idString, Just typeNameString ] ->
+                    case String.toInt idString of
+                        Ok id ->
+                            case parseAttributes (dropMatch match input) of
+                                Ok ( parsedAttributes, remainingInput ) ->
+                                    if String.startsWith ";" remainingInput then
+                                        let
+                                            typeName =
+                                                Types.TypeName typeNameString
+
+                                            parsedEntity =
+                                                { typeName = typeName
+                                                , parsedAttributes =
+                                                    parsedAttributes
+                                                }
+                                        in
+                                        Ok
+                                            ( ( id, parsedEntity )
+                                            , String.dropLeft 1 remainingInput
+                                            )
+                                    else
+                                        err "Could not parse entity instance" input
+
+                                Err msg ->
+                                    Err msg
+
+                        Err _ ->
+                            err "Could not parse entity instance" input
+
+                _ ->
+                    err "Could not parse entity instance" input
+
+        _ ->
+            err "Could not parse entity instance" input
+
+
+parseEntityInstances : String -> List ( Int, Types.ParsedEntity ) -> Result String (List ( Int, Types.ParsedEntity ))
+parseEntityInstances input accumulated =
+    if String.startsWith "#" input then
+        case parseEntityInstance input of
+            Ok ( entityInstance, remainingInput ) ->
+                parseEntityInstances
+                    remainingInput
+                    (entityInstance :: accumulated)
+
+            Err msg ->
+                Err msg
+    else if input == "ENDSEC;END-ISO-10303-21;" then
+        Ok (List.reverse accumulated)
+    else
+        err "Could not parse entity instances" input
+
+
+parseHeader : String -> Result String ( Header, String )
+parseHeader input =
+    let
+        parserWithOffset =
+            Parser.succeed (,)
+                |= Parse.header
+                |= Parser.LowLevel.getOffset
+    in
+    case Parser.run parserWithOffset input of
+        Ok ( header, offset ) ->
+            Ok ( header, String.dropLeft offset input )
+
+        Err _ ->
+            err "Could not parse header" input
+
+
 file : String -> Result Error File
 file string =
-    Debug.crash "TODO"
+    let
+        input =
+            Parse.prepareString string
+    in
+    if String.startsWith "ISO-10303-21;HEADER;" input then
+        case parseHeader (String.dropLeft 20 input) of
+            Ok ( header, remainingInput ) ->
+                if String.startsWith "ENDSEC;DATA;" remainingInput then
+                    case parseEntityInstances (String.dropLeft 12 remainingInput) [] of
+                        Ok parsedEntityInstances ->
+                            case EntityResolution.resolve parsedEntityInstances of
+                                Ok entities ->
+                                    Ok <|
+                                        Types.File
+                                            { header = header
+                                            , entities = entities
+                                            , contents = string
+                                            }
+
+                                Err (EntityResolution.NonexistentEntity id) ->
+                                    Err (NonexistentEntity id)
+
+                                Err (EntityResolution.CircularReference chain) ->
+                                    Err (CircularReference chain)
+
+                        Err msg ->
+                            Err (SyntaxError msg)
+                else
+                    err "Could not parse file" input
+                        |> Result.mapError SyntaxError
+
+            Err msg ->
+                Err (SyntaxError msg)
+    else
+        err "Could not parse file" input
+            |> Result.mapError SyntaxError
