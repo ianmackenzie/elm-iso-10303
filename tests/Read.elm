@@ -12,6 +12,7 @@ import Http
 import Json.Decode as Decode
 import Kintail.InputWidget as InputWidget
 import OpenSolid.Step as Step
+import OpenSolid.Step.File as File
 import OpenSolid.Step.Parse as Parse
 import Process
 import RemoteData exposing (RemoteData)
@@ -21,7 +22,7 @@ import Time exposing (Time)
 
 type StepFile
     = Unparsed String
-    | Parsed ( Time, Dict Int Step.Entity )
+    | Parsed ( Time, Step.File )
 
 
 type alias Model =
@@ -35,7 +36,7 @@ type Msg
     | LoadRequested
     | DataReceived String
     | LoadFailed
-    | FileParsed ( Time, Dict Int Step.Entity )
+    | FileParsed ( Time, Step.File )
     | ParseFailed String
 
 
@@ -44,7 +45,7 @@ init =
     ( { fileName = "", stepData = RemoteData.NotAsked }, Cmd.none )
 
 
-parse : String -> Task String ( Time, Dict Int Step.Entity )
+parse : String -> Task String ( Time, Step.File )
 parse string =
     Process.sleep (0.1 * Time.second)
         |> Task.andThen
@@ -53,12 +54,12 @@ parse string =
                     |> Task.andThen
                         (\startTime ->
                             case Parse.file string of
-                                Ok ( header, entities ) ->
+                                Ok file ->
                                     Time.now
                                         |> Task.map
                                             (\finishTime ->
                                                 ( finishTime - startTime
-                                                , entities
+                                                , file
                                                 )
                                             )
 
@@ -119,8 +120,8 @@ update message model =
             let
                 handleResult result =
                     case result of
-                        Ok tuple ->
-                            FileParsed tuple
+                        Ok file ->
+                            FileParsed file
 
                         Err message ->
                             ParseFailed message
@@ -137,8 +138,8 @@ update message model =
             , Cmd.none
             )
 
-        FileParsed tuple ->
-            ( { model | stepData = RemoteData.Success (Parsed tuple) }
+        FileParsed file ->
+            ( { model | stepData = RemoteData.Success (Parsed file) }
             , Cmd.none
             )
 
@@ -185,8 +186,8 @@ view model =
                         RemoteData.Success (Unparsed _) ->
                             "Parsing..."
 
-                        RemoteData.Success (Parsed ( time, entities )) ->
-                            toString (Dict.size entities)
+                        RemoteData.Success (Parsed ( time, file )) ->
+                            toString (Dict.size (File.entities file))
                                 ++ " entities, parsed in "
                                 ++ toString (Time.inSeconds time)
                                 ++ " seconds"
