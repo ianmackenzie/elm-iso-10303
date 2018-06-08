@@ -1,4 +1,4 @@
-module OpenSolid.Step.Types exposing (..)
+module StepFile.Types exposing (..)
 
 {-| The internal STEP types used during both encoding and decoding.
 -}

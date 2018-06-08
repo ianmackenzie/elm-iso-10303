@@ -1,4 +1,4 @@
-module OpenSolid.Step.FastParse exposing (..)
+module StepFile.FastParse exposing (..)
 
 {-| Functionality for parsing STEP files.
 
@@ -6,13 +6,13 @@ module OpenSolid.Step.FastParse exposing (..)
 
 -}
 
-import OpenSolid.Step exposing (Entity, File, Header)
-import OpenSolid.Step.EntityResolution as EntityResolution
-import OpenSolid.Step.Parse as Parse
-import OpenSolid.Step.Types as Types
 import Parser exposing ((|.), (|=))
 import Parser.LowLevel
 import Regex exposing (Regex)
+import StepFile exposing (Entity, File, Header)
+import StepFile.EntityResolution as EntityResolution
+import StepFile.Parse as Parse
+import StepFile.Types as Types
 
 
 {-| Types of errors that can be encountered when parsing a file:

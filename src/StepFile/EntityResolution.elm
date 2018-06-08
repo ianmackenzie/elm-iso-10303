@@ -1,8 +1,8 @@
-module OpenSolid.Step.EntityResolution exposing (Error(..), resolve)
+module StepFile.EntityResolution exposing (Error(..), resolve)
 
 import Dict exposing (Dict)
-import OpenSolid.Step.EntityStack as EntityStack exposing (EntityStack)
-import OpenSolid.Step.Types as Types
+import StepFile.EntityStack as EntityStack exposing (EntityStack)
+import StepFile.Types as Types
 
 
 type Error

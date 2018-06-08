@@ -1,9 +1,9 @@
-module OpenSolid.Step.Entities exposing (compile)
+module StepFile.Entities exposing (compile)
 
 import Dict exposing (Dict)
-import OpenSolid.Step exposing (Attribute, Entity)
-import OpenSolid.Step.Format as Format
-import OpenSolid.Step.Types as Types
+import StepFile exposing (Attribute, Entity)
+import StepFile.Format as Format
+import StepFile.Types as Types
 
 
 type EntityMap

@@ -1,4 +1,4 @@
-module OpenSolid.Step
+module StepFile
     exposing
         ( Attribute
         , Decoder
@@ -16,7 +16,7 @@ functionality of this package is actually in the `Encode` and `Decode` modules.
 
 -}
 
-import OpenSolid.Step.Types as Types
+import StepFile.Types as Types
 
 
 {-| A STEP file consists of a header and a list of entities.

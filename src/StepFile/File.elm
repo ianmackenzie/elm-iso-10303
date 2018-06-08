@@ -1,4 +1,4 @@
-module OpenSolid.Step.File
+module StepFile.File
     exposing
         ( Error(..)
         , contents
@@ -22,10 +22,10 @@ module OpenSolid.Step.File
 -}
 
 import Dict exposing (Dict)
-import OpenSolid.Step as Step exposing (Attribute, Decoder, Entity, File, Header)
-import OpenSolid.Step.Decode as Decode
-import OpenSolid.Step.Parse as Parse
-import OpenSolid.Step.Types as Types
+import StepFile as Step exposing (Attribute, Decoder, Entity, File, Header)
+import StepFile.Decode as Decode
+import StepFile.Parse as Parse
+import StepFile.Types as Types
 
 
 {-| Get the header of a file.

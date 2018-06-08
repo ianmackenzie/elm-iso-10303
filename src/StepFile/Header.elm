@@ -1,4 +1,4 @@
-module OpenSolid.Step.Header
+module StepFile.Header
     exposing
         ( author
         , authorization
@@ -12,8 +12,8 @@ module OpenSolid.Step.Header
         )
 
 import Date exposing (Date)
-import OpenSolid.Step exposing (Header)
-import OpenSolid.Step.Types as Types
+import StepFile exposing (Header)
+import StepFile.Types as Types
 
 
 fileDescription : Header -> List String

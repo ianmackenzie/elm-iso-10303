@@ -1,4 +1,4 @@
-module OpenSolid.Step.Entity
+module StepFile.Entity
     exposing
         ( attributes
         , hasType
@@ -13,9 +13,9 @@ in handy in weird cases.
 
 -}
 
-import OpenSolid.Step exposing (Attribute, Entity)
-import OpenSolid.Step.Format as Format
-import OpenSolid.Step.Types as Types
+import StepFile exposing (Attribute, Entity)
+import StepFile.Format as Format
+import StepFile.Types as Types
 
 
 {-| Get the type of an entity. This will always be all caps, for example

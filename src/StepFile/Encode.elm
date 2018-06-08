@@ -1,4 +1,4 @@
-module OpenSolid.Step.Encode
+module StepFile.Encode
     exposing
         ( binary
         , binaryAs
@@ -44,10 +44,10 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 
 import Date exposing (Date)
 import Dict exposing (Dict)
-import OpenSolid.Step exposing (Attribute, Entity, File, Header)
-import OpenSolid.Step.Entities as Entities
-import OpenSolid.Step.Format as Format
-import OpenSolid.Step.Types as Types
+import StepFile exposing (Attribute, Entity, File, Header)
+import StepFile.Entities as Entities
+import StepFile.Format as Format
+import StepFile.Types as Types
 
 
 headerString : Header -> String

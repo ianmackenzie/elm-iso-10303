@@ -3,9 +3,9 @@ port module Main exposing (..)
 import Dict
 import Json.Encode exposing (Value)
 import Kintail.Script as Script exposing (Allowed, Script)
-import OpenSolid.Step as Step
-import OpenSolid.Step.FastParse as Parse
-import OpenSolid.Step.File as StepFile
+import StepFile as Step
+import StepFile.FastParse as Parse
+import StepFile.File as StepFile
 import Time exposing (Time)
 
 

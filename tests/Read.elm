@@ -8,11 +8,11 @@ import Bootstrap.Grid as Grid
 import Dict exposing (Dict)
 import Html exposing (Html)
 import Http
-import OpenSolid.Step as Step
-import OpenSolid.Step.File as File
-import OpenSolid.Step.Parse as Parse
 import Process
 import RemoteData exposing (RemoteData)
+import StepFile as Step
+import StepFile.File as File
+import StepFile.Parse as Parse
 import Task exposing (Task)
 import Time exposing (Time)
 

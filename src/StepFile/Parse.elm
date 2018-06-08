@@ -1,4 +1,4 @@
-module OpenSolid.Step.Parse exposing (Error(..), file, header, prepareString)
+module StepFile.Parse exposing (Error(..), file, header, prepareString)
 
 {-| Functionality for parsing STEP files.
 
@@ -8,11 +8,11 @@ module OpenSolid.Step.Parse exposing (Error(..), file, header, prepareString)
 
 import Char
 import Date exposing (Date)
-import OpenSolid.Step exposing (Entity, File, Header)
-import OpenSolid.Step.EntityResolution as EntityResolution
-import OpenSolid.Step.Types as Types
 import Parser exposing ((|.), (|=), Parser)
 import Regex
+import StepFile exposing (Entity, File, Header)
+import StepFile.EntityResolution as EntityResolution
+import StepFile.Types as Types
 import String
 
 

@@ -1,4 +1,4 @@
-module OpenSolid.Step.Decode
+module StepFile.Decode
     exposing
         ( andThen
         , attribute
@@ -43,10 +43,10 @@ import Bitwise
 import Dict
 import List
 import List.Extra as List
-import OpenSolid.Step exposing (Attribute, Decoder, Entity, File, Header)
-import OpenSolid.Step.Entity as Entity
-import OpenSolid.Step.Types as Types
 import Parser exposing ((|.), (|=), Parser)
+import StepFile exposing (Attribute, Decoder, Entity, File, Header)
+import StepFile.Entity as Entity
+import StepFile.Types as Types
 import String.Extra as String
 
 

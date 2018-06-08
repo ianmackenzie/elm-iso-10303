@@ -1,4 +1,4 @@
-module OpenSolid.Step.Examples exposing (..)
+module StepFile.Examples exposing (..)
 
 
 twoWalls : String

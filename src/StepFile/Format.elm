@@ -1,4 +1,4 @@
-module OpenSolid.Step.Format
+module StepFile.Format
     exposing
         ( binaryAttribute
         , boolAttribute
@@ -25,7 +25,7 @@ a type such as AttributeValue to improve type safety.
 import Bitwise
 import Char
 import Date exposing (Date, Month)
-import OpenSolid.Step.Types as Types
+import StepFile.Types as Types
 import String.Extra
 
 

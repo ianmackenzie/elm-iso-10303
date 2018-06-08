@@ -1,4 +1,4 @@
-module OpenSolid.Step.EntityStack
+module StepFile.EntityStack
     exposing
         ( EntityStack
         , push
