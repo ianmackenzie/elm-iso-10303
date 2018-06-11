@@ -47,7 +47,6 @@ import Parser exposing ((|.), (|=), Parser)
 import StepFile exposing (Attribute, Decoder, Entity, File, Header)
 import StepFile.Entity as Entity
 import StepFile.Types as Types
-import String.Extra as String
 
 
 run : Decoder i a -> i -> Result String a
@@ -87,7 +86,7 @@ decodeAll decoder inputs accumulated =
 
 header : Decoder File Header
 header =
-    Types.Decoder (\(Types.File { header }) -> Ok header)
+    Types.Decoder (\(Types.File file_) -> Ok file_.header)
 
 
 filterEntities : (Entity -> Bool) -> File -> List Entity
@@ -103,10 +102,10 @@ filterEntities predicate (Types.File { entities }) =
 
 
 entityOfType : String -> Decoder Entity a -> Decoder File a
-entityOfType typeName entityDecoder =
+entityOfType typeName_ entityDecoder =
     Types.Decoder
-        (\file ->
-            case filterEntities (Entity.hasType typeName) file of
+        (\file_ ->
+            case filterEntities (Entity.hasType typeName_) file_ of
                 [ singleEntity ] ->
                     case run entityDecoder singleEntity of
                         Ok value ->
@@ -115,7 +114,7 @@ entityOfType typeName entityDecoder =
                         Err message ->
                             Err
                                 ("In entity of type '"
-                                    ++ typeName
+                                    ++ typeName_
                                     ++ "': "
                                     ++ message
                                 )
@@ -123,7 +122,7 @@ entityOfType typeName entityDecoder =
                 _ ->
                     Err
                         ("Expecting a single entity of type '"
-                            ++ typeName
+                            ++ typeName_
                             ++ "'"
                         )
         )
@@ -132,8 +131,8 @@ entityOfType typeName entityDecoder =
 entityWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder File a
 entityWhere predicate entityDecoder =
     Types.Decoder
-        (\file ->
-            case filterEntities predicate file of
+        (\file_ ->
+            case filterEntities predicate file_ of
                 [ singleEntity ] ->
                     run entityDecoder singleEntity
 
@@ -143,17 +142,17 @@ entityWhere predicate entityDecoder =
 
 
 entitiesOfType : String -> Decoder Entity a -> Decoder File (List a)
-entitiesOfType typeName entityDecoder =
-    entitiesWhere (Entity.hasType typeName) entityDecoder
+entitiesOfType typeName_ entityDecoder =
+    entitiesWhere (Entity.hasType typeName_) entityDecoder
 
 
 entitiesWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder File (List a)
 entitiesWhere predicate entityDecoder =
     Types.Decoder
-        (\file ->
+        (\file_ ->
             let
                 filteredEntities =
-                    filterEntities predicate file
+                    filterEntities predicate file_
             in
             decodeAll entityDecoder filteredEntities []
         )
@@ -194,21 +193,21 @@ attribute index attributeDecoder =
     Types.Decoder
         (\entity ->
             case List.getAt index (Entity.attributes entity) of
-                Just attribute ->
-                    case run attributeDecoder attribute of
+                Just attribute_ ->
+                    case run attributeDecoder attribute_ of
                         Ok value ->
                             Ok value
 
                         Err message ->
                             Err
                                 ("At attribute index "
-                                    ++ toString index
+                                    ++ String.fromInt index
                                     ++ ": "
                                     ++ message
                                 )
 
                 Nothing ->
-                    Err ("No attribute at index " ++ toString index)
+                    Err ("No attribute at index " ++ String.fromInt index)
         )
 
 
@@ -385,8 +384,8 @@ toAttribute =
 bool : Decoder Attribute Bool
 bool =
     Types.Decoder
-        (\attribute ->
-            case attribute of
+        (\attribute_ ->
+            case attribute_ of
                 Types.BoolAttribute value ->
                     Ok value
 
@@ -398,8 +397,8 @@ bool =
 int : Decoder Attribute Int
 int =
     Types.Decoder
-        (\attribute ->
-            case attribute of
+        (\attribute_ ->
+            case attribute_ of
                 Types.IntAttribute value ->
                     Ok value
 
@@ -411,8 +410,8 @@ int =
 float : Decoder Attribute Float
 float =
     Types.Decoder
-        (\attribute ->
-            case attribute of
+        (\attribute_ ->
+            case attribute_ of
                 Types.FloatAttribute value ->
                     Ok value
 
@@ -429,103 +428,142 @@ isBasic character =
 hexDigit : Parser Int
 hexDigit =
     Parser.oneOf
-        [ Parser.symbol "0" |> Parser.map (\() -> 0)
-        , Parser.symbol "1" |> Parser.map (\() -> 1)
-        , Parser.symbol "2" |> Parser.map (\() -> 2)
-        , Parser.symbol "3" |> Parser.map (\() -> 3)
-        , Parser.symbol "4" |> Parser.map (\() -> 4)
-        , Parser.symbol "5" |> Parser.map (\() -> 5)
-        , Parser.symbol "6" |> Parser.map (\() -> 6)
-        , Parser.symbol "7" |> Parser.map (\() -> 7)
-        , Parser.symbol "8" |> Parser.map (\() -> 8)
-        , Parser.symbol "9" |> Parser.map (\() -> 9)
-        , Parser.symbol "A" |> Parser.map (\() -> 10)
-        , Parser.symbol "B" |> Parser.map (\() -> 11)
-        , Parser.symbol "C" |> Parser.map (\() -> 12)
-        , Parser.symbol "D" |> Parser.map (\() -> 13)
-        , Parser.symbol "E" |> Parser.map (\() -> 14)
-        , Parser.symbol "F" |> Parser.map (\() -> 15)
+        [ Parser.succeed 0 |. Parser.token "0"
+        , Parser.succeed 1 |. Parser.token "1"
+        , Parser.succeed 2 |. Parser.token "2"
+        , Parser.succeed 3 |. Parser.token "3"
+        , Parser.succeed 4 |. Parser.token "4"
+        , Parser.succeed 5 |. Parser.token "5"
+        , Parser.succeed 6 |. Parser.token "6"
+        , Parser.succeed 7 |. Parser.token "7"
+        , Parser.succeed 8 |. Parser.token "8"
+        , Parser.succeed 9 |. Parser.token "9"
+        , Parser.succeed 10 |. Parser.token "A"
+        , Parser.succeed 11 |. Parser.token "B"
+        , Parser.succeed 12 |. Parser.token "C"
+        , Parser.succeed 13 |. Parser.token "D"
+        , Parser.succeed 14 |. Parser.token "E"
+        , Parser.succeed 15 |. Parser.token "F"
         ]
 
 
-x0 : Int -> Int -> String
+x0 : Int -> Int -> Char
 x0 high low =
-    String.fromCodePoints [ Bitwise.shiftLeftBy 4 high + low ]
+    Char.fromCode (low + Bitwise.shiftLeftBy 4 high)
 
 
-x2 : List ( Int, Int, Int, Int ) -> String
-x2 hexDigits =
-    let
-        codePoint ( a, b, c, d ) =
-            d
-                + Bitwise.shiftLeftBy 4 c
-                + Bitwise.shiftLeftBy 8 b
-                + Bitwise.shiftLeftBy 12 a
-    in
-    String.fromCodePoints (List.map codePoint hexDigits)
+x2 : Int -> Int -> Int -> Int -> Char
+x2 a b c d =
+    Char.fromCode <|
+        d
+            + Bitwise.shiftLeftBy 4 c
+            + Bitwise.shiftLeftBy 8 b
+            + Bitwise.shiftLeftBy 12 a
 
 
-x4 : List ( Int, Int, Int, Int, Int, Int ) -> String
-x4 hexDigits =
-    let
-        codePoint ( a, b, c, d, e, f ) =
-            f
-                + Bitwise.shiftLeftBy 4 e
-                + Bitwise.shiftLeftBy 8 d
-                + Bitwise.shiftLeftBy 12 c
-                + Bitwise.shiftLeftBy 16 b
-                + Bitwise.shiftLeftBy 20 a
-    in
-    String.fromCodePoints (List.map codePoint hexDigits)
+x4 : Int -> Int -> Int -> Int -> Int -> Int -> Char
+x4 a b c d e f =
+    Char.fromCode <|
+        f
+            + Bitwise.shiftLeftBy 4 e
+            + Bitwise.shiftLeftBy 8 d
+            + Bitwise.shiftLeftBy 12 c
+            + Bitwise.shiftLeftBy 16 b
+            + Bitwise.shiftLeftBy 20 a
 
 
-decodeString : Parser String
-decodeString =
+parseX0 : Parser String
+parseX0 =
+    Parser.succeed (\a b -> String.fromChar (x0 a b))
+        |. Parser.token "\\X\\"
+        |= hexDigit
+        |= hexDigit
+
+
+parseX2 : Parser String
+parseX2 =
+    Parser.succeed String.fromList
+        |. Parser.token "\\X2\\"
+        |= Parser.loop []
+            (\accumulated ->
+                Parser.oneOf
+                    [ Parser.succeed
+                        (\a b c d ->
+                            Parser.Loop (x2 a b c d :: accumulated)
+                        )
+                        |= hexDigit
+                        |= hexDigit
+                        |= hexDigit
+                        |= hexDigit
+                    , Parser.succeed
+                        (\() -> Parser.Done (List.reverse accumulated))
+                        |= Parser.token "\\X0\\"
+                    ]
+            )
+
+
+parseX4 : Parser String
+parseX4 =
+    Parser.succeed String.fromList
+        |. Parser.token "\\X4\\"
+        |= Parser.loop []
+            (\accumulated ->
+                Parser.oneOf
+                    [ Parser.succeed
+                        (\a b c d e f ->
+                            Parser.Loop (x4 a b c d e f :: accumulated)
+                        )
+                        |. Parser.token "00"
+                        |= hexDigit
+                        |= hexDigit
+                        |= hexDigit
+                        |= hexDigit
+                        |= hexDigit
+                        |= hexDigit
+                    , Parser.succeed
+                        (\() -> Parser.Done (List.reverse accumulated))
+                        |= Parser.token "\\X4\\"
+                    ]
+            )
+
+
+parseStringChunk : Parser String
+parseStringChunk =
+    Parser.oneOf
+        [ Parser.getChompedString (Parser.chompWhile isBasic)
+        , Parser.succeed "'" |. Parser.token "''"
+        , Parser.succeed "\\" |. Parser.token "\\\\"
+        , parseX0
+        , parseX2
+        , parseX4
+        ]
+
+
+parseString : Parser String
+parseString =
     Parser.succeed String.concat
-        |= Parser.repeat Parser.zeroOrMore
-            (Parser.oneOf
-                [ Parser.symbol "''" |> Parser.map (\() -> "'")
-                , Parser.symbol "\\\\" |> Parser.map (\() -> "\\")
-                , Parser.succeed x0
-                    |. Parser.symbol "\\X\\"
-                    |= hexDigit
-                    |= hexDigit
-                , Parser.succeed x2
-                    |. Parser.symbol "\\X2\\"
-                    |= Parser.repeat Parser.oneOrMore
-                        (Parser.succeed (,,,)
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
+        |= Parser.loop []
+            (\accumulated ->
+                Parser.oneOf
+                    [ Parser.succeed
+                        (\chunk -> Parser.Loop (chunk :: accumulated))
+                        |= parseStringChunk
+                    , Parser.lazy
+                        (\() ->
+                            Parser.succeed <|
+                                Parser.Done (List.reverse accumulated)
                         )
-                    |. Parser.symbol "\\X0\\"
-                , Parser.succeed x4
-                    |. Parser.symbol "\\X4\\"
-                    |= Parser.repeat Parser.oneOrMore
-                        (Parser.succeed (,,,,,)
-                            |. Parser.symbol "0"
-                            |. Parser.symbol "0"
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                            |= hexDigit
-                        )
-                    |. Parser.symbol "\\X0\\"
-                , Parser.keep Parser.oneOrMore isBasic
-                ]
+                    ]
             )
 
 
 string : Decoder Attribute String
 string =
     Types.Decoder
-        (\attribute ->
-            case attribute of
+        (\attribute_ ->
+            case attribute_ of
                 Types.StringAttribute encodedString ->
-                    case Parser.run decodeString encodedString of
+                    case Parser.run parseString encodedString of
                         Ok decodedString ->
                             Ok decodedString
 
@@ -541,8 +579,8 @@ string =
 
 
 collectDecodedAttributes : Decoder Attribute a -> List a -> List Attribute -> Result String (List a)
-collectDecodedAttributes decoder collected attributes =
-    case attributes of
+collectDecodedAttributes decoder collected attributes_ =
+    case attributes_ of
         [] ->
             -- No more attributes to decode, so succeed with all the results we
             -- have collected so far
@@ -564,10 +602,10 @@ collectDecodedAttributes decoder collected attributes =
 list : Decoder Attribute a -> Decoder Attribute (List a)
 list itemDecoder =
     Types.Decoder
-        (\attribute ->
-            case attribute of
-                Types.AttributeList attributes ->
-                    collectDecodedAttributes itemDecoder [] attributes
+        (\attribute_ ->
+            case attribute_ of
+                Types.AttributeList attributes_ ->
+                    collectDecodedAttributes itemDecoder [] attributes_
 
                 _ ->
                     Err "Expected a list"
@@ -577,10 +615,10 @@ list itemDecoder =
 tuple2 : ( Decoder Attribute a, Decoder Attribute b ) -> Decoder Attribute ( a, b )
 tuple2 ( firstDecoder, secondDecoder ) =
     Types.Decoder
-        (\attribute ->
-            case attribute of
+        (\attribute_ ->
+            case attribute_ of
                 Types.AttributeList [ firstAttribute, secondAttribute ] ->
-                    Result.map2 (,)
+                    Result.map2 Tuple.pair
                         (run firstDecoder firstAttribute)
                         (run secondDecoder secondAttribute)
 
@@ -592,10 +630,11 @@ tuple2 ( firstDecoder, secondDecoder ) =
 tuple3 : ( Decoder Attribute a, Decoder Attribute b, Decoder Attribute c ) -> Decoder Attribute ( a, b, c )
 tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
     Types.Decoder
-        (\attribute ->
-            case attribute of
+        (\attribute_ ->
+            case attribute_ of
                 Types.AttributeList [ firstAttribute, secondAttribute, thirdAttribute ] ->
-                    Result.map3 (,,)
+                    Result.map3
+                        (\first second third -> ( first, second, third ))
                         (run firstDecoder firstAttribute)
                         (run secondDecoder secondAttribute)
                         (run thirdDecoder thirdAttribute)
@@ -608,8 +647,8 @@ tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
 referencedEntity : Decoder Entity a -> Decoder Attribute a
 referencedEntity entityDecoder =
     Types.Decoder
-        (\attribute ->
-            case attribute of
+        (\attribute_ ->
+            case attribute_ of
                 Types.ReferenceTo entity ->
                     run entityDecoder entity
 
@@ -651,8 +690,8 @@ oneOf decoders =
 null : a -> Decoder Attribute a
 null value =
     Types.Decoder
-        (\attribute ->
-            case attribute of
+        (\attribute_ ->
+            case attribute_ of
                 Types.NullAttribute ->
                     Ok value
 
@@ -664,8 +703,8 @@ null value =
 default : a -> Decoder Attribute a
 default value =
     Types.Decoder
-        (\attribute ->
-            case attribute of
+        (\attribute_ ->
+            case attribute_ of
                 Types.DefaultAttribute ->
                     Ok value
 

@@ -2,7 +2,6 @@ module StepFile.Format
     exposing
         ( binaryAttribute
         , boolAttribute
-        , date
         , defaultAttribute
         , entity
         , enumAttribute
@@ -24,9 +23,7 @@ a type such as AttributeValue to improve type safety.
 
 import Bitwise
 import Char
-import Date exposing (Date, Month)
 import StepFile.Types as Types
-import String.Extra
 
 
 attributeValue : String -> Types.AttributeValue
@@ -38,8 +35,9 @@ stringAttribute : String -> Types.AttributeValue
 stringAttribute value =
     let
         encoded =
-            String.Extra.toCodePoints value
-                |> List.map codePointToString
+            value
+                |> String.toList
+                |> List.map encodedCharacter
                 |> String.concat
     in
     attributeValue ("'" ++ encoded ++ "'")
@@ -55,24 +53,29 @@ backslashCodePoint =
     Char.toCode '\\'
 
 
-codePointToString : Int -> String
-codePointToString codePoint =
-    if codePoint == apostropheCodePoint then
+encodedCharacter : Char -> String
+encodedCharacter character =
+    if character == '\'' then
         "''"
-    else if codePoint == backslashCodePoint then
+    else if character == '\\' then
         "\\"
-    else if codePoint >= 0 && codePoint <= 0x1F then
-        "\\X\\" ++ hexEncode 2 codePoint
-    else if codePoint >= 0x20 && codePoint <= 0x7E then
-        String.fromChar (Char.fromCode codePoint)
-    else if codePoint >= 0x7F && codePoint <= 0xFF then
-        "\\X\\" ++ hexEncode 2 codePoint
-    else if codePoint >= 0x0100 && codePoint <= 0xFFFF then
-        "\\X2\\" ++ hexEncode 4 codePoint ++ "\\X0\\"
-    else if codePoint >= 0x00010000 && codePoint <= 0x0010FFFF then
-        "\\X4\\" ++ hexEncode 8 codePoint ++ "\\X0\\"
     else
-        ""
+        let
+            codePoint =
+                Char.toCode character
+        in
+        if codePoint >= 0 && codePoint <= 0x1F then
+            "\\X\\" ++ hexEncode 2 codePoint
+        else if codePoint >= 0x20 && codePoint <= 0x7E then
+            String.fromChar character
+        else if codePoint >= 0x7F && codePoint <= 0xFF then
+            "\\X\\" ++ hexEncode 2 codePoint
+        else if codePoint >= 0x0100 && codePoint <= 0xFFFF then
+            "\\X2\\" ++ hexEncode 4 codePoint ++ "\\X0\\"
+        else if codePoint >= 0x00010000 && codePoint <= 0x0010FFFF then
+            "\\X4\\" ++ hexEncode 8 codePoint ++ "\\X0\\"
+        else
+            ""
 
 
 hexEncode : Int -> Int -> String
@@ -109,88 +112,6 @@ enumAttribute (Types.EnumName rawEnumName) =
     attributeValue ("." ++ rawEnumName ++ ".")
 
 
-date : Date -> String
-date value =
-    String.join ""
-        [ year (Date.year value)
-        , "-"
-        , month (Date.month value)
-        , "-"
-        , day (Date.day value)
-        , "T"
-        , hour (Date.hour value)
-        , ":"
-        , minute (Date.minute value)
-        , ":"
-        , second (Date.second value)
-        ]
-
-
-year : Int -> String
-year value =
-    toString value
-
-
-month : Month -> String
-month value =
-    case value of
-        Date.Jan ->
-            "01"
-
-        Date.Feb ->
-            "02"
-
-        Date.Mar ->
-            "03"
-
-        Date.Apr ->
-            "04"
-
-        Date.May ->
-            "05"
-
-        Date.Jun ->
-            "06"
-
-        Date.Jul ->
-            "07"
-
-        Date.Aug ->
-            "08"
-
-        Date.Sep ->
-            "09"
-
-        Date.Oct ->
-            "10"
-
-        Date.Nov ->
-            "11"
-
-        Date.Dec ->
-            "12"
-
-
-day : Int -> String
-day value =
-    String.padLeft 2 '0' (toString value)
-
-
-hour : Int -> String
-hour value =
-    String.padLeft 2 '0' (toString value)
-
-
-minute : Int -> String
-minute value =
-    String.padLeft 2 '0' (toString value)
-
-
-second : Int -> String
-second value =
-    String.padLeft 2 '0' (toString value)
-
-
 boolAttribute : Bool -> Types.AttributeValue
 boolAttribute bool =
     if bool then
@@ -201,16 +122,16 @@ boolAttribute bool =
 
 intAttribute : Int -> Types.AttributeValue
 intAttribute value =
-    attributeValue (toString value)
+    attributeValue (String.fromInt value)
 
 
 floatAttribute : Float -> Types.AttributeValue
 floatAttribute value =
     if toFloat (round value) == value then
         -- STEP requires integer-valued floats to have a trailing '.'
-        attributeValue (toString value ++ ".")
+        attributeValue (String.fromFloat value ++ ".")
     else
-        attributeValue (toString value)
+        attributeValue (String.fromFloat value)
 
 
 referenceTo : Int -> Types.AttributeValue
@@ -248,7 +169,7 @@ typeName value =
 
 enumName : String -> Types.EnumName
 enumName value =
-    Types.EnumName (value |> String.toUpper |> String.Extra.replace "." "")
+    Types.EnumName (value |> String.toUpper |> String.replace "." "")
 
 
 typedAttribute : Types.TypeName -> Types.AttributeValue -> Types.AttributeValue
@@ -258,7 +179,7 @@ typedAttribute (Types.TypeName rawTypeName) (Types.AttributeValue rawAttributeVa
 
 id : Int -> String
 id value =
-    "#" ++ toString value
+    "#" ++ String.fromInt value
 
 
 entity : Types.TypeName -> List Types.AttributeValue -> String

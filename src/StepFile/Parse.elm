@@ -1,4 +1,4 @@
-module StepFile.Parse exposing (Error(..), file, header, prepareString)
+module StepFile.Parse exposing (Error(..), file, header)
 
 {-| Functionality for parsing STEP files.
 
@@ -7,9 +7,7 @@ module StepFile.Parse exposing (Error(..), file, header, prepareString)
 -}
 
 import Char
-import Date exposing (Date)
 import Parser exposing ((|.), (|=), Parser)
-import Regex
 import StepFile exposing (Entity, File, Header)
 import StepFile.EntityResolution as EntityResolution
 import StepFile.Types as Types
@@ -41,227 +39,178 @@ type Error
     | CircularReference (List Int)
 
 
-comma : Parser ()
-comma =
-    Parser.symbol ","
+comment : Parser ()
+comment =
+    Parser.multiComment "/*" "*/" Parser.NotNestable
 
 
-listTail : Parser a -> Parser (List a)
-listTail item =
-    Parser.oneOf
-        [ Parser.symbol ")" |> Parser.map (\() -> [])
-        , Parser.succeed (\first rest -> first :: rest)
-            |= item
-            |= Parser.repeat Parser.zeroOrMore
-                (Parser.succeed identity
-                    |. comma
-                    |= item
-                )
-            |. Parser.symbol ")"
-        ]
+whitespace : Parser ()
+whitespace =
+    Parser.oneOf [ Parser.spaces, comment ]
 
 
 list : Parser a -> Parser (List a)
-list item =
-    Parser.succeed identity
-        |. Parser.symbol "("
-        |= listTail item
+list parseItem =
+    Parser.sequence
+        { start = "("
+        , separator = ","
+        , end = ")"
+        , spaces = whitespace
+        , item = parseItem
+        , trailing = Parser.Forbidden
+        }
 
 
-typeNameWithOpeningParenthesis : Parser Types.TypeName
-typeNameWithOpeningParenthesis =
-    let
-        regex =
-            Regex.regex "^[A-Z_][A-Z_0-9]*$"
-    in
-    Parser.source (Parser.ignoreUntil "(")
-        |> Parser.andThen
-            (\source ->
-                let
-                    name =
-                        String.dropRight 1 source
-                in
-                if Regex.contains regex name then
-                    Parser.succeed (Types.TypeName name)
-                else
-                    Parser.fail ("Expected valid type name, got " ++ name)
-            )
+isUpper : Char -> Bool
+isUpper char =
+    Char.isUpper char || char == '_'
+
+
+isUpperOrDigit : Char -> Bool
+isUpperOrDigit char =
+    isUpper char || Char.isDigit char
+
+
+keyword : Parser String
+keyword =
+    Parser.getChompedString <|
+        Parser.succeed ()
+            |. Parser.chompIf isUpper
+            |. Parser.chompWhile isUpperOrDigit
+
+
+typeName : Parser Types.TypeName
+typeName =
+    Parser.succeed Types.TypeName |= keyword
 
 
 string : Parser String
 string =
-    Parser.repeat Parser.oneOrMore
-        (Parser.source (Parser.symbol "'" |. Parser.ignoreUntil "'"))
-        |> Parser.map (String.concat >> String.slice 1 -1)
+    Parser.succeed identity
+        |. Parser.token "'"
+        |= Parser.getChompedString (Parser.chompWhile ((/=) '\''))
+        |. Parser.token "'"
 
 
 binary : Parser String
 binary =
-    Parser.source (Parser.symbol "\"" |. Parser.ignoreUntil "\"")
-        |> Parser.map (String.slice 1 -1)
+    Parser.succeed identity
+        |. Parser.token "\""
+        |= Parser.getChompedString (Parser.chompWhile ((/=) '"'))
+        |. Parser.token "\""
 
 
 enum : Parser Types.EnumName
 enum =
-    Parser.source (Parser.symbol "." |. Parser.ignoreUntil ".")
-        |> Parser.map (String.slice 1 -1 >> Types.EnumName)
+    Parser.succeed Types.EnumName
+        |. Parser.token "."
+        |= keyword
+        |. Parser.token "."
 
 
 id : Parser Int
 id =
     Parser.succeed identity
-        |. Parser.symbol "#"
+        |. Parser.token "#"
         |= Parser.int
+
+
+optionalSign : Parser Int
+optionalSign =
+    Parser.oneOf
+        [ Parser.succeed -1 |. Parser.token "-"
+        , Parser.succeed 1 |. Parser.token "+"
+        , Parser.succeed 1
+        ]
+
+
+signedInt : Int -> Int -> Types.ParsedAttribute
+signedInt sign value =
+    Types.ParsedIntAttribute (sign * value)
+
+
+signedFloat : Int -> Float -> Types.ParsedAttribute
+signedFloat sign value =
+    Types.ParsedFloatAttribute (toFloat sign * value)
+
+
+numericAttribute : Parser Types.ParsedAttribute
+numericAttribute =
+    optionalSign
+        |> Parser.andThen
+            (\sign ->
+                Parser.number
+                    { int = Just (signedInt sign)
+                    , float = Just (signedFloat sign)
+                    , hex = Nothing
+                    , octal = Nothing
+                    , binary = Nothing
+                    }
+            )
+
+
+typedAttribute : Parser Types.ParsedAttribute
+typedAttribute =
+    Parser.succeed Types.ParsedTypedAttribute
+        |= typeName
+        |. whitespace
+        |. Parser.token "("
+        |. whitespace
+        |= lazyAttribute
+        |. whitespace
+        |. Parser.token ")"
 
 
 attribute : Parser Types.ParsedAttribute
 attribute =
-    let
-        defaultAttribute =
-            Parser.symbol "*"
-                |> Parser.map (\() -> Types.ParsedDefaultAttribute)
-
-        nullAttribute =
-            Parser.symbol "$"
-                |> Parser.map (\() -> Types.ParsedNullAttribute)
-
-        trueAttribute =
-            Parser.keyword ".T."
-                |> Parser.map (\() -> Types.ParsedBoolAttribute True)
-
-        falseAttribute =
-            Parser.keyword ".F."
-                |> Parser.map (\() -> Types.ParsedBoolAttribute False)
-
-        optionalSign =
-            Parser.oneOf
-                [ Parser.symbol "+", Parser.symbol "-", Parser.succeed () ]
-
-        digits =
-            Parser.ignore Parser.oneOrMore Char.isDigit
-
-        optionalDigits =
-            Parser.ignore Parser.zeroOrMore Char.isDigit
-
-        numericAttribute =
-            Parser.sourceMap (,)
-                (Parser.succeed identity
-                    |. optionalSign
-                    |. digits
-                    |= Parser.oneOf
-                        [ Parser.succeed True
-                            |. Parser.symbol "."
-                            |. optionalDigits
-                            |. Parser.oneOf
-                                [ Parser.symbol "E" |. optionalSign |. digits
-                                , Parser.succeed ()
-                                ]
-                        , Parser.succeed False
-                        ]
-                )
-                |> Parser.andThen
-                    (\( string, isFloat ) ->
-                        if isFloat then
-                            case String.toFloat string of
-                                Ok value ->
-                                    Parser.succeed
-                                        (Types.ParsedFloatAttribute value)
-
-                                Err message ->
-                                    Parser.fail message
-                        else
-                            case String.toInt string of
-                                Ok value ->
-                                    Parser.succeed
-                                        (Types.ParsedIntAttribute value)
-
-                                Err message ->
-                                    Parser.fail message
-                    )
-
-        stringAttribute =
-            string |> Parser.map Types.ParsedStringAttribute
-
-        binaryAttribute =
-            binary |> Parser.map Types.ParsedBinaryAttribute
-
-        enumAttribute =
-            enum |> Parser.map Types.ParsedEnumAttribute
-
-        unevaluatedReference =
-            id |> Parser.map Types.ParsedReference
-
-        attributeList =
-            Parser.succeed Types.ParsedAttributeList
-                |= list (Parser.lazy (\() -> attribute))
-
-        typedAttribute =
-            Parser.delayedCommitMap Types.ParsedTypedAttribute
-                typeNameWithOpeningParenthesis
-                (Parser.lazy (\() -> attribute) |. Parser.symbol ")")
-    in
     Parser.oneOf
-        [ defaultAttribute
-        , nullAttribute
-        , trueAttribute
-        , falseAttribute
-        , enumAttribute
+        [ Parser.succeed Types.ParsedDefaultAttribute |. Parser.token "*"
+        , Parser.succeed Types.ParsedNullAttribute |. Parser.token "$"
+        , Parser.succeed (Types.ParsedBoolAttribute True) |. Parser.token ".T."
+        , Parser.succeed (Types.ParsedBoolAttribute False) |. Parser.token ".F."
+        , Parser.succeed Types.ParsedEnumAttribute |= enum
         , numericAttribute
-        , stringAttribute
-        , binaryAttribute
-        , unevaluatedReference
-        , attributeList
+        , Parser.succeed Types.ParsedStringAttribute |= string
+        , Parser.succeed Types.ParsedBinaryAttribute |= binary
+        , Parser.succeed Types.ParsedReference |= id
+        , Parser.succeed Types.ParsedAttributeList |= list lazyAttribute
         , typedAttribute
         ]
+
+
+lazyAttribute : Parser Types.ParsedAttribute
+lazyAttribute =
+    Parser.lazy (\() -> attribute)
 
 
 entity : Parser Types.ParsedEntity
 entity =
     Parser.succeed Types.ParsedEntity
-        |= typeNameWithOpeningParenthesis
-        |= listTail attribute
+        |= typeName
+        |. whitespace
+        |= list attribute
 
 
 entityInstance : Parser ( Int, Types.ParsedEntity )
 entityInstance =
-    Parser.succeed (,)
+    Parser.succeed Tuple.pair
         |= id
-        |. Parser.symbol "="
+        |. whitespace
+        |. Parser.token "="
+        |. whitespace
         |= entity
-        |. Parser.symbol ";"
 
 
-date : Parser Date
-date =
-    let
-        toDate string =
-            Date.fromString string |> Result.withDefault (Date.fromTime 0)
-    in
-    Parser.succeed toDate
-        |. Parser.symbol "'"
-        |= Parser.source
-            (Parser.succeed ()
-                |. Parser.ignore (Parser.Exactly 4) Char.isDigit
-                |. Parser.symbol "-"
-                |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                |. Parser.symbol "-"
-                |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                |. Parser.symbol "T"
-                |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                |. Parser.symbol ":"
-                |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                |. Parser.symbol ":"
-                |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                |. Parser.oneOf
-                    [ Parser.succeed ()
-                        |. Parser.oneOf [ Parser.symbol "+", Parser.symbol "-" ]
-                        |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                        |. Parser.symbol ":"
-                        |. Parser.ignore (Parser.Exactly 2) Char.isDigit
-                    , Parser.succeed ()
-                    ]
-            )
-        |. Parser.symbol "'"
+entities : Parser (List ( Int, Types.ParsedEntity ))
+entities =
+    Parser.sequence
+        { start = "DATA;"
+        , item = entityInstance
+        , separator = ";"
+        , trailing = Parser.Mandatory
+        , spaces = whitespace
+        , end = "ENDSEC;"
+        }
 
 
 {-| -}
@@ -269,10 +218,13 @@ header : Parser Header
 header =
     let
         start name =
-            Parser.symbol (name ++ "(")
+            Parser.token (name ++ "(")
 
         end =
-            Parser.symbol ");"
+            Parser.token ");"
+
+        comma =
+            Parser.token ","
 
         stringList =
             list string
@@ -291,15 +243,16 @@ header =
                 , schemaIdentifiers = schemaIdentifiers
                 }
         )
+        |. Parser.token "HEADER;"
         |. start "FILE_DESCRIPTION"
         |= stringList
         |. comma
-        |. Parser.keyword "'2;1'"
+        |. Parser.token "'2;1'"
         |. end
         |. start "FILE_NAME"
         |= string
         |. comma
-        |= date
+        |= string
         |. comma
         |= stringList
         |. comma
@@ -314,103 +267,29 @@ header =
         |. start "FILE_SCHEMA"
         |= stringList
         |. end
+        |. Parser.token "ENDSEC;"
 
 
 fileParser : Parser ( Header, List ( Int, Types.ParsedEntity ) )
 fileParser =
-    Parser.succeed (,)
-        |. Parser.keyword "ISO-10303-21;"
-        |. Parser.keyword "HEADER;"
+    Parser.succeed Tuple.pair
+        |. Parser.token "ISO-10303-21;"
         |= header
-        |. Parser.keyword "ENDSEC;"
-        |. Parser.keyword "DATA;"
-        |= Parser.repeat Parser.zeroOrMore entityInstance
-        |. Parser.keyword "ENDSEC;"
-        |. Parser.keyword "END-ISO-10303-21;"
+        |= entities
+        |. Parser.token "END-ISO-10303-21;"
         |. Parser.end
 
 
-type ChunkState
-    = InComment
-    | InString
-    | Neither
-
-
-{-| Pre-process the file contents to make them easier to parse
--}
-prepareString : String -> String
-prepareString =
-    let
-        joinLines =
-            String.lines >> String.join ""
-
-        separatorRegex =
-            Regex.regex "(?=/\\*|\\*/|')"
-
-        stripSpaces =
-            Regex.replace Regex.All (Regex.regex " ") (always "")
-
-        stripWhitespace string =
-            let
-                chunks =
-                    Regex.split Regex.All separatorRegex string
-
-                initialState =
-                    ( Neither, "" )
-
-                update chunk ( currentState, _ ) =
-                    if String.startsWith "'" chunk then
-                        case currentState of
-                            InComment ->
-                                ( InComment, "" )
-
-                            InString ->
-                                ( Neither, stripSpaces chunk )
-
-                            Neither ->
-                                ( InString, chunk )
-                    else if String.startsWith "/*" chunk then
-                        case currentState of
-                            InComment ->
-                                ( InComment, "" )
-
-                            InString ->
-                                ( InString, chunk )
-
-                            Neither ->
-                                ( InComment, "" )
-                    else if String.startsWith "*/" chunk then
-                        case currentState of
-                            InComment ->
-                                ( Neither
-                                , stripSpaces (String.dropLeft 2 chunk)
-                                )
-
-                            InString ->
-                                ( InString, chunk )
-
-                            Neither ->
-                                ( Neither, chunk )
-                    else
-                        ( Neither, stripSpaces chunk )
-            in
-            List.scanl update initialState chunks
-                |> List.map Tuple.second
-                |> String.concat
-    in
-    joinLines >> stripWhitespace
-
-
-toSyntaxError : Parser.Error -> Error
-toSyntaxError { problem } =
-    SyntaxError (toString problem)
+toSyntaxError : List Parser.DeadEnd -> Error
+toSyntaxError deadEnds =
+    SyntaxError (Parser.deadEndsToString deadEnds)
 
 
 extractResolutionError : EntityResolution.Error -> Error
 extractResolutionError resolutionError =
     case resolutionError of
-        EntityResolution.NonexistentEntity id ->
-            NonexistentEntity id
+        EntityResolution.NonexistentEntity id_ ->
+            NonexistentEntity id_
 
         EntityResolution.CircularReference chain ->
             CircularReference chain
@@ -419,19 +298,19 @@ extractResolutionError resolutionError =
 {-| Attempt to parse a string of text loaded from a STEP file.
 -}
 file : String -> Result Error File
-file string =
-    Parser.run fileParser (prepareString string)
+file contents =
+    Parser.run fileParser contents
         |> Result.mapError toSyntaxError
         |> Result.andThen
-            (\( header, parsedEntityInstances ) ->
+            (\( header_, parsedEntityInstances ) ->
                 EntityResolution.resolve parsedEntityInstances
                     |> Result.mapError extractResolutionError
                     |> Result.map
-                        (\entities ->
+                        (\entities_ ->
                             Types.File
-                                { header = header
-                                , entities = entities
-                                , contents = string
+                                { header = header_
+                                , entities = entities_
+                                , contents = contents
                                 }
                         )
             )

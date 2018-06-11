@@ -42,7 +42,6 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 
 -}
 
-import Date exposing (Date)
 import Dict exposing (Dict)
 import StepFile exposing (Attribute, Entity, File, Header)
 import StepFile.Entities as Entities
@@ -51,35 +50,35 @@ import StepFile.Types as Types
 
 
 headerString : Header -> String
-headerString (Types.Header header) =
+headerString (Types.Header header_) =
     let
         fileDescriptionEntity =
             entity "FILE_DESCRIPTION"
-                [ list (List.map string header.fileDescription)
+                [ list (List.map string header_.fileDescription)
                 , string "2;1"
                 ]
 
         fileNameEntity =
             entity "FILE_NAME"
-                [ string header.fileName
-                , string (Format.date header.timeStamp)
-                , list (List.map string header.author)
-                , list (List.map string header.organization)
-                , string header.preprocessorVersion
-                , string header.originatingSystem
-                , string header.authorization
+                [ string header_.fileName
+                , string header_.timeStamp
+                , list (List.map string header_.author)
+                , list (List.map string header_.organization)
+                , string header_.preprocessorVersion
+                , string header_.originatingSystem
+                , string header_.authorization
                 ]
 
         fileSchemaEntity =
             entity "FILE_SCHEMA"
-                [ list (List.map string header.schemaIdentifiers)
+                [ list (List.map string header_.schemaIdentifiers)
                 ]
 
         headerEntities =
             [ fileDescriptionEntity, fileNameEntity, fileSchemaEntity ]
     in
     Entities.compile headerEntities
-        |> List.map (\( id, entity, entityString ) -> entityString)
+        |> List.map (\( id, entity_, entityString ) -> entityString)
         |> String.join "\n"
 
 
@@ -89,18 +88,18 @@ Entities will be assigned integer IDs automatically, and nested entities
 entities referring to each other by their automatically-generated IDs.
 -}
 file : Header -> List Entity -> File
-file header entities =
+file header_ entities =
     let
         compiledEntities =
             Entities.compile entities
 
-        toKeyValuePair ( id, entity, entityString ) =
-            ( id, entity )
+        toKeyValuePair ( id, entity_, entityString ) =
+            ( id, entity_ )
 
         indexedEntities =
             compiledEntities |> List.map toKeyValuePair |> Dict.fromList
 
-        toEntityLine ( id, entity, entityString ) =
+        toEntityLine ( id, entity_, entityString ) =
             Format.id id ++ "=" ++ entityString
 
         entitiesString =
@@ -110,7 +109,7 @@ file header entities =
             String.join "\n"
                 [ "ISO-10303-21;"
                 , "HEADER;"
-                , headerString header
+                , headerString header_
                 , "ENDSEC;"
                 , "DATA;"
                 , entitiesString
@@ -119,7 +118,7 @@ file header entities =
                 ]
     in
     Types.File
-        { header = header
+        { header = header_
         , entities = indexedEntities
         , contents = contents
         }
@@ -130,7 +129,7 @@ file header entities =
 header :
     { fileDescription : List String
     , fileName : String
-    , timeStamp : Date
+    , timeStamp : String
     , author : List String
     , organization : List String
     , preprocessorVersion : String
@@ -153,8 +152,8 @@ entity typeName attributes =
 {-| Construct a reference to another STEP entity.
 -}
 referenceTo : Entity -> Attribute
-referenceTo entity =
-    Types.ReferenceTo entity
+referenceTo entity_ =
+    Types.ReferenceTo entity_
 
 
 {-| The special 'default value' attribute.

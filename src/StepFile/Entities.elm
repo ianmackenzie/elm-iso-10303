@@ -83,10 +83,10 @@ addAttribute attribute entityMap =
             in
             ( Format.referenceTo entityId, updatedMap )
 
-        Types.TypedAttribute typeName attribute ->
+        Types.TypedAttribute typeName typedAttribute ->
             let
                 ( attributeValue, updatedMap ) =
-                    addAttribute attribute entityMap
+                    addAttribute typedAttribute entityMap
             in
             ( Format.typedAttribute typeName attributeValue, updatedMap )
 
@@ -101,7 +101,7 @@ addAttribute attribute entityMap =
 update : Entity -> String -> EntityMap -> ( Int, EntityMap )
 update entity entityString ((EntityMap nextId idMap) as entityMap) =
     case Dict.get entityString idMap of
-        Just ( id, entity ) ->
+        Just ( id, _ ) ->
             ( id, entityMap )
 
         Nothing ->

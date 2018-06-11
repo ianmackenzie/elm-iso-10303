@@ -3,7 +3,6 @@ module StepFile.Types exposing (..)
 {-| The internal STEP types used during both encoding and decoding.
 -}
 
-import Date exposing (Date)
 import Dict exposing (Dict)
 
 
@@ -90,7 +89,7 @@ type Header
     = Header
         { fileDescription : List String
         , fileName : String
-        , timeStamp : Date
+        , timeStamp : String
         , author : List String
         , organization : List String
         , preprocessorVersion : String
