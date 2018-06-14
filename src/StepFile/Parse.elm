@@ -319,6 +319,7 @@ header =
 fileParser : Parser ( Header, List ( Int, Types.ParsedEntity ) )
 fileParser =
     Parser.succeed Tuple.pair
+        |. whitespace
         |. Parser.token "ISO-10303-21;"
         |. whitespace
         |= header
