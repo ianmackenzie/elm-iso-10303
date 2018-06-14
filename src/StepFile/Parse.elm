@@ -48,7 +48,16 @@ comment =
 
 whitespace : Parser ()
 whitespace =
-    Parser.oneOf [ Parser.spaces, comment ]
+    Parser.spaces
+        |. Parser.loop ()
+            (\() ->
+                Parser.oneOf
+                    [ Parser.succeed (Parser.Loop ())
+                        |. comment
+                        |. Parser.spaces
+                    , Parser.succeed (Parser.Done ())
+                    ]
+            )
 
 
 list : Parser a -> Parser (List a)
