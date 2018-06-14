@@ -84,10 +84,8 @@ isUpperOrDigit char =
 
 keyword : Parser String
 keyword =
-    Parser.getChompedString <|
-        Parser.succeed ()
-            |. Parser.chompIf isUpper
-            |. Parser.chompWhile isUpperOrDigit
+    Parser.getChompedString
+        (Parser.chompIf isUpper |. Parser.chompWhile isUpperOrDigit)
 
 
 typeName : Parser Types.TypeName
