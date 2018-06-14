@@ -292,7 +292,7 @@ fileParser =
 
 toSyntaxError : List Parser.DeadEnd -> Error
 toSyntaxError deadEnds =
-    SyntaxError (Parser.deadEndsToString deadEnds)
+    SyntaxError (Debug.toString deadEnds)
 
 
 extractResolutionError : EntityResolution.Error -> Error
