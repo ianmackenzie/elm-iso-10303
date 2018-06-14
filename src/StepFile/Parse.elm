@@ -229,7 +229,7 @@ header : Parser Header
 header =
     let
         start name =
-            Parser.token (name ++ "(")
+            Parser.token name |. whitespace |. Parser.token "("
 
         end =
             Parser.token ");"
