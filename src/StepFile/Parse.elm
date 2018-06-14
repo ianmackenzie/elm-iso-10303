@@ -288,7 +288,6 @@ fileParser =
         |= header
         |= entities
         |. Parser.token "END-ISO-10303-21;"
-        |. Parser.end
 
 
 toSyntaxError : List Parser.DeadEnd -> Error
