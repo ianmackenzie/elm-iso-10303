@@ -522,7 +522,7 @@ parseX4 =
                         |= hexDigit
                     , Parser.succeed
                         (\() -> Parser.Done (List.reverse accumulated))
-                        |= Parser.token "\\X4\\"
+                        |= Parser.token "\\X0\\"
                     ]
             )
 
