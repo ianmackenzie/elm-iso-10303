@@ -530,7 +530,8 @@ parseX4 =
 parseStringChunk : Parser String
 parseStringChunk =
     Parser.oneOf
-        [ Parser.getChompedString (Parser.chompWhile isBasic)
+        [ Parser.getChompedString
+            (Parser.chompIf isBasic |. Parser.chompWhile isBasic)
         , Parser.succeed "'" |. Parser.token "''"
         , Parser.succeed "\\" |. Parser.token "\\\\"
         , parseX0
