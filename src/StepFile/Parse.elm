@@ -255,29 +255,53 @@ header =
                 }
         )
         |. Parser.token "HEADER;"
+        |. whitespace
         |. start "FILE_DESCRIPTION"
+        |. whitespace
         |= stringList
+        |. whitespace
         |. comma
+        |. whitespace
         |. Parser.token "'2;1'"
+        |. whitespace
         |. end
+        |. whitespace
         |. start "FILE_NAME"
+        |. whitespace
         |= string
+        |. whitespace
         |. comma
+        |. whitespace
         |= string
+        |. whitespace
         |. comma
+        |. whitespace
         |= stringList
+        |. whitespace
         |. comma
+        |. whitespace
         |= stringList
+        |. whitespace
         |. comma
+        |. whitespace
         |= string
+        |. whitespace
         |. comma
+        |. whitespace
         |= string
+        |. whitespace
         |. comma
+        |. whitespace
         |= string
+        |. whitespace
         |. end
+        |. whitespace
         |. start "FILE_SCHEMA"
+        |. whitespace
         |= stringList
+        |. whitespace
         |. end
+        |. whitespace
         |. Parser.token "ENDSEC;"
 
 
@@ -285,8 +309,11 @@ fileParser : Parser ( Header, List ( Int, Types.ParsedEntity ) )
 fileParser =
     Parser.succeed Tuple.pair
         |. Parser.token "ISO-10303-21;"
+        |. whitespace
         |= header
+        |. whitespace
         |= entities
+        |. whitespace
         |. Parser.token "END-ISO-10303-21;"
 
 
