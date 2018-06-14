@@ -95,10 +95,23 @@ typeName =
 
 string : Parser String
 string =
-    Parser.succeed identity
-        |. Parser.token "'"
-        |= Parser.getChompedString (Parser.chompWhile ((/=) '\''))
-        |. Parser.token "'"
+    Parser.getChompedString
+        (Parser.token "'"
+            |. Parser.loop ()
+                (\() ->
+                    Parser.succeed identity
+                        |. Parser.chompUntil "'"
+                        -- TODO remove if chompUntil is changed
+                        |. Parser.token "'"
+                        |= Parser.oneOf
+                            [ Parser.succeed (Parser.Loop ())
+                                |. Parser.token "'"
+                            , Parser.succeed (Parser.Done ())
+                            ]
+                )
+        )
+        -- Strip off start/end single quotation marks
+        |> Parser.map (String.slice 1 -1)
 
 
 binary : Parser String
