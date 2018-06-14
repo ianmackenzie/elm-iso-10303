@@ -41,7 +41,9 @@ type Error
 
 comment : Parser ()
 comment =
+    -- TODO remove final 'token' call once multiComment is fixed
     Parser.multiComment "/*" "*/" Parser.NotNestable
+        |. Parser.token "*/"
 
 
 whitespace : Parser ()
