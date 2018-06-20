@@ -6,8 +6,10 @@
     "version": "1.0.0",
     "exposed-modules": [
         "StepFile",
+        "StepFile.Decode",
         "StepFile.Encode",
         "StepFile.Entity",
+        "StepFile.Header",
         "StepFile.Parse"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
