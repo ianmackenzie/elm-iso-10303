@@ -1,30 +1,26 @@
 module Read exposing (..)
 
-import Bootstrap.Button as Button
-import Bootstrap.CDN
-import Bootstrap.Form.Input as Input
-import Bootstrap.Form.InputGroup as InputGroup
-import Bootstrap.Grid as Grid
+import Browser
 import Dict exposing (Dict)
+import Element
+import Element.Input as Input
 import Html exposing (Html)
 import Http
 import Process
 import RemoteData exposing (RemoteData)
-import StepFile as Step
-import StepFile.File as File
-import StepFile.Parse as Parse
+import StepFile exposing (StepFile)
 import Task exposing (Task)
-import Time exposing (Time)
+import Time
 
 
-type StepFile
+type ParseState
     = Unparsed String
-    | Parsed ( Time, Step.File )
+    | Parsed ( Float, StepFile )
 
 
 type alias Model =
     { fileName : String
-    , stepData : RemoteData String StepFile
+    , stepData : RemoteData String ParseState
     }
 
 
@@ -33,7 +29,7 @@ type Msg
     | LoadRequested
     | DataReceived String
     | LoadFailed
-    | FileParsed ( Time, Step.File )
+    | FileParsed ( Float, StepFile )
     | ParseFailed String
 
 
@@ -42,39 +38,46 @@ init =
     ( { fileName = "", stepData = RemoteData.NotAsked }, Cmd.none )
 
 
-parse : String -> Task String ( Time, Step.File )
+chainToString : List Int -> String
+chainToString chain =
+    "[" ++ String.join "," (List.map String.fromInt chain) ++ "]"
+
+
+parse : String -> Task String ( Float, StepFile )
 parse string =
-    Process.sleep (0.1 * Time.second)
+    Process.sleep 100
         |> Task.andThen
             (\() ->
                 Time.now
                     |> Task.andThen
                         (\startTime ->
-                            case Parse.file string of
+                            case StepFile.parse string of
                                 Ok file ->
                                     Time.now
                                         |> Task.map
                                             (\finishTime ->
-                                                ( finishTime - startTime
-                                                , file
-                                                )
+                                                let
+                                                    duration =
+                                                        toFloat (Time.posixToMillis finishTime - Time.posixToMillis startTime) / 1000
+                                                in
+                                                ( duration, file )
                                             )
 
-                                Err (Parse.SyntaxError message) ->
+                                Err (StepFile.SyntaxError message) ->
                                     Task.fail
                                         ("Syntax error: " ++ message)
 
-                                Err (Parse.NonexistentEntity id) ->
+                                Err (StepFile.NonexistentEntity id) ->
                                     Task.fail
                                         ("Nonexistent entity with id "
-                                            ++ toString id
+                                            ++ String.fromInt id
                                             ++ " referenced"
                                         )
 
-                                Err (Parse.CircularReference chain) ->
+                                Err (StepFile.CircularReference chain) ->
                                     Task.fail
                                         ("Circular reference detected: "
-                                            ++ toString chain
+                                            ++ chainToString chain
                                         )
                         )
             )
@@ -120,8 +123,8 @@ update message model =
                         Ok file ->
                             FileParsed file
 
-                        Err message ->
-                            ParseFailed message
+                        Err errorMessage ->
+                            ParseFailed errorMessage
 
                 parseCmd =
                     Task.attempt handleResult (parse string)
@@ -140,63 +143,52 @@ update message model =
             , Cmd.none
             )
 
-        ParseFailed message ->
-            ( { model | stepData = RemoteData.Failure message }
+        ParseFailed errorMessage ->
+            ( { model | stepData = RemoteData.Failure errorMessage }
             , Cmd.none
             )
 
 
 view : Model -> Html Msg
 view model =
-    Grid.container []
-        [ Bootstrap.CDN.stylesheet
-        , Grid.row []
-            [ Grid.col []
-                [ InputGroup.config
-                    (InputGroup.text
-                        [ Input.defaultValue "", Input.onInput FileNameEdited ]
-                    )
-                    |> InputGroup.successors
-                        [ InputGroup.button
-                            [ Button.primary
-                            , Button.onClick LoadRequested
-                            ]
-                            [ Html.text "Load" ]
-                        ]
-                    |> InputGroup.small
-                    |> InputGroup.view
-                ]
+    Element.layout [] <|
+        Element.column []
+            [ Input.text []
+                { onChange = Just FileNameEdited
+                , text = model.fileName
+                , placeholder = Nothing
+                , label = Input.labelAbove [] (Element.text "File to load")
+                }
+            , Input.button []
+                { onPress = Just LoadRequested
+                , label = Element.text "Load"
+                }
+            , Element.text <|
+                case model.stepData of
+                    RemoteData.NotAsked ->
+                        ""
+
+                    RemoteData.Loading ->
+                        "Loading..."
+
+                    RemoteData.Failure message ->
+                        message
+
+                    RemoteData.Success (Unparsed _) ->
+                        "Parsing..."
+
+                    RemoteData.Success (Parsed ( time, file )) ->
+                        String.fromInt (Dict.size (StepFile.entities file))
+                            ++ " entities, parsed in "
+                            ++ String.fromFloat time
+                            ++ " seconds"
             ]
-        , Grid.row []
-            [ Grid.col []
-                [ Html.text <|
-                    case model.stepData of
-                        RemoteData.NotAsked ->
-                            ""
-
-                        RemoteData.Loading ->
-                            "Loading..."
-
-                        RemoteData.Failure message ->
-                            message
-
-                        RemoteData.Success (Unparsed _) ->
-                            "Parsing..."
-
-                        RemoteData.Success (Parsed ( time, file )) ->
-                            toString (Dict.size (File.entities file))
-                                ++ " entities, parsed in "
-                                ++ toString (Time.inSeconds time)
-                                ++ " seconds"
-                ]
-            ]
-        ]
 
 
-main : Program Never Model Msg
+main : Program () Model Msg
 main =
-    Html.program
-        { init = init
+    Browser.embed
+        { init = always init
         , update = update
         , view = view
         , subscriptions = always Sub.none
