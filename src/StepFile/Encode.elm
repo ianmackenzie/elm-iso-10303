@@ -43,9 +43,11 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 -}
 
 import Dict exposing (Dict)
-import StepFile exposing (Attribute, Entity, File, Header)
+import StepFile exposing (StepFile)
 import StepFile.Entities as Entities
+import StepFile.Entity as Entity exposing (Attribute, Entity)
 import StepFile.Format as Format
+import StepFile.Header as Header exposing (Header)
 import StepFile.Types as Types
 
 
@@ -87,7 +89,7 @@ Entities will be assigned integer IDs automatically, and nested entities
 (entities that reference other entities) will be 'flattened' to separate
 entities referring to each other by their automatically-generated IDs.
 -}
-file : Header -> List Entity -> File
+file : Header -> List Entity -> StepFile
 file header_ entities =
     let
         compiledEntities =
@@ -117,7 +119,7 @@ file header_ entities =
                 , "END-ISO-10303-21;\n"
                 ]
     in
-    Types.File
+    Types.StepFile
         { header = header_
         , entities = indexedEntities
         , contents = contents

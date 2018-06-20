@@ -1,6 +1,8 @@
 module StepFile.Entity
     exposing
-        ( attributes
+        ( Attribute
+        , Entity
+        , attributes
         , hasType
         , typeName
         )
@@ -13,9 +15,22 @@ in handy in weird cases.
 
 -}
 
-import StepFile exposing (Attribute, Entity)
 import StepFile.Format as Format
 import StepFile.Types as Types
+
+
+{-| Represents a single entity storied in the data section of a STEP file, such
+as a point, curve, assembly or entire building.
+-}
+type alias Entity =
+    Types.Entity
+
+
+{-| Represents a single attribute of a STEP entity, such as X coordinate value,
+GUID string, or a reference to another entity.
+-}
+type alias Attribute =
+    Types.Attribute
 
 
 {-| Get the type of an entity. This will always be all caps, for example

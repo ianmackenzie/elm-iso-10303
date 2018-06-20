@@ -1,9 +1,8 @@
 module StepFile.Entities exposing (compile)
 
 import Dict exposing (Dict)
-import StepFile exposing (Attribute, Entity)
 import StepFile.Format as Format
-import StepFile.Types as Types
+import StepFile.Types as Types exposing (Attribute, Entity)
 
 
 type EntityMap

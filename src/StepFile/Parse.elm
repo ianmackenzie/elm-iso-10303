@@ -1,42 +1,16 @@
-module StepFile.Parse exposing (Error(..), file, header)
+module StepFile.Parse exposing (file)
 
 {-| Functionality for parsing STEP files.
 
-@docs Error, file, header, prepareString
+@docs Error, file
 
 -}
 
 import Char
 import Parser exposing ((|.), (|=), Parser)
-import StepFile exposing (Entity, File, Header)
 import StepFile.EntityResolution as EntityResolution
-import StepFile.Types as Types
+import StepFile.Types as Types exposing (Header, StepFile)
 import String
-
-
-{-| Types of errors that can be encountered when parsing a file:
-
-  - A `SyntaxError` means an error actually parsing STEP text; this means that
-    either the STEP file is improperly formatted or (more likely!) it uses
-    an aspect of STEP syntax that is not yet supported by this package. The
-    parameter is an error string that can be used for debugging (not suitable to
-    be shown to end users).
-  - A `NonexistentEntity` means that the file was parsed OK, but an error
-    occurred when a reference such as `#23` was found in one entity but no
-    entity with that ID existed in the file. The integer parameter is the ID of
-    the nonexistent entity.
-  - A `CircularReference` means that the files was parsed OK, but a circular
-    reference was found between entities (this is possible in STEP but not
-    currently supported by this package). The parameter is the circular
-    reference chain: `[34, 34]` means that entity #34 refers to itself, while
-    `[34, 5, 126, 34]` means that entity #34 refers to #5, which refers to #126,
-    which refers back to #34.
-
--}
-type Error
-    = SyntaxError String
-    | NonexistentEntity Int
-    | CircularReference (List Int)
 
 
 comment : Parser ()
@@ -235,7 +209,6 @@ entities =
         }
 
 
-{-| -}
 header : Parser Header
 header =
     let
@@ -316,8 +289,8 @@ header =
         |. Parser.token "ENDSEC;"
 
 
-fileParser : Parser ( Header, List ( Int, Types.ParsedEntity ) )
-fileParser =
+file : Parser ( Header, List ( Int, Types.ParsedEntity ) )
+file =
     Parser.succeed Tuple.pair
         |. whitespace
         |. Parser.token "ISO-10303-21;"
@@ -327,39 +300,3 @@ fileParser =
         |= entities
         |. whitespace
         |. Parser.token "END-ISO-10303-21;"
-
-
-toSyntaxError : List Parser.DeadEnd -> Error
-toSyntaxError deadEnds =
-    SyntaxError (Debug.toString deadEnds)
-
-
-extractResolutionError : EntityResolution.Error -> Error
-extractResolutionError resolutionError =
-    case resolutionError of
-        EntityResolution.NonexistentEntity id_ ->
-            NonexistentEntity id_
-
-        EntityResolution.CircularReference chain ->
-            CircularReference chain
-
-
-{-| Attempt to parse a string of text loaded from a STEP file.
--}
-file : String -> Result Error File
-file contents =
-    Parser.run fileParser contents
-        |> Result.mapError toSyntaxError
-        |> Result.andThen
-            (\( header_, parsedEntityInstances ) ->
-                EntityResolution.resolve parsedEntityInstances
-                    |> Result.mapError extractResolutionError
-                    |> Result.map
-                        (\entities_ ->
-                            Types.File
-                                { header = header_
-                                , entities = entities_
-                                , contents = contents
-                                }
-                        )
-            )

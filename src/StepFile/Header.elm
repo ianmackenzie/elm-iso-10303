@@ -1,6 +1,7 @@
 module StepFile.Header
     exposing
-        ( author
+        ( Header
+        , author
         , authorization
         , fileDescription
         , fileName
@@ -11,9 +12,13 @@ module StepFile.Header
         , timeStamp
         )
 
-import Date exposing (Date)
-import StepFile exposing (Header)
 import StepFile.Types as Types
+
+
+{-| Represents the data stored in the header section of a STEP file.
+-}
+type alias Header =
+    Types.Header
 
 
 fileDescription : Header -> List String
@@ -26,7 +31,7 @@ fileName (Types.Header properties) =
     properties.fileName
 
 
-timeStamp : Header -> Date
+timeStamp : Header -> String
 timeStamp (Types.Header properties) =
     properties.timeStamp
 

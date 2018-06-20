@@ -1,6 +1,7 @@
 module StepFile.Decode
     exposing
-        ( andThen
+        ( Decoder
+        , andThen
         , attribute
         , attributes
         , bool
@@ -44,9 +45,17 @@ import Dict
 import List
 import List.Extra as List
 import Parser exposing ((|.), (|=), Parser)
-import StepFile exposing (Attribute, Decoder, Entity, File, Header)
-import StepFile.Entity as Entity
-import StepFile.Types as Types
+import StepFile.Entity as Entity exposing (Attribute, Entity)
+import StepFile.Header as Header exposing (Header)
+import StepFile.Types as Types exposing (StepFile)
+
+
+{-| A `Decoder` describes how to attempt to decode a given `File`, `Entity` or
+`Attribute` to produce a value of another type. See the `Decode` module for
+details on how to use and construct decoders.
+-}
+type alias Decoder i a =
+    Types.Decoder i a
 
 
 run : Decoder i a -> i -> Result String a
@@ -64,7 +73,7 @@ fail description =
     Types.Decoder (always (Err description))
 
 
-file : a -> Decoder File a
+file : a -> Decoder StepFile a
 file constructor =
     succeed constructor
 
@@ -84,13 +93,13 @@ decodeAll decoder inputs accumulated =
                     Err message
 
 
-header : Decoder File Header
+header : Decoder StepFile Header
 header =
-    Types.Decoder (\(Types.File file_) -> Ok file_.header)
+    Types.Decoder (\(Types.StepFile file_) -> Ok file_.header)
 
 
-filterEntities : (Entity -> Bool) -> File -> List Entity
-filterEntities predicate (Types.File { entities }) =
+filterEntities : (Entity -> Bool) -> StepFile -> List Entity
+filterEntities predicate (Types.StepFile { entities }) =
     let
         accumulate id entity accumulated =
             if predicate entity then
@@ -101,7 +110,7 @@ filterEntities predicate (Types.File { entities }) =
     Dict.foldr accumulate [] entities
 
 
-entityOfType : String -> Decoder Entity a -> Decoder File a
+entityOfType : String -> Decoder Entity a -> Decoder StepFile a
 entityOfType typeName_ entityDecoder =
     Types.Decoder
         (\file_ ->
@@ -128,7 +137,7 @@ entityOfType typeName_ entityDecoder =
         )
 
 
-entityWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder File a
+entityWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder StepFile a
 entityWhere predicate entityDecoder =
     Types.Decoder
         (\file_ ->
@@ -141,12 +150,12 @@ entityWhere predicate entityDecoder =
         )
 
 
-entitiesOfType : String -> Decoder Entity a -> Decoder File (List a)
+entitiesOfType : String -> Decoder Entity a -> Decoder StepFile (List a)
 entitiesOfType typeName_ entityDecoder =
     entitiesWhere (Entity.hasType typeName_) entityDecoder
 
 
-entitiesWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder File (List a)
+entitiesWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder StepFile (List a)
 entitiesWhere predicate entityDecoder =
     Types.Decoder
         (\file_ ->
@@ -180,10 +189,10 @@ decodeAllBy decoderForInput inputs accumulated =
                     decodeAllBy decoderForInput rest accumulated
 
 
-entitiesBy : (Entity -> Maybe (Decoder Entity a)) -> Decoder File (List a)
+entitiesBy : (Entity -> Maybe (Decoder Entity a)) -> Decoder StepFile (List a)
 entitiesBy decoderForEntity =
     Types.Decoder
-        (\(Types.File { entities }) ->
+        (\(Types.StepFile { entities }) ->
             decodeAllBy decoderForEntity (Dict.values entities) []
         )
 

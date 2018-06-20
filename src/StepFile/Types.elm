@@ -77,8 +77,8 @@ type Decoder i a
     = Decoder (i -> Result String a)
 
 
-type File
-    = File
+type StepFile
+    = StepFile
         { header : Header
         , entities : Dict Int Entity
         , contents : String
