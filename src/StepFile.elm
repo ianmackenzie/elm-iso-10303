@@ -7,7 +7,6 @@ module StepFile
         , entities
         , header
         , parse
-        , read
         )
 
 {-| Top-level functionality for working with STEP files.
@@ -26,8 +25,10 @@ module StepFile
 
 -}
 
+import Array exposing (Array)
 import Dict exposing (Dict)
-import Parser
+import Parser exposing ((|.), (|=), Parser)
+import Regex exposing (Regex)
 import StepFile.Decode as Decode exposing (Decoder)
 import StepFile.Entity as Entity exposing (Entity)
 import StepFile.EntityResolution as EntityResolution
@@ -110,31 +111,6 @@ type ReadError
     | DecodeError String
 
 
-{-| Attempt to parse a STEP file and then decode the resulting data. This is a
-convenience function that wraps parsing and decoding errors into the single
-common `Error` type for easier handling:
-
-    read fileDecoder fileContents =
-        Parse.file fileContents
-            |> Result.mapError ParseError
-            |> Result.andThen
-                (\file ->
-                    Decode.run fileDecoder file
-                        |> Result.mapError DecodeError
-                )
-
--}
-read : Decoder StepFile a -> String -> Result ReadError a
-read fileDecoder fileContents =
-    parse fileContents
-        |> Result.mapError ParseError
-        |> Result.andThen
-            (\file ->
-                Decode.run fileDecoder file
-                    |> Result.mapError DecodeError
-            )
-
-
 toSyntaxError : List Parser.DeadEnd -> ParseError
 toSyntaxError deadEnds =
     SyntaxError (Parser.deadEndsToString deadEnds)
@@ -150,20 +126,196 @@ extractResolutionError resolutionError =
             CircularReference chain
 
 
-parse : String -> Result ParseError StepFile
-parse fileContents =
-    Parser.run Parse.file fileContents
-        |> Result.mapError toSyntaxError
-        |> Result.andThen
-            (\( header_, parsedEntityInstances ) ->
-                EntityResolution.resolve parsedEntityInstances
-                    |> Result.mapError extractResolutionError
-                    |> Result.map
-                        (\entities_ ->
-                            Types.StepFile
-                                { header = header_
-                                , entities = entities_
-                                , contents = fileContents
+type AccumulateContext
+    = InData Int
+    | InString Int
+    | InComment
+
+
+type alias AccumulateState =
+    { context : AccumulateContext
+    , dataChunks : List String
+    , strings : List String
+    , numStrings : Int
+    }
+
+
+entitySeparatorRegex : Regex
+entitySeparatorRegex =
+    Regex.fromString "=|;" |> Maybe.withDefault Regex.never
+
+
+collectPairs : List ( Int, String ) -> List String -> Result ParseError (List ( Int, String ))
+collectPairs accumulated atoms =
+    case atoms of
+        idString :: contentsString :: rest ->
+            if String.startsWith "#" idString then
+                case String.toInt (String.dropLeft 1 idString) of
+                    Just id ->
+                        collectPairs
+                            (( id, contentsString ) :: accumulated)
+                            rest
+
+                    Nothing ->
+                        Err (SyntaxError ("Entity ID \"" ++ idString ++ "\" is not valid"))
+            else
+                Err (SyntaxError "Expecting \"#\"")
+
+        _ ->
+            Ok (List.reverse accumulated)
+
+
+accumulateChunks : String -> AccumulateState -> List Regex.Match -> Result ParseError ( List ( Int, String ), Array String )
+accumulateChunks dataContents state matches =
+    case state.context of
+        InData startIndex ->
+            case matches of
+                match :: rest ->
+                    case match.match of
+                        "'" ->
+                            let
+                                dataChunk =
+                                    dataContents
+                                        |> String.slice startIndex match.index
+
+                                updatedState =
+                                    { context = InString (match.index + 1)
+                                    , dataChunks = dataChunk :: state.dataChunks
+                                    , strings = state.strings
+                                    , numStrings = state.numStrings
+                                    }
+                            in
+                            accumulateChunks dataContents updatedState rest
+
+                        "/*" ->
+                            let
+                                dataChunk =
+                                    dataContents
+                                        |> String.slice startIndex match.index
+
+                                updatedState =
+                                    { context = InComment
+                                    , dataChunks = dataChunk :: state.dataChunks
+                                    , strings = state.strings
+                                    , numStrings = state.numStrings
+                                    }
+                            in
+                            accumulateChunks dataContents updatedState rest
+
+                        "ENDSEC;" ->
+                            let
+                                lastDataChunk =
+                                    dataContents
+                                        |> String.slice startIndex match.index
+
+                                compactedData =
+                                    (lastDataChunk :: state.dataChunks)
+                                        |> List.reverse
+                                        |> String.concat
+                                        |> String.words
+                                        |> String.concat
+
+                                strings =
+                                    state.strings
+                                        |> List.reverse
+                                        |> Array.fromList
+
+                                entityAtoms =
+                                    compactedData
+                                        |> String.dropRight 1
+                                        |> Regex.split entitySeparatorRegex
+                            in
+                            collectPairs [] entityAtoms
+                                |> Result.map
+                                    (\entityPairs -> ( entityPairs, strings ))
+
+                        _ ->
+                            accumulateChunks dataContents state rest
+
+                [] ->
+                    Err (SyntaxError "Expecting \"ENDSEC;\"")
+
+        InString startIndex ->
+            case matches of
+                match :: rest ->
+                    if match.match == "'" then
+                        let
+                            string =
+                                dataContents
+                                    |> String.slice startIndex match.index
+
+                            reference =
+                                "%" ++ String.fromInt state.numStrings
+
+                            updatedState =
+                                { context = InData (match.index + 1)
+                                , dataChunks = reference :: state.dataChunks
+                                , strings = string :: state.strings
+                                , numStrings = state.numStrings + 1
                                 }
-                        )
-            )
+                        in
+                        accumulateChunks dataContents updatedState rest
+                    else
+                        accumulateChunks dataContents state rest
+
+                [] ->
+                    Err (SyntaxError "Expecting \"'\"")
+
+        InComment ->
+            case matches of
+                match :: rest ->
+                    if match.match == "*/" then
+                        let
+                            updatedState =
+                                { context = InData (match.index + 2)
+                                , dataChunks = state.dataChunks
+                                , strings = state.strings
+                                , numStrings = state.numStrings
+                                }
+                        in
+                        accumulateChunks dataContents updatedState rest
+                    else
+                        accumulateChunks dataContents state rest
+
+                [] ->
+                    Err (SyntaxError "Expecting \"*/\"")
+
+
+parse : String -> Result ParseError ( List ( Int, String ), Array String )
+parse fileContents =
+    let
+        prefixParser =
+            Parser.succeed Tuple.pair
+                |. Parse.whitespace
+                |. Parser.token "ISO-10303-21;"
+                |. Parse.whitespace
+                |= Parse.header
+                |. Parse.whitespace
+                |. Parser.token "DATA;"
+                |= Parser.getOffset
+    in
+    case Parser.run prefixParser fileContents of
+        Ok ( header_, offset ) ->
+            let
+                dataContents =
+                    fileContents
+                        |> String.slice offset (String.length fileContents)
+
+                beginState =
+                    { context = InData 0
+                    , dataChunks = []
+                    , strings = []
+                    , numStrings = 0
+                    }
+
+                separatorRegex =
+                    Regex.fromString "'|/\\*|\\*/|ENDSEC;"
+                        |> Maybe.withDefault Regex.never
+
+                matches =
+                    Regex.find separatorRegex dataContents
+            in
+            accumulateChunks dataContents beginState matches
+
+        Err deadEnds ->
+            Err (toSyntaxError deadEnds)

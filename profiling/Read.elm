@@ -1,5 +1,6 @@
 module Read exposing (..)
 
+import Array exposing (Array)
 import Browser
 import Dict exposing (Dict)
 import Element
@@ -8,9 +9,13 @@ import Html exposing (Html)
 import Http
 import Process
 import RemoteData exposing (RemoteData)
-import StepFile exposing (StepFile)
+import StepFile
 import Task exposing (Task)
 import Time
+
+
+type alias StepFile =
+    ( List ( Int, String ), Array String )
 
 
 type ParseState
@@ -177,8 +182,8 @@ view model =
                     RemoteData.Success (Unparsed _) ->
                         "Parsing..."
 
-                    RemoteData.Success (Parsed ( time, file )) ->
-                        String.fromInt (Dict.size (StepFile.entities file))
+                    RemoteData.Success (Parsed ( time, ( entityLines, strings ) )) ->
+                        String.fromInt (List.length entityLines)
                             ++ " entities, parsed in "
                             ++ String.fromFloat time
                             ++ " seconds"

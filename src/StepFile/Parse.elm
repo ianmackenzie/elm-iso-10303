@@ -1,10 +1,4 @@
-module StepFile.Parse exposing (file)
-
-{-| Functionality for parsing STEP files.
-
-@docs Error, file
-
--}
+module StepFile.Parse exposing (entity, header, whitespace)
 
 import Char
 import Parser exposing ((|.), (|=), Parser)
@@ -179,34 +173,16 @@ lazyAttribute =
     Parser.lazy (\() -> attribute)
 
 
-entity : Parser Types.ParsedEntity
+entity : Parser ( Int, Types.ParsedEntity )
 entity =
-    Parser.succeed Types.ParsedEntity
-        |= typeName
-        |. whitespace
-        |= list attribute
-
-
-entityInstance : Parser ( Int, Types.ParsedEntity )
-entityInstance =
-    Parser.succeed Tuple.pair
+    Parser.succeed
+        (\id_ typeName_ attributes_ ->
+            ( id_, Types.ParsedEntity typeName_ attributes_ )
+        )
         |= id
-        |. whitespace
         |. Parser.token "="
-        |. whitespace
-        |= entity
-
-
-entities : Parser (List ( Int, Types.ParsedEntity ))
-entities =
-    Parser.sequence
-        { start = "DATA;"
-        , item = entityInstance
-        , separator = ";"
-        , trailing = Parser.Mandatory
-        , spaces = whitespace
-        , end = "ENDSEC;"
-        }
+        |= typeName
+        |= list attribute
 
 
 header : Parser Header
@@ -287,16 +263,3 @@ header =
         |. end
         |. whitespace
         |. Parser.token "ENDSEC;"
-
-
-file : Parser ( Header, List ( Int, Types.ParsedEntity ) )
-file =
-    Parser.succeed Tuple.pair
-        |. whitespace
-        |. Parser.token "ISO-10303-21;"
-        |. whitespace
-        |= header
-        |. whitespace
-        |= entities
-        |. whitespace
-        |. Parser.token "END-ISO-10303-21;"
