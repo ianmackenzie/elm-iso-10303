@@ -127,17 +127,9 @@ extractResolutionError resolutionError =
 
 
 type AccumulateContext
-    = InData Int
-    | InString Int
+    = InData
+    | InString
     | InComment
-
-
-type alias AccumulateState =
-    { context : AccumulateContext
-    , dataChunks : List String
-    , strings : List String
-    , numStrings : Int
-    }
 
 
 entitySeparatorRegex : Regex
@@ -165,10 +157,10 @@ collectPairs accumulated atoms =
             Ok (List.reverse accumulated)
 
 
-accumulateChunks : String -> AccumulateState -> List Regex.Match -> Result ParseError ( List ( Int, String ), Array String )
-accumulateChunks dataContents state matches =
-    case state.context of
-        InData startIndex ->
+accumulateChunks : String -> AccumulateContext -> Int -> List String -> List String -> Int -> List Regex.Match -> Result ParseError ( List ( Int, String ), Array String )
+accumulateChunks dataContents context startIndex dataChunks strings numStrings matches =
+    case context of
+        InData ->
             case matches of
                 match :: rest ->
                     case match.match of
@@ -177,30 +169,28 @@ accumulateChunks dataContents state matches =
                                 dataChunk =
                                     dataContents
                                         |> String.slice startIndex match.index
-
-                                updatedState =
-                                    { context = InString (match.index + 1)
-                                    , dataChunks = dataChunk :: state.dataChunks
-                                    , strings = state.strings
-                                    , numStrings = state.numStrings
-                                    }
                             in
-                            accumulateChunks dataContents updatedState rest
+                            accumulateChunks dataContents
+                                InString
+                                (match.index + 1)
+                                (dataChunk :: dataChunks)
+                                strings
+                                numStrings
+                                rest
 
                         "/*" ->
                             let
                                 dataChunk =
                                     dataContents
                                         |> String.slice startIndex match.index
-
-                                updatedState =
-                                    { context = InComment
-                                    , dataChunks = dataChunk :: state.dataChunks
-                                    , strings = state.strings
-                                    , numStrings = state.numStrings
-                                    }
                             in
-                            accumulateChunks dataContents updatedState rest
+                            accumulateChunks dataContents
+                                InComment
+                                match.index
+                                (dataChunk :: dataChunks)
+                                strings
+                                numStrings
+                                rest
 
                         "ENDSEC;" ->
                             let
@@ -209,14 +199,14 @@ accumulateChunks dataContents state matches =
                                         |> String.slice startIndex match.index
 
                                 compactedData =
-                                    (lastDataChunk :: state.dataChunks)
+                                    (lastDataChunk :: dataChunks)
                                         |> List.reverse
                                         |> String.concat
                                         |> String.words
                                         |> String.concat
 
-                                strings =
-                                    state.strings
+                                stringArray =
+                                    strings
                                         |> List.reverse
                                         |> Array.fromList
 
@@ -227,15 +217,23 @@ accumulateChunks dataContents state matches =
                             in
                             collectPairs [] entityAtoms
                                 |> Result.map
-                                    (\entityPairs -> ( entityPairs, strings ))
+                                    (\entityPairs ->
+                                        ( entityPairs, stringArray )
+                                    )
 
                         _ ->
-                            accumulateChunks dataContents state rest
+                            accumulateChunks dataContents
+                                context
+                                startIndex
+                                dataChunks
+                                strings
+                                numStrings
+                                rest
 
                 [] ->
                     Err (SyntaxError "Expecting \"ENDSEC;\"")
 
-        InString startIndex ->
+        InString ->
             case matches of
                 match :: rest ->
                     if match.match == "'" then
@@ -245,18 +243,23 @@ accumulateChunks dataContents state matches =
                                     |> String.slice startIndex match.index
 
                             reference =
-                                "%" ++ String.fromInt state.numStrings
-
-                            updatedState =
-                                { context = InData (match.index + 1)
-                                , dataChunks = reference :: state.dataChunks
-                                , strings = string :: state.strings
-                                , numStrings = state.numStrings + 1
-                                }
+                                "%" ++ String.fromInt numStrings
                         in
-                        accumulateChunks dataContents updatedState rest
+                        accumulateChunks dataContents
+                            InData
+                            (match.index + 1)
+                            (reference :: dataChunks)
+                            (string :: strings)
+                            (numStrings + 1)
+                            rest
                     else
-                        accumulateChunks dataContents state rest
+                        accumulateChunks dataContents
+                            context
+                            startIndex
+                            dataChunks
+                            strings
+                            numStrings
+                            rest
 
                 [] ->
                     Err (SyntaxError "Expecting \"'\"")
@@ -265,17 +268,21 @@ accumulateChunks dataContents state matches =
             case matches of
                 match :: rest ->
                     if match.match == "*/" then
-                        let
-                            updatedState =
-                                { context = InData (match.index + 2)
-                                , dataChunks = state.dataChunks
-                                , strings = state.strings
-                                , numStrings = state.numStrings
-                                }
-                        in
-                        accumulateChunks dataContents updatedState rest
+                        accumulateChunks dataContents
+                            InData
+                            (match.index + 2)
+                            dataChunks
+                            strings
+                            numStrings
+                            rest
                     else
-                        accumulateChunks dataContents state rest
+                        accumulateChunks dataContents
+                            context
+                            startIndex
+                            dataChunks
+                            strings
+                            numStrings
+                            rest
 
                 [] ->
                     Err (SyntaxError "Expecting \"*/\"")
@@ -301,13 +308,6 @@ parse fileContents =
                     fileContents
                         |> String.slice offset (String.length fileContents)
 
-                beginState =
-                    { context = InData 0
-                    , dataChunks = []
-                    , strings = []
-                    , numStrings = 0
-                    }
-
                 separatorRegex =
                     Regex.fromString "'|/\\*|\\*/|ENDSEC;"
                         |> Maybe.withDefault Regex.never
@@ -315,7 +315,7 @@ parse fileContents =
                 matches =
                     Regex.find separatorRegex dataContents
             in
-            accumulateChunks dataContents beginState matches
+            accumulateChunks dataContents InData 0 [] [] 0 matches
 
         Err deadEnds ->
             Err (toSyntaxError deadEnds)
