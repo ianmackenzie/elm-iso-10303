@@ -140,18 +140,23 @@ entitySeparatorRegex =
 collectPairs : List ( Int, String ) -> List String -> Result ParseError (List ( Int, String ))
 collectPairs accumulated atoms =
     case atoms of
-        idString :: contentsString :: rest ->
-            if String.startsWith "#" idString then
-                case String.toInt (String.dropLeft 1 idString) of
-                    Just id ->
-                        collectPairs
-                            (( id, contentsString ) :: accumulated)
-                            rest
+        first :: rest ->
+            case String.split "=" first of
+                [ idString, contentsString ] ->
+                    if String.startsWith "#" idString then
+                        case String.toInt (String.dropLeft 1 idString) of
+                            Just id ->
+                                collectPairs
+                                    (( id, contentsString ) :: accumulated)
+                                    rest
 
-                    Nothing ->
-                        Err (SyntaxError ("Entity ID \"" ++ idString ++ "\" is not valid"))
-            else
-                Err (SyntaxError "Expecting \"#\"")
+                            Nothing ->
+                                Err (SyntaxError ("Entity ID \"" ++ idString ++ "\" is not valid"))
+                    else
+                        Err (SyntaxError "Expecting \"#\"")
+
+                _ ->
+                    Err (SyntaxError "Expected entity of the form #123=ENTITY(...)")
 
         _ ->
             Ok (List.reverse accumulated)
@@ -213,7 +218,7 @@ accumulateChunks dataContents context startIndex dataChunks strings numStrings m
                                 entityAtoms =
                                     compactedData
                                         |> String.dropRight 1
-                                        |> Regex.split entitySeparatorRegex
+                                        |> String.split ";"
                             in
                             collectPairs [] entityAtoms
                                 |> Result.map
