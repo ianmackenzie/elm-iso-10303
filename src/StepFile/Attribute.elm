@@ -20,6 +20,9 @@ module StepFile.Attribute
 
 {-| Functions for constructing STEP attributes.
 
+@docs Attribute
+
+
 @docs referenceTo, default, null, int, float, string, enum, binary, list
 
 
