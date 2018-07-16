@@ -9,15 +9,10 @@ module StepFile
 
 {-| Top-level functionality for working with STEP files.
 
-@docs StepFile
+@docs StepFile, with
 
 
-# Constructing
-
-@docs with
-
-
-# Accessors
+# Properties
 
 @docs header, entities, contents
 
