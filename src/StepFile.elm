@@ -4,6 +4,7 @@ module StepFile
         , contents
         , entities
         , header
+        , with
         )
 
 {-| Top-level functionality for working with STEP files.
