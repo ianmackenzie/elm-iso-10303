@@ -23,7 +23,6 @@ module StepFile
 
 -}
 
-import Array exposing (Array)
 import Dict exposing (Dict)
 import StepFile.Attribute as Attribute exposing (Attribute)
 import StepFile.Entities as Entities
