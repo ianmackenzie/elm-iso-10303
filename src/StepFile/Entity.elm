@@ -65,10 +65,7 @@ hasType givenTypeName =
     \entity -> typeName entity == formattedTypeName
 
 
-{-| Get the attributes of an entity, in the order they are given in the STEP
-file. About the only thing you can then do with each attribute is attempt to
-decode it to some value of type `a` using `Decode.run` with a
-`Decoder Attribute a`.
+{-| Get the attributes of an entity.
 -}
 attributes : Entity -> List Attribute
 attributes (Types.Entity _ attributes_) =
