@@ -11,7 +11,7 @@ module StepFile.Entity
 instead using the `Decode` module to decode entities directly, but it may come
 in handy in weird cases.
 
-@docs typeName, hasType, attributes
+@docs Entity, ofType, typeName, hasType, attributes
 
 -}
 
