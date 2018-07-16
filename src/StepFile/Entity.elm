@@ -2,7 +2,6 @@ module StepFile.Entity
     exposing
         ( Entity
         , attributes
-        , hasType
         , ofType
         , typeName
         )
@@ -12,7 +11,12 @@ file. An entity may be a point, a curve, an assembly, or even an entire
 building. Every entity has a type and a list of attributes (which themselves be
 references to other entities).
 
-@docs Entity, ofType, typeName, hasType, attributes
+@docs Entity, ofType
+
+
+# Properties
+
+@docs typeName, attributes
 
 -}
 
