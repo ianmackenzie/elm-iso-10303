@@ -8,8 +8,8 @@ module StepFile.Entity
 
 {-| An `Entity` represents a single entity stored in the data section of a STEP
 file. An entity may be a point, a curve, a part, an assembly, or even an entire
-building. Every entity has a type and a list of attributes (which themselves be
-references to other entities).
+building. Every entity has a type and a list of attributes (which can themselves
+be references to other entities).
 
 @docs Entity, ofType
 
