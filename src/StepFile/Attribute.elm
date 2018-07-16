@@ -18,7 +18,9 @@ module StepFile.Attribute
         , stringAs
         )
 
-{-| Functions for constructing STEP attributes.
+{-| Functions for constructing STEP attributes. An `Attribute` represents a
+single attribute of a STEP `Entity`, such as an X coordinate value, a GUID
+string, or a reference to another entity.
 
 @docs Attribute
 
@@ -40,9 +42,7 @@ import StepFile.Format as Format
 import StepFile.Types as Types
 
 
-{-| Represents a single attribute of a STEP entity, such as X coordinate value,
-GUID string, or a reference to another entity.
--}
+{-| -}
 type alias Attribute =
     Types.Attribute
 

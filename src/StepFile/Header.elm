@@ -13,7 +13,7 @@ module StepFile.Header
         , with
         )
 
-{-|
+{-| A `Header` represents the data stored in the header section of a STEP file.
 
 @docs Header, with
 
@@ -27,8 +27,7 @@ module StepFile.Header
 import StepFile.Types as Types
 
 
-{-| Represents the data stored in the header section of a STEP file.
--}
+{-| -}
 type alias Header =
     Types.Header
 

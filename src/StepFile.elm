@@ -32,8 +32,7 @@ import StepFile.Header as Header exposing (Header)
 import StepFile.Types as Types
 
 
-{-| A STEP file consists of a header and a list of entities.
--}
+{-| -}
 type alias StepFile =
     Types.StepFile
 
