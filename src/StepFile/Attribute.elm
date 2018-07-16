@@ -23,10 +23,12 @@ module StepFile.Attribute
 @docs Attribute
 
 
+# Simple attributes
+
 @docs referenceTo, default, null, int, float, string, enum, binary, list
 
 
-## Typed attributes
+# Typed attributes
 
 Typed attributes are sometimes needed when dealing with SELECT types.
 
