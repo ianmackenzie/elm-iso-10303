@@ -23,6 +23,7 @@ a type such as AttributeValue to improve type safety.
 
 import Bitwise
 import Char
+import Future.String as String
 import StepFile.Types as Types
 
 
@@ -169,7 +170,7 @@ typeName value =
 
 enumName : String -> Types.EnumName
 enumName value =
-    Types.EnumName (value |> String.toUpper |> String.replace "." "")
+    Types.EnumName (String.toUpper value)
 
 
 typedAttribute : Types.TypeName -> Types.AttributeValue -> Types.AttributeValue
