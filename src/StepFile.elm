@@ -1,12 +1,9 @@
 module StepFile
     exposing
-        ( ParseError(..)
-        , ReadError(..)
-        , StepFile
+        ( StepFile
         , contents
         , entities
         , header
-        , parse
         )
 
 {-| Top-level functionality for working with STEP files.
@@ -17,11 +14,6 @@ module StepFile
 # Constructing
 
 @docs with
-
-
-# Reading
-
-@docs Error, read, parse
 
 
 # Accessors
@@ -138,28 +130,14 @@ header (Types.StepFile stepFile) =
 
 
 {-| Get a dictionary of all entities in a file, indexed by their integer ID.
-
-In most cases you should not need to deal with integer IDs directly, instead
-extracting entities using functions like `Decode.entitiesOfType`. But if you
-need access to the low-level STEP file structure for some reason you can get it
-using this function!
-
 -}
 entities : StepFile -> Dict Int Entity
 entities (Types.StepFile stepFile) =
     stepFile.entities
 
 
-{-| Get the full text contents of a file as a string.
-
-Note that this works when both encoding and parsing/decoding files:
-
-  - The `File` value returned by `Parse.file` will have as `contents` exactly
-    the given string.
-  - The `File` value returned by `Encode.file` will have as `contents` a
-    string generated from the given header and entities. This can then be
-    written to a file, stored in a database etc.
-
+{-| Get the full text contents of a file as a string. Once you have constructed
+a `StepFile`, you can write this string to disk to save the file.
 -}
 contents : StepFile -> String
 contents (Types.StepFile stepFile) =
