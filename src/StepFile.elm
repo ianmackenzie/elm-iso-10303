@@ -4,7 +4,6 @@ module StepFile
         , Entity
         , Header
         , entity
-        , header
         , toString
         )
 
@@ -21,10 +20,41 @@ import StepFile.Format as Format
 import StepFile.Types as Types
 
 
-{-| A `Header` represents the data stored in the header section of a STEP file.
+{-| A `Header` represents the data stored in the header section of a STEP file:
+
+  - `fileDescription` should be an informal description of the contents of the
+    file.
+  - `fileName` may be the file name of the actual file, or it may be an abstract
+    name for the contents of the file used when cross-referencing between files.
+  - `timeStamp` should be an
+    [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601)-formatted date and time.
+  - `author` should include the name and address of the person who created the
+    file.
+  - `organization` should be the organization that the `author` is associated
+    with.
+  - One of `preprocessorVersion` or `originatingSystem` should identify what CAD
+    program was used to generate the file. This does not seem to be used
+    terribly consistently!
+  - `authorization` should include the name and address of whoever authorized
+    sending the file.
+  - `schemaIdentifiers` identifies the EXPRESS schema used by entities in the
+    file. This will usually be a list containing a single string, which may be
+    either a simple string like "IFC2X3" or an 'object identifier' such as
+    "AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }" (more commonly known as
+    AP214).
+
 -}
 type alias Header =
-    Types.Header
+    { fileDescription : List String
+    , fileName : String
+    , timeStamp : String
+    , author : List String
+    , organization : List String
+    , preprocessorVersion : String
+    , originatingSystem : String
+    , authorization : String
+    , schemaIdentifiers : List String
+    }
 
 
 {-| An `Entity` represents a single entity stored in the data section of a STEP
@@ -44,32 +74,32 @@ type alias Attribute =
 
 
 headerString : Header -> String
-headerString (Types.Header header_) =
+headerString header =
     let
         fileDescriptionEntity =
             entity "FILE_DESCRIPTION"
                 [ Attributes.list <|
-                    List.map Attributes.string header_.fileDescription
+                    List.map Attributes.string header.fileDescription
                 , Attributes.string "2;1"
                 ]
 
         fileNameEntity =
             entity "FILE_NAME"
-                [ Attributes.string header_.fileName
-                , Attributes.string header_.timeStamp
+                [ Attributes.string header.fileName
+                , Attributes.string header.timeStamp
                 , Attributes.list <|
-                    List.map Attributes.string header_.author
+                    List.map Attributes.string header.author
                 , Attributes.list <|
-                    List.map Attributes.string header_.organization
-                , Attributes.string header_.preprocessorVersion
-                , Attributes.string header_.originatingSystem
-                , Attributes.string header_.authorization
+                    List.map Attributes.string header.organization
+                , Attributes.string header.preprocessorVersion
+                , Attributes.string header.originatingSystem
+                , Attributes.string header.authorization
                 ]
 
         fileSchemaEntity =
             entity "FILE_SCHEMA"
                 [ Attributes.list <|
-                    List.map Attributes.string header_.schemaIdentifiers
+                    List.map Attributes.string header.schemaIdentifiers
                 ]
 
         headerEntities =
@@ -86,10 +116,10 @@ entities (entities that reference other entities) will be 'flattened' into
 separate entities referring to each other by their automatically-generated IDs.
 -}
 toString : Header -> List Entity -> String
-toString givenHeader givenEntities =
+toString header entities =
     let
         compiledEntities =
-            Entities.compile givenEntities
+            Entities.compile entities
 
         toKeyValuePair ( id, entity_, entityString ) =
             ( id, entity_ )
@@ -106,53 +136,13 @@ toString givenHeader givenEntities =
     String.join "\n"
         [ "ISO-10303-21;"
         , "HEADER;"
-        , headerString givenHeader
+        , headerString header
         , "ENDSEC;"
         , "DATA;"
         , entitiesString
         , "ENDSEC;"
         , "END-ISO-10303-21;\n"
         ]
-
-
-{-| Construct a header from its properties:
-
-  - `fileDescription` should be an informal description of the contents of the
-    file.
-  - `fileName` may be the file name of the actual file, or it may be an abstract
-    name for the contents of the file used when cross-referencing between files.
-  - `timeStamp` should be an [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601)-formatted
-    date and time.
-  - `author` should include the name and address of the person who created the
-    file.
-  - `organization` should be the organization that the `author` is associated
-    with.
-  - One of `preprocessorVersion` or `originatingSystem` should identify what CAD
-    program was used to generate the file. This does not seem to be used
-    terribly consistently!
-  - `authorization` should include the name and address of whoever authorized
-    sending the file.
-  - `schemaIdentifiers` identifies the EXPRESS schema used by entities in the
-    file. This will usually be a list containing a single string, which may be
-    either a simple string like "IFC2X3" or an 'object identifier' such as
-    "AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }" (more commonly known as
-    AP214).
-
--}
-header :
-    { fileDescription : List String
-    , fileName : String
-    , timeStamp : String
-    , author : List String
-    , organization : List String
-    , preprocessorVersion : String
-    , originatingSystem : String
-    , authorization : String
-    , schemaIdentifiers : List String
-    }
-    -> Header
-header properties =
-    Types.Header properties
 
 
 {-| Construct a single entity with the given type and attributes. The type name
