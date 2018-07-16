@@ -83,7 +83,7 @@ headerString header_ =
 
 {-| Construct a complete STEP file from its header and a list of entities.
 Entities will be assigned integer IDs automatically, and nested entities
-(entities that reference other entities) will be 'flattened' to separate
+(entities that reference other entities) will be 'flattened' into separate
 entities referring to each other by their automatically-generated IDs.
 -}
 with : { header : Header, entities : List Entity } -> StepFile
