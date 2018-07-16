@@ -26,7 +26,6 @@ module StepFile
 import Array exposing (Array)
 import Dict exposing (Dict)
 import StepFile.Attribute as Attribute exposing (Attribute)
-import StepFile.Decode as Decode exposing (Decoder)
 import StepFile.Entities as Entities
 import StepFile.Entity as Entity exposing (Entity)
 import StepFile.Format as Format
