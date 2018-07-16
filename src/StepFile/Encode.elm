@@ -15,7 +15,8 @@ module StepFile.Encode
         , list
         , listAs
         , null
-        , optional
+        , orDefault
+        , orNull
         , referenceTo
         , string
         , stringAs
@@ -31,7 +32,7 @@ module StepFile.Encode
 
 # Attributes
 
-@docs referenceTo, default, null, int, float, string, enum, binary, list, optional
+@docs referenceTo, default, null, int, float, string, enum, binary, list, orNull, orDefault
 
 
 ## Typed attributes
@@ -282,22 +283,31 @@ typedAttribute typeName attribute =
     Types.TypedAttribute (Format.typeName typeName) attribute
 
 
-{-| Construct an optional attribute from a `Maybe` value. If given value is
-`Just value` then `value` will be encoded using the given encoder; otherwise
-it will be encoded as `null`.
+{-| Encode the value inside the given `Maybe` with the given encoder if
+possible, falling back to using `null`.
 
-    Encode.optional Encode.int (Just 3)
+    Encode.orNull Encode.int (Just 3)
     --> Encode.int 3
 
-    Encode.optional Encode.int Nothing
+    Encode.orNull Encode.int Nothing
     --> Encode.null
 
 -}
-optional : (a -> Attribute) -> Maybe a -> Attribute
-optional valueEncoder maybe =
-    case maybe of
-        Just value ->
-            valueEncoder value
+orNull : (a -> Attribute) -> Maybe a -> Attribute
+orNull valueEncoder maybe =
+    Maybe.map valueEncoder maybe |> Maybe.withDefault null
 
-        Nothing ->
-            null
+
+{-| Encode the value inside the given `Maybe` with the given encoder if
+possible, falling back to using `default`.
+
+    Encode.orDefault Encode.int (Just 3)
+    --> Encode.int 3
+
+    Encode.orDefault Encode.int Nothing
+    --> Encode.default
+
+-}
+orDefault : (a -> Attribute) -> Maybe a -> Attribute
+orDefault valueEncoder maybe =
+    Maybe.map valueEncoder maybe |> Maybe.withDefault default
