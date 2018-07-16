@@ -135,8 +135,8 @@ floatAttribute value =
         if String.contains "." floatString then
             floatString
         else
-            -- No decimal point, so must be an integer-valued float; add a trailing
-            -- decimal point as required by the STEP standard
+            -- No decimal point, so must be an integer-valued float; add a
+            -- trailing decimal point as required by the STEP standard
             floatString ++ "."
 
 
