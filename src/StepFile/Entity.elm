@@ -1,9 +1,9 @@
 module StepFile.Entity
     exposing
-        ( Attribute
-        , Entity
+        ( Entity
         , attributes
         , hasType
+        , ofType
         , typeName
         )
 
@@ -15,6 +15,7 @@ in handy in weird cases.
 
 -}
 
+import StepFile.Attribute as Attribute exposing (Attribute)
 import StepFile.Format as Format
 import StepFile.Types as Types
 
@@ -26,11 +27,12 @@ type alias Entity =
     Types.Entity
 
 
-{-| Represents a single attribute of a STEP entity, such as X coordinate value,
-GUID string, or a reference to another entity.
+{-| Construct a single STEP entity from a type and list of attributes. The type
+name will be capitalized if necessary.
 -}
-type alias Attribute =
-    Types.Attribute
+ofType : String -> List Attribute -> Entity
+ofType givenTypeName givenAttributes =
+    Types.Entity (Format.typeName givenTypeName) givenAttributes
 
 
 {-| Get the type of an entity. This will always be all caps, for example

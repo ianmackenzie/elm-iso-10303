@@ -10,7 +10,18 @@ module StepFile.Header
         , preprocessorVersion
         , schemaIdentifiers
         , timeStamp
+        , with
         )
+
+{-|
+
+@docs Header
+
+@docs with
+
+@docs fileDescription, fileName, timeStamp, author, organization, preprocessorVersion, originatingSystem, authorization, schemaIdentifiers
+
+-}
 
 import StepFile.Types as Types
 
@@ -19,6 +30,24 @@ import StepFile.Types as Types
 -}
 type alias Header =
     Types.Header
+
+
+{-| Construct a header from its properties.
+-}
+with :
+    { fileDescription : List String
+    , fileName : String
+    , timeStamp : String
+    , author : List String
+    , organization : List String
+    , preprocessorVersion : String
+    , originatingSystem : String
+    , authorization : String
+    , schemaIdentifiers : List String
+    }
+    -> Header
+with properties =
+    Types.Header properties
 
 
 fileDescription : Header -> List String

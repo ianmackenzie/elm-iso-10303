@@ -45,7 +45,8 @@ import Dict
 import List
 import List.Extra as List
 import Parser exposing ((|.), (|=), Parser)
-import StepFile.Entity as Entity exposing (Attribute, Entity)
+import StepFile.Attribute as Attribute exposing (Attribute)
+import StepFile.Entity as Entity exposing (Entity)
 import StepFile.Header as Header exposing (Header)
 import StepFile.Types as Types exposing (StepFile)
 

@@ -14,6 +14,11 @@ module StepFile
 @docs StepFile
 
 
+# Constructing
+
+@docs with
+
+
 # Reading
 
 @docs Error, read, parse
@@ -29,9 +34,12 @@ import Array exposing (Array)
 import Dict exposing (Dict)
 import Parser exposing ((|.), (|=), Parser)
 import Regex exposing (Regex)
+import StepFile.Attribute as Attribute exposing (Attribute)
 import StepFile.Decode as Decode exposing (Decoder)
+import StepFile.Entities as Entities
 import StepFile.Entity as Entity exposing (Entity)
 import StepFile.EntityResolution as EntityResolution
+import StepFile.Format as Format
 import StepFile.Header as Header exposing (Header)
 import StepFile.Parse as Parse
 import StepFile.Types as Types
@@ -43,11 +51,90 @@ type alias StepFile =
     Types.StepFile
 
 
+headerString : Header -> String
+headerString header_ =
+    let
+        fileDescriptionEntity =
+            Entity.ofType "FILE_DESCRIPTION"
+                [ Attribute.list <|
+                    List.map Attribute.string (Header.fileDescription header_)
+                , Attribute.string "2;1"
+                ]
+
+        fileNameEntity =
+            Entity.ofType "FILE_NAME"
+                [ Attribute.string (Header.fileName header_)
+                , Attribute.string (Header.timeStamp header_)
+                , Attribute.list <|
+                    List.map Attribute.string (Header.author header_)
+                , Attribute.list <|
+                    List.map Attribute.string (Header.organization header_)
+                , Attribute.string (Header.preprocessorVersion header_)
+                , Attribute.string (Header.originatingSystem header_)
+                , Attribute.string (Header.authorization header_)
+                ]
+
+        fileSchemaEntity =
+            Entity.ofType "FILE_SCHEMA"
+                [ Attribute.list <|
+                    List.map Attribute.string (Header.schemaIdentifiers header_)
+                ]
+
+        headerEntities =
+            [ fileDescriptionEntity, fileNameEntity, fileSchemaEntity ]
+    in
+    Entities.compile headerEntities
+        |> List.map (\( id, entity, entityString ) -> entityString)
+        |> String.join "\n"
+
+
+{-| Construct a complete STEP file from its header and a list of entities.
+Entities will be assigned integer IDs automatically, and nested entities
+(entities that reference other entities) will be 'flattened' to separate
+entities referring to each other by their automatically-generated IDs.
+-}
+with : { header : Header, entities : List Entity } -> StepFile
+with given =
+    let
+        compiledEntities =
+            Entities.compile given.entities
+
+        toKeyValuePair ( id, entity_, entityString ) =
+            ( id, entity_ )
+
+        indexedEntities =
+            compiledEntities |> List.map toKeyValuePair |> Dict.fromList
+
+        toEntityLine ( id, entity_, entityString ) =
+            Format.id id ++ "=" ++ entityString
+
+        entitiesString =
+            compiledEntities |> List.map toEntityLine |> String.join "\n"
+
+        contents_ =
+            String.join "\n"
+                [ "ISO-10303-21;"
+                , "HEADER;"
+                , headerString given.header
+                , "ENDSEC;"
+                , "DATA;"
+                , entitiesString
+                , "ENDSEC;"
+                , "END-ISO-10303-21;\n"
+                ]
+    in
+    Types.StepFile
+        { header = given.header
+        , entities = indexedEntities
+        , contents = contents_
+        }
+
+
 {-| Get the header of a file.
 -}
 header : StepFile -> Header
-header (Types.StepFile properties) =
-    properties.header
+header (Types.StepFile stepFile) =
+    stepFile.header
 
 
 {-| Get a dictionary of all entities in a file, indexed by their integer ID.
@@ -59,8 +146,8 @@ using this function!
 
 -}
 entities : StepFile -> Dict Int Entity
-entities (Types.StepFile properties) =
-    properties.entities
+entities (Types.StepFile stepFile) =
+    stepFile.entities
 
 
 {-| Get the full text contents of a file as a string.
@@ -75,8 +162,8 @@ Note that this works when both encoding and parsing/decoding files:
 
 -}
 contents : StepFile -> String
-contents (Types.StepFile properties) =
-    properties.contents
+contents (Types.StepFile stepFile) =
+    stepFile.contents
 
 
 {-| Types of errors that can be encountered when parsing a file:
