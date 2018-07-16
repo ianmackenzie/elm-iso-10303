@@ -7,7 +7,6 @@
     "exposed-modules": [
         "StepFile",
         "StepFile.Decode",
-        "StepFile.Encode",
         "StepFile.Entity",
         "StepFile.Header",
         "StepFile.Parse"
