@@ -1,84 +1,95 @@
 module StepFile
     exposing
-        ( StepFile
-        , contents
-        , entities
+        ( Attribute
+        , Entity
+        , Header
+        , entity
         , header
-        , with
+        , toString
         )
 
 {-| Top-level functionality for working with STEP files.
 
-@docs StepFile, with
-
-
-# Properties
-
-@docs header, entities, contents
+@docs Header, Entity, Attribute, header, entity, toString
 
 -}
 
 import Dict exposing (Dict)
-import StepFile.Attribute as Attribute exposing (Attribute)
+import StepFile.Attributes as Attributes
 import StepFile.Entities as Entities
-import StepFile.Entity as Entity exposing (Entity)
 import StepFile.Format as Format
-import StepFile.Header as Header exposing (Header)
 import StepFile.Types as Types
 
 
-{-| -}
-type alias StepFile =
-    Types.StepFile
+{-| A `Header` represents the data stored in the header section of a STEP file.
+-}
+type alias Header =
+    Types.Header
+
+
+{-| An `Entity` represents a single entity stored in the data section of a STEP
+file. An entity may be a point, a curve, a part, an assembly, or even an entire
+building. Every entity has a type and a list of attributes (which can themselves
+be references to other entities).
+-}
+type alias Entity =
+    Types.Entity
+
+
+{-| An `Attribute` represents a single attribute of an `Entity`, such as an X
+coordinate value, a GUID string, or a reference to another entity.
+-}
+type alias Attribute =
+    Types.Attribute
 
 
 headerString : Header -> String
-headerString header_ =
+headerString (Types.Header header_) =
     let
         fileDescriptionEntity =
-            Entity.ofType "FILE_DESCRIPTION"
-                [ Attribute.list <|
-                    List.map Attribute.string (Header.fileDescription header_)
-                , Attribute.string "2;1"
+            entity "FILE_DESCRIPTION"
+                [ Attributes.list <|
+                    List.map Attributes.string header_.fileDescription
+                , Attributes.string "2;1"
                 ]
 
         fileNameEntity =
-            Entity.ofType "FILE_NAME"
-                [ Attribute.string (Header.fileName header_)
-                , Attribute.string (Header.timeStamp header_)
-                , Attribute.list <|
-                    List.map Attribute.string (Header.author header_)
-                , Attribute.list <|
-                    List.map Attribute.string (Header.organization header_)
-                , Attribute.string (Header.preprocessorVersion header_)
-                , Attribute.string (Header.originatingSystem header_)
-                , Attribute.string (Header.authorization header_)
+            entity "FILE_NAME"
+                [ Attributes.string header_.fileName
+                , Attributes.string header_.timeStamp
+                , Attributes.list <|
+                    List.map Attributes.string header_.author
+                , Attributes.list <|
+                    List.map Attributes.string header_.organization
+                , Attributes.string header_.preprocessorVersion
+                , Attributes.string header_.originatingSystem
+                , Attributes.string header_.authorization
                 ]
 
         fileSchemaEntity =
-            Entity.ofType "FILE_SCHEMA"
-                [ Attribute.list <|
-                    List.map Attribute.string (Header.schemaIdentifiers header_)
+            entity "FILE_SCHEMA"
+                [ Attributes.list <|
+                    List.map Attributes.string header_.schemaIdentifiers
                 ]
 
         headerEntities =
             [ fileDescriptionEntity, fileNameEntity, fileSchemaEntity ]
     in
     Entities.compile headerEntities
-        |> List.map (\( id, entity, entityString ) -> entityString)
+        |> List.map (\( id, entity_, entityString ) -> entityString ++ ";")
         |> String.join "\n"
 
 
-{-| Construct a complete STEP file from a header and a list of entities.
-Entities will be assigned integer IDs automatically, and nested entities
-(entities that reference other entities) will be 'flattened' into separate
-entities referring to each other by their automatically-generated IDs.
+{-| Build a string representing a complete STEP file from a header and a list of
+entities. Entities will be assigned integer IDs automatically, and nested
+entities (entities that reference other entities) will be 'flattened' into
+separate entities referring to each other by their automatically-generated IDs.
 -}
-with : { header : Header, entities : List Entity } -> StepFile
-with given =
+toString : Header -> List Entity -> String
+toString givenHeader givenEntities =
     let
         compiledEntities =
-            Entities.compile given.entities
+            Entities.compile givenEntities
 
         toKeyValuePair ( id, entity_, entityString ) =
             ( id, entity_ )
@@ -87,50 +98,69 @@ with given =
             compiledEntities |> List.map toKeyValuePair |> Dict.fromList
 
         toEntityLine ( id, entity_, entityString ) =
-            Format.id id ++ "=" ++ entityString
+            Format.id id ++ "=" ++ entityString ++ ";"
 
         entitiesString =
             compiledEntities |> List.map toEntityLine |> String.join "\n"
-
-        contents_ =
-            String.join "\n"
-                [ "ISO-10303-21;"
-                , "HEADER;"
-                , headerString given.header
-                , "ENDSEC;"
-                , "DATA;"
-                , entitiesString
-                , "ENDSEC;"
-                , "END-ISO-10303-21;\n"
-                ]
     in
-    Types.StepFile
-        { header = given.header
-        , entities = indexedEntities
-        , contents = contents_
-        }
+    String.join "\n"
+        [ "ISO-10303-21;"
+        , "HEADER;"
+        , headerString givenHeader
+        , "ENDSEC;"
+        , "DATA;"
+        , entitiesString
+        , "ENDSEC;"
+        , "END-ISO-10303-21;\n"
+        ]
 
 
-{-| Get the header of a file.
+{-| Construct a header from its properties:
+
+  - `fileDescription` should be an informal description of the contents of the
+    file.
+  - `fileName` may be the file name of the actual file, or it may be an abstract
+    name for the contents of the file used when cross-referencing between files.
+  - `timeStamp` should be an [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601)-formatted
+    date and time.
+  - `author` should include the name and address of the person who created the
+    file.
+  - `organization` should be the organization that the `author` is associated
+    with.
+  - One of `preprocessorVersion` or `originatingSystem` should identify what CAD
+    program was used to generate the file. This does not seem to be used
+    terribly consistently!
+  - `authorization` should include the name and address of whoever authorized
+    sending the file.
+  - `schemaIdentifiers` identifies the EXPRESS schema used by entities in the
+    file. This will usually be a list containing a single string, which may be
+    either a simple string like "IFC2X3" or an 'object identifier' such as
+    "AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }" (more commonly known as
+    AP214).
+
 -}
-header : StepFile -> Header
-header (Types.StepFile stepFile) =
-    stepFile.header
+header :
+    { fileDescription : List String
+    , fileName : String
+    , timeStamp : String
+    , author : List String
+    , organization : List String
+    , preprocessorVersion : String
+    , originatingSystem : String
+    , authorization : String
+    , schemaIdentifiers : List String
+    }
+    -> Header
+header properties =
+    Types.Header properties
 
 
-{-| Get a dictionary of all entities in a file, indexed by their integer ID.
+{-| Construct a single entity with the given type and attributes. The type name
+will be capitalized if necessary.
 -}
-entities : StepFile -> Dict Int Entity
-entities (Types.StepFile stepFile) =
-    stepFile.entities
-
-
-{-| Get the full text contents of a file as a string. Once you have constructed
-a `StepFile`, you can write this string to disk to save the file.
--}
-contents : StepFile -> String
-contents (Types.StepFile stepFile) =
-    stepFile.contents
+entity : String -> List Attribute -> Entity
+entity givenTypeName givenAttributes =
+    Types.Entity (Format.typeName givenTypeName) givenAttributes
 
 
 
