@@ -127,11 +127,17 @@ intAttribute value =
 
 floatAttribute : Float -> Types.AttributeValue
 floatAttribute value =
-    if toFloat (round value) == value then
-        -- STEP requires integer-valued floats to have a trailing '.'
-        attributeValue (String.fromFloat value ++ ".")
-    else
-        attributeValue (String.fromFloat value)
+    let
+        floatString =
+            String.fromFloat value
+    in
+    attributeValue <|
+        if String.contains "." floatString then
+            floatString
+        else
+            -- No decimal point, so must be an integer-valued float; add a trailing
+            -- decimal point as required by the STEP standard
+            floatString ++ "."
 
 
 referenceTo : Int -> Types.AttributeValue
