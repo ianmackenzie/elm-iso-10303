@@ -7,9 +7,10 @@ module StepFile.Entity
         , typeName
         )
 
-{-| Accessors for `Entity` values. Usually you will not need this module,
-instead using the `Decode` module to decode entities directly, but it may come
-in handy in weird cases.
+{-| An `Entity` represents a single entity stored in the data section of a STEP
+file. An entity may be a point, a curve, an assembly, or even an entire
+building. Every entity has a type and a list of attributes (which themselves be
+references to other entities).
 
 @docs Entity, ofType, typeName, hasType, attributes
 
@@ -20,9 +21,7 @@ import StepFile.Format as Format
 import StepFile.Types as Types
 
 
-{-| Represents a single entity storied in the data section of a STEP file, such
-as a point, curve, assembly or entire building.
--}
+{-| -}
 type alias Entity =
     Types.Entity
 
