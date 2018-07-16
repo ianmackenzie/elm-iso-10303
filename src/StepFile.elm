@@ -32,8 +32,7 @@ import StepFile.Header as Header exposing (Header)
 import StepFile.Types as Types
 
 
-{-| A STEP file consists of a header and a list of entities.
--}
+{-| -}
 type alias StepFile =
     Types.StepFile
 
@@ -75,7 +74,7 @@ headerString header_ =
         |> String.join "\n"
 
 
-{-| Construct a complete STEP file from its header and a list of entities.
+{-| Construct a complete STEP file from a header and a list of entities.
 Entities will be assigned integer IDs automatically, and nested entities
 (entities that reference other entities) will be 'flattened' into separate
 entities referring to each other by their automatically-generated IDs.

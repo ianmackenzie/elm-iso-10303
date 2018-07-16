@@ -13,7 +13,7 @@ module StepFile.Header
         , with
         )
 
-{-|
+{-| A `Header` represents the data stored in the header section of a STEP file.
 
 @docs Header, with
 
@@ -27,8 +27,7 @@ module StepFile.Header
 import StepFile.Types as Types
 
 
-{-| Represents the data stored in the header section of a STEP file.
--}
+{-| -}
 type alias Header =
     Types.Header
 
@@ -69,7 +68,7 @@ fileName (Types.Header properties) =
     properties.fileName
 
 
-{-| Get the time stamp stored in a header. This will be in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601)
+{-| Get the time stamp stored in a header. This should be in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601)
 format.
 -}
 timeStamp : Header -> String
