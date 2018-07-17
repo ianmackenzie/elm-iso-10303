@@ -22,7 +22,8 @@ module Iso10303
         , stringAs
         )
 
-{-| Top-level functionality for working with STEP files.
+{-| This module allows you to encode data in [ISO 10303-21](https://en.wikipedia.org/wiki/ISO_10303-21)
+(STEP file) format.
 
 @docs Header, Entity, Attribute, file, entity
 
