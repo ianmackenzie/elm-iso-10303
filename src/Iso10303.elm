@@ -181,7 +181,7 @@ entity givenTypeName givenAttributes =
 {-| Construct a reference to another STEP entity (will end up being encoded
 using an integer ID in the resulting STEP file, e.g. `#123`).
 -}
-referenceTo : Types.Entity -> Attribute
+referenceTo : Entity -> Attribute
 referenceTo entity_ =
     Types.ReferenceTo entity_
 
