@@ -1,20 +1,46 @@
-module StepFile
+module Iso10303
     exposing
         ( Attribute
         , Entity
         , Header
+        , binary
+        , binaryAs
+        , default
         , entity
-        , toString
+        , enum
+        , enumAs
+        , file
+        , float
+        , floatAs
+        , int
+        , intAs
+        , list
+        , listAs
+        , null
+        , referenceTo
+        , string
+        , stringAs
         )
 
 {-| Top-level functionality for working with STEP files.
 
-@docs Header, Entity, Attribute, header, entity, toString
+@docs Header, Entity, Attribute, file, entity
+
+
+# Attributes
+
+@docs default, null, int, float, string, referenceTo, enum, binary, list
+
+
+## Typed attributes
+
+Typed attributes are sometimes needed when dealing with SELECT types.
+
+@docs intAs, floatAs, stringAs, enumAs, binaryAs, listAs
 
 -}
 
 import Dict exposing (Dict)
-import StepFile.Attributes as Attributes
 import StepFile.Entities as Entities
 import StepFile.Format as Format
 import StepFile.Types as Types
@@ -78,32 +104,31 @@ headerString header =
     let
         fileDescriptionEntity =
             entity "FILE_DESCRIPTION"
-                [ Attributes.list <|
-                    List.map Attributes.string header.fileDescription
-                , Attributes.string "2;1"
+                [ list (List.map string header.fileDescription)
+                , string "2;1"
                 ]
 
         fileNameEntity =
             entity "FILE_NAME"
-                [ Attributes.string header.fileName
-                , Attributes.string header.timeStamp
-                , Attributes.list <|
-                    List.map Attributes.string header.author
-                , Attributes.list <|
-                    List.map Attributes.string header.organization
-                , Attributes.string header.preprocessorVersion
-                , Attributes.string header.originatingSystem
-                , Attributes.string header.authorization
+                [ string header.fileName
+                , string header.timeStamp
+                , list (List.map string header.author)
+                , list (List.map string header.organization)
+                , string header.preprocessorVersion
+                , string header.originatingSystem
+                , string header.authorization
                 ]
 
         fileSchemaEntity =
             entity "FILE_SCHEMA"
-                [ Attributes.list <|
-                    List.map Attributes.string header.schemaIdentifiers
+                [ list (List.map string header.schemaIdentifiers)
                 ]
 
         headerEntities =
-            [ fileDescriptionEntity, fileNameEntity, fileSchemaEntity ]
+            [ fileDescriptionEntity
+            , fileNameEntity
+            , fileSchemaEntity
+            ]
     in
     Entities.compile headerEntities
         |> List.map (\( id, entity_, entityString ) -> entityString ++ ";")
@@ -115,8 +140,8 @@ entities. Entities will be assigned integer IDs automatically, and nested
 entities (entities that reference other entities) will be 'flattened' into
 separate entities referring to each other by their automatically-generated IDs.
 -}
-toString : Header -> List Entity -> String
-toString header entities =
+file : Header -> List Entity -> String
+file header entities =
     let
         compiledEntities =
             Entities.compile entities
@@ -151,6 +176,138 @@ will be capitalized if necessary.
 entity : String -> List Attribute -> Entity
 entity givenTypeName givenAttributes =
     Types.Entity (Format.typeName givenTypeName) givenAttributes
+
+
+{-| Construct a reference to another STEP entity (will end up being encoded
+using an integer ID in the resulting STEP file, e.g. `#123`).
+-}
+referenceTo : Types.Entity -> Attribute
+referenceTo entity_ =
+    Types.ReferenceTo entity_
+
+
+{-| The special 'default value' attribute (`*` in the resulting STEP file).
+-}
+default : Attribute
+default =
+    Types.DefaultAttribute
+
+
+{-| The special 'null value' attribute (`$` in the resulting STEP file).
+-}
+null : Attribute
+null =
+    Types.NullAttribute
+
+
+{-| Construct a Boolean-valued attribute.
+
+Boolean values are actually encoded as enumeration values `.T.` and `.F.`.
+
+-}
+bool : Bool -> Attribute
+bool value =
+    Types.BoolAttribute value
+
+
+{-| Construct an integer-valued attribute.
+-}
+int : Int -> Attribute
+int value =
+    Types.IntAttribute value
+
+
+{-| Construct a real-valued attribute.
+-}
+float : Float -> Attribute
+float value =
+    Types.FloatAttribute value
+
+
+{-| Construct a string-valued attribute.
+-}
+string : String -> Attribute
+string value =
+    Types.StringAttribute value
+
+
+{-| Construct an attribute that refers to an enumeration value defined in an
+EXPRESS schema. Enumeration values are always encoded as all-caps with leading
+and trailing periods, like `.STEEL.`; this function will capitalize and add
+periods if necessary.
+-}
+enum : String -> Attribute
+enum value =
+    Types.EnumAttribute (Format.enumName value)
+
+
+{-| Construct a binary-valued attribute. The provided string is assumed to
+already be hex encoded as required by the STEP standard.
+-}
+binary : String -> Attribute
+binary value =
+    Types.BinaryAttribute value
+
+
+{-| Construct an attribute which is itself a list of other attributes.
+-}
+list : List Attribute -> Attribute
+list attributes =
+    Types.AttributeList attributes
+
+
+{-| Construct a type-tagged Boolean-valued attribute.
+-}
+boolAs : String -> Bool -> Attribute
+boolAs typeName value =
+    typedAttribute typeName (bool value)
+
+
+{-| Construct a type-tagged integer-valued attribute.
+-}
+intAs : String -> Int -> Attribute
+intAs typeName value =
+    typedAttribute typeName (int value)
+
+
+{-| Construct a type-tagged float-valued attribute.
+-}
+floatAs : String -> Float -> Attribute
+floatAs typeName value =
+    typedAttribute typeName (float value)
+
+
+{-| Construct a type-tagged string-valued attribute.
+-}
+stringAs : String -> String -> Attribute
+stringAs typeName value =
+    typedAttribute typeName (string value)
+
+
+{-| Construct a type-tagged enumeration attribute.
+-}
+enumAs : String -> String -> Attribute
+enumAs typeName value =
+    typedAttribute typeName (enum value)
+
+
+{-| Construct a type-tagged binary-valued attribute.
+-}
+binaryAs : String -> String -> Attribute
+binaryAs typeName value =
+    typedAttribute typeName (binary value)
+
+
+{-| Construct a type-tagged list attribute.
+-}
+listAs : String -> List Attribute -> Attribute
+listAs typeName attributes =
+    typedAttribute typeName (list attributes)
+
+
+typedAttribute : String -> Attribute -> Attribute
+typedAttribute typeName attribute =
+    Types.TypedAttribute (Format.typeName typeName) attribute
 
 
 

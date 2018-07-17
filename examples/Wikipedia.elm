@@ -3,8 +3,7 @@ module Wikipedia exposing (..)
 import Browser
 import Html exposing (Html)
 import Html.Attributes
-import StepFile
-import StepFile.Attributes as Attributes
+import Iso10303 as Step
 
 
 stepFile : String
@@ -23,82 +22,82 @@ stepFile =
             }
 
         organization =
-            StepFile.entity "ORGANIZATION"
-                [ Attributes.string "O0001"
-                , Attributes.string "LKSoft"
-                , Attributes.string "company"
+            Step.entity "ORGANIZATION"
+                [ Step.string "O0001"
+                , Step.string "LKSoft"
+                , Step.string "company"
                 ]
 
         productDefinitionContext =
-            StepFile.entity "PRODUCT_DEFINITION_CONTEXT"
-                [ Attributes.string "part definition"
-                , Attributes.entityReference applicationContext
-                , Attributes.string "manufacturing"
+            Step.entity "PRODUCT_DEFINITION_CONTEXT"
+                [ Step.string "part definition"
+                , Step.referenceTo applicationContext
+                , Step.string "manufacturing"
                 ]
 
         applicationContext =
-            StepFile.entity "APPLICATION_CONTEXT"
-                [ Attributes.string "mechanical design"
+            Step.entity "APPLICATION_CONTEXT"
+                [ Step.string "mechanical design"
                 ]
 
         applicationProtocolDefinition =
-            StepFile.entity "APPLICATION_PROTOCOL_DEFINITION"
-                [ Attributes.string ""
-                , Attributes.string "automotive_design"
-                , Attributes.int 2003
-                , Attributes.entityReference applicationContext
+            Step.entity "APPLICATION_PROTOCOL_DEFINITION"
+                [ Step.string ""
+                , Step.string "automotive_design"
+                , Step.int 2003
+                , Step.referenceTo applicationContext
                 ]
 
         productDefinition =
-            StepFile.entity "PRODUCT_DEFINITION"
-                [ Attributes.string "0"
-                , Attributes.null
-                , Attributes.entityReference productDefinitionFormation
-                , Attributes.entityReference productDefinitionContext
+            Step.entity "PRODUCT_DEFINITION"
+                [ Step.string "0"
+                , Step.null
+                , Step.referenceTo productDefinitionFormation
+                , Step.referenceTo productDefinitionContext
                 ]
 
         productDefinitionFormation =
-            StepFile.entity "PRODUCT_DEFINITION_FORMATION"
-                [ Attributes.string "1"
-                , Attributes.null
-                , Attributes.entityReference product
+            Step.entity "PRODUCT_DEFINITION_FORMATION"
+                [ Step.string "1"
+                , Step.null
+                , Step.referenceTo product
                 ]
 
         product =
-            StepFile.entity "PRODUCT"
-                [ Attributes.string "A0001"
-                , Attributes.string "Test Part 1"
-                , Attributes.string ""
-                , Attributes.list [ Attributes.entityReference productContext ]
+            Step.entity "PRODUCT"
+                [ Step.string "A0001"
+                , Step.string "Test Part 1"
+                , Step.string ""
+                , Step.list [ Step.referenceTo productContext ]
                 ]
 
         productRelatedProductCategory =
-            StepFile.entity "PRODUCT_RELATED_PRODUCT_CATEGORY"
-                [ Attributes.string "part"
-                , Attributes.null
-                , Attributes.list [ Attributes.entityReference product ]
+            Step.entity "PRODUCT_RELATED_PRODUCT_CATEGORY"
+                [ Step.string "part"
+                , Step.null
+                , Step.list [ Step.referenceTo product ]
                 ]
 
         productContext =
-            StepFile.entity "PRODUCT_CONTEXT"
-                [ Attributes.string ""
-                , Attributes.entityReference applicationContext
-                , Attributes.string ""
+            Step.entity "PRODUCT_CONTEXT"
+                [ Step.string ""
+                , Step.referenceTo applicationContext
+                , Step.string ""
                 ]
 
         appliedOrganizationAssignment =
-            StepFile.entity "APPLIED_ORGANIZATION_ASSIGNMENT"
-                [ Attributes.entityReference organization
-                , Attributes.entityReference organizationRole
-                , Attributes.list [ Attributes.entityReference product ]
+            Step.entity "APPLIED_ORGANIZATION_ASSIGNMENT"
+                [ Step.referenceTo organization
+                , Step.referenceTo organizationRole
+                , Step.list [ Step.referenceTo product ]
                 ]
 
         organizationRole =
-            StepFile.entity "ORGANIZATION_ROLE"
-                [ Attributes.string "id owner"
+            Step.entity "ORGANIZATION_ROLE"
+                [ Step.string "id owner"
                 ]
     in
-    StepFile.toString header
+    Step.file header
         [ organization
         , productDefinitionContext
         , applicationContext
