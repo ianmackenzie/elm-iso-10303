@@ -1,9 +1,9 @@
-module StepFile.Attribute
+module StepFile.Attributes
     exposing
-        ( Attribute
-        , binary
+        ( binary
         , binaryAs
         , default
+        , entityReference
         , enum
         , enumAs
         , float
@@ -13,21 +13,18 @@ module StepFile.Attribute
         , list
         , listAs
         , null
-        , referenceTo
         , string
         , stringAs
         )
 
-{-| Functions for constructing STEP attributes. An `Attribute` represents a
-single attribute of a STEP `Entity`, such as an X coordinate value, a GUID
-string, or a reference to another entity.
+{-| Functions for constructing STEP attributes.
 
 @docs Attribute
 
 
 # Simple attributes
 
-@docs referenceTo, default, null, int, float, string, enum, binary, list
+@docs entityReference, default, null, int, float, string, enum, binary, list
 
 
 # Typed attributes
@@ -42,7 +39,6 @@ import StepFile.Format as Format
 import StepFile.Types as Types
 
 
-{-| -}
 type alias Attribute =
     Types.Attribute
 
@@ -50,8 +46,8 @@ type alias Attribute =
 {-| Construct a reference to another STEP entity (will end up being encoded
 using an integer ID in the resulting STEP file, e.g. `#123`).
 -}
-referenceTo : Types.Entity -> Attribute
-referenceTo entity_ =
+entityReference : Types.Entity -> Attribute
+entityReference entity_ =
     Types.ReferenceTo entity_
 
 

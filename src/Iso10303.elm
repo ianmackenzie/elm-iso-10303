@@ -1,84 +1,150 @@
-module StepFile
+module Iso10303
     exposing
-        ( StepFile
-        , contents
-        , entities
-        , header
-        , with
+        ( Attribute
+        , Entity
+        , Header
+        , binary
+        , binaryAs
+        , default
+        , entity
+        , enum
+        , enumAs
+        , file
+        , float
+        , floatAs
+        , int
+        , intAs
+        , list
+        , listAs
+        , null
+        , referenceTo
+        , string
+        , stringAs
         )
 
 {-| Top-level functionality for working with STEP files.
 
-@docs StepFile, with
+@docs Header, Entity, Attribute, file, entity
 
 
-# Properties
+# Attributes
 
-@docs header, entities, contents
+@docs default, null, int, float, string, referenceTo, enum, binary, list
+
+
+## Typed attributes
+
+Typed attributes are sometimes needed when dealing with SELECT types.
+
+@docs intAs, floatAs, stringAs, enumAs, binaryAs, listAs
 
 -}
 
 import Dict exposing (Dict)
-import StepFile.Attribute as Attribute exposing (Attribute)
 import StepFile.Entities as Entities
-import StepFile.Entity as Entity exposing (Entity)
 import StepFile.Format as Format
-import StepFile.Header as Header exposing (Header)
 import StepFile.Types as Types
 
 
-{-| -}
-type alias StepFile =
-    Types.StepFile
+{-| A `Header` represents the data stored in the header section of a STEP file:
+
+  - `fileDescription` should be an informal description of the contents of the
+    file.
+  - `fileName` may be the file name of the actual file, or it may be an abstract
+    name for the contents of the file used when cross-referencing between files.
+  - `timeStamp` should be an
+    [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601)-formatted date and time.
+  - `author` should include the name and address of the person who created the
+    file.
+  - `organization` should be the organization that the `author` is associated
+    with.
+  - One of `preprocessorVersion` or `originatingSystem` should identify what CAD
+    program was used to generate the file. This does not seem to be used
+    terribly consistently!
+  - `authorization` should include the name and address of whoever authorized
+    sending the file.
+  - `schemaIdentifiers` identifies the EXPRESS schema used by entities in the
+    file. This will usually be a list containing a single string, which may be
+    either a simple string like "IFC2X3" or an 'object identifier' such as
+    "AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }" (more commonly known as
+    AP214).
+
+-}
+type alias Header =
+    { fileDescription : List String
+    , fileName : String
+    , timeStamp : String
+    , author : List String
+    , organization : List String
+    , preprocessorVersion : String
+    , originatingSystem : String
+    , authorization : String
+    , schemaIdentifiers : List String
+    }
+
+
+{-| An `Entity` represents a single entity stored in the data section of a STEP
+file. An entity may be a point, a curve, a part, an assembly, or even an entire
+building. Every entity has a type and a list of attributes (which can themselves
+be references to other entities).
+-}
+type alias Entity =
+    Types.Entity
+
+
+{-| An `Attribute` represents a single attribute of an `Entity`, such as an X
+coordinate value, a GUID string, or a reference to another entity.
+-}
+type alias Attribute =
+    Types.Attribute
 
 
 headerString : Header -> String
-headerString header_ =
+headerString header =
     let
         fileDescriptionEntity =
-            Entity.ofType "FILE_DESCRIPTION"
-                [ Attribute.list <|
-                    List.map Attribute.string (Header.fileDescription header_)
-                , Attribute.string "2;1"
+            entity "FILE_DESCRIPTION"
+                [ list (List.map string header.fileDescription)
+                , string "2;1"
                 ]
 
         fileNameEntity =
-            Entity.ofType "FILE_NAME"
-                [ Attribute.string (Header.fileName header_)
-                , Attribute.string (Header.timeStamp header_)
-                , Attribute.list <|
-                    List.map Attribute.string (Header.author header_)
-                , Attribute.list <|
-                    List.map Attribute.string (Header.organization header_)
-                , Attribute.string (Header.preprocessorVersion header_)
-                , Attribute.string (Header.originatingSystem header_)
-                , Attribute.string (Header.authorization header_)
+            entity "FILE_NAME"
+                [ string header.fileName
+                , string header.timeStamp
+                , list (List.map string header.author)
+                , list (List.map string header.organization)
+                , string header.preprocessorVersion
+                , string header.originatingSystem
+                , string header.authorization
                 ]
 
         fileSchemaEntity =
-            Entity.ofType "FILE_SCHEMA"
-                [ Attribute.list <|
-                    List.map Attribute.string (Header.schemaIdentifiers header_)
+            entity "FILE_SCHEMA"
+                [ list (List.map string header.schemaIdentifiers)
                 ]
 
         headerEntities =
-            [ fileDescriptionEntity, fileNameEntity, fileSchemaEntity ]
+            [ fileDescriptionEntity
+            , fileNameEntity
+            , fileSchemaEntity
+            ]
     in
     Entities.compile headerEntities
-        |> List.map (\( id, entity, entityString ) -> entityString)
+        |> List.map (\( id, entity_, entityString ) -> entityString ++ ";")
         |> String.join "\n"
 
 
-{-| Construct a complete STEP file from a header and a list of entities.
-Entities will be assigned integer IDs automatically, and nested entities
-(entities that reference other entities) will be 'flattened' into separate
-entities referring to each other by their automatically-generated IDs.
+{-| Build a string representing a complete STEP file from a header and a list of
+entities. Entities will be assigned integer IDs automatically, and nested
+entities (entities that reference other entities) will be 'flattened' into
+separate entities referring to each other by their automatically-generated IDs.
 -}
-with : { header : Header, entities : List Entity } -> StepFile
-with given =
+file : Header -> List Entity -> String
+file header entities =
     let
         compiledEntities =
-            Entities.compile given.entities
+            Entities.compile entities
 
         toKeyValuePair ( id, entity_, entityString ) =
             ( id, entity_ )
@@ -87,50 +153,161 @@ with given =
             compiledEntities |> List.map toKeyValuePair |> Dict.fromList
 
         toEntityLine ( id, entity_, entityString ) =
-            Format.id id ++ "=" ++ entityString
+            Format.id id ++ "=" ++ entityString ++ ";"
 
         entitiesString =
             compiledEntities |> List.map toEntityLine |> String.join "\n"
-
-        contents_ =
-            String.join "\n"
-                [ "ISO-10303-21;"
-                , "HEADER;"
-                , headerString given.header
-                , "ENDSEC;"
-                , "DATA;"
-                , entitiesString
-                , "ENDSEC;"
-                , "END-ISO-10303-21;\n"
-                ]
     in
-    Types.StepFile
-        { header = given.header
-        , entities = indexedEntities
-        , contents = contents_
-        }
+    String.join "\n"
+        [ "ISO-10303-21;"
+        , "HEADER;"
+        , headerString header
+        , "ENDSEC;"
+        , "DATA;"
+        , entitiesString
+        , "ENDSEC;"
+        , "END-ISO-10303-21;\n"
+        ]
 
 
-{-| Get the header of a file.
+{-| Construct a single entity with the given type and attributes. The type name
+will be capitalized if necessary.
 -}
-header : StepFile -> Header
-header (Types.StepFile stepFile) =
-    stepFile.header
+entity : String -> List Attribute -> Entity
+entity givenTypeName givenAttributes =
+    Types.Entity (Format.typeName givenTypeName) givenAttributes
 
 
-{-| Get a dictionary of all entities in a file, indexed by their integer ID.
+{-| Construct a reference to another STEP entity (will end up being encoded
+using an integer ID in the resulting STEP file, e.g. `#123`).
 -}
-entities : StepFile -> Dict Int Entity
-entities (Types.StepFile stepFile) =
-    stepFile.entities
+referenceTo : Types.Entity -> Attribute
+referenceTo entity_ =
+    Types.ReferenceTo entity_
 
 
-{-| Get the full text contents of a file as a string. Once you have constructed
-a `StepFile`, you can write this string to disk to save the file.
+{-| The special 'default value' attribute (`*` in the resulting STEP file).
 -}
-contents : StepFile -> String
-contents (Types.StepFile stepFile) =
-    stepFile.contents
+default : Attribute
+default =
+    Types.DefaultAttribute
+
+
+{-| The special 'null value' attribute (`$` in the resulting STEP file).
+-}
+null : Attribute
+null =
+    Types.NullAttribute
+
+
+{-| Construct a Boolean-valued attribute.
+
+Boolean values are actually encoded as enumeration values `.T.` and `.F.`.
+
+-}
+bool : Bool -> Attribute
+bool value =
+    Types.BoolAttribute value
+
+
+{-| Construct an integer-valued attribute.
+-}
+int : Int -> Attribute
+int value =
+    Types.IntAttribute value
+
+
+{-| Construct a real-valued attribute.
+-}
+float : Float -> Attribute
+float value =
+    Types.FloatAttribute value
+
+
+{-| Construct a string-valued attribute.
+-}
+string : String -> Attribute
+string value =
+    Types.StringAttribute value
+
+
+{-| Construct an attribute that refers to an enumeration value defined in an
+EXPRESS schema. Enumeration values are always encoded as all-caps with leading
+and trailing periods, like `.STEEL.`; this function will capitalize and add
+periods if necessary.
+-}
+enum : String -> Attribute
+enum value =
+    Types.EnumAttribute (Format.enumName value)
+
+
+{-| Construct a binary-valued attribute. The provided string is assumed to
+already be hex encoded as required by the STEP standard.
+-}
+binary : String -> Attribute
+binary value =
+    Types.BinaryAttribute value
+
+
+{-| Construct an attribute which is itself a list of other attributes.
+-}
+list : List Attribute -> Attribute
+list attributes =
+    Types.AttributeList attributes
+
+
+{-| Construct a type-tagged Boolean-valued attribute.
+-}
+boolAs : String -> Bool -> Attribute
+boolAs typeName value =
+    typedAttribute typeName (bool value)
+
+
+{-| Construct a type-tagged integer-valued attribute.
+-}
+intAs : String -> Int -> Attribute
+intAs typeName value =
+    typedAttribute typeName (int value)
+
+
+{-| Construct a type-tagged float-valued attribute.
+-}
+floatAs : String -> Float -> Attribute
+floatAs typeName value =
+    typedAttribute typeName (float value)
+
+
+{-| Construct a type-tagged string-valued attribute.
+-}
+stringAs : String -> String -> Attribute
+stringAs typeName value =
+    typedAttribute typeName (string value)
+
+
+{-| Construct a type-tagged enumeration attribute.
+-}
+enumAs : String -> String -> Attribute
+enumAs typeName value =
+    typedAttribute typeName (enum value)
+
+
+{-| Construct a type-tagged binary-valued attribute.
+-}
+binaryAs : String -> String -> Attribute
+binaryAs typeName value =
+    typedAttribute typeName (binary value)
+
+
+{-| Construct a type-tagged list attribute.
+-}
+listAs : String -> List Attribute -> Attribute
+listAs typeName attributes =
+    typedAttribute typeName (list attributes)
+
+
+typedAttribute : String -> Attribute -> Attribute
+typedAttribute typeName attribute =
+    Types.TypedAttribute (Format.typeName typeName) attribute
 
 
 
