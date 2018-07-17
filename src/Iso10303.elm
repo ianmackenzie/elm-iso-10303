@@ -197,7 +197,7 @@ file header entities =
 
 {-| Construct a single entity with the given type and attributes. The type name
 will be capitalized if necessary. An [`IfcDirection`](http://www.buildingsmart-tech.org/ifc/IFC4/final/html/schema/ifcgeometryresource/lexical/ifcdirection.htm)
-representing the positive Y direction in 3D could be created using:
+representing the positive Y direction in 3D could be created using
 
     direction =
         Step.entity "IFCDIRECTION"
@@ -283,7 +283,7 @@ EXPRESS schema. Enumeration values are always encoded as all-caps with leading
 and trailing periods, like `.STEEL.`.
 
 This function will capitalize and add periods if necessary; so both
-<code>Step.enum&nbsp;"STEEL"</code> and <code>Step.enum&nbsp;".STEEL."</code>
+<code>Step.enum&nbsp;"steel"</code> and <code>Step.enum&nbsp;".STEEL."</code>
 will be encoded as `.STEEL.`.
 
 -}
