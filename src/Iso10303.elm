@@ -224,7 +224,16 @@ float value =
     Types.FloatAttribute value
 
 
-{-| Construct a string-valued attribute.
+{-| Construct a string-valued attribute. Unicode characters will be properly
+escaped according to the (wacky, non-standard) method specified in the STEP
+standard; for example,
+
+    Step.string "see § 4.1"
+
+will end up being encoded as
+
+    'see \X\A7 4.1'
+
 -}
 string : String -> Attribute
 string value =
@@ -233,8 +242,12 @@ string value =
 
 {-| Construct an attribute that refers to an enumeration value defined in an
 EXPRESS schema. Enumeration values are always encoded as all-caps with leading
-and trailing periods, like `.STEEL.`; this function will capitalize and add
-periods if necessary.
+and trailing periods, like `.STEEL.`.
+
+This function will capitalize and add periods if necessary; so both
+<code>Step.enum&nbsp;"STEEL"</code> and <code>Step.enum&nbsp;".STEEL."</code>
+will be encoded as `.STEEL.`.
+
 -}
 enum : String -> Attribute
 enum value =
