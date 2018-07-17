@@ -7,10 +7,7 @@
         "src"
     ],
     "exposed-modules": [
-        "StepFile",
-        "StepFile.Header",
-        "StepFile.Entity",
-        "StepFile.Attribute"
+        "Iso10303"
     ],
     "dependencies": {
         "elm-lang/core": "5.0.0 <= v < 6.0.0"
