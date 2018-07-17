@@ -25,6 +25,13 @@ module Iso10303
 {-| This module allows you to encode data in [ISO 10303-21](https://en.wikipedia.org/wiki/ISO_10303-21)
 (STEP file) format.
 
+The module name was chosen to avoid naming conflicts (and to emphasize that this
+is a low-level package), but in most cases I recommend importing it as
+
+    import Iso10303 as Step
+
+All examples below assume the module has been imported this way.
+
 @docs file
 
 
@@ -152,6 +159,11 @@ headerString header =
 entities. Entities will be assigned integer IDs automatically, and nested
 entities (entities that reference other entities) will be 'flattened' into
 separate entities referring to each other by their automatically-generated IDs.
+
+Note that it is not actually necessary to list all entities explicitly, only
+top-level ones; any entities that are referenced by entities in the given list
+will alse get included in the output.
+
 -}
 file : Header -> List Entity -> String
 file header entities =
@@ -184,7 +196,20 @@ file header entities =
 
 
 {-| Construct a single entity with the given type and attributes. The type name
-will be capitalized if necessary.
+will be capitalized if necessary. An [`IfcDirection`](http://www.buildingsmart-tech.org/ifc/IFC4/final/html/schema/ifcgeometryresource/lexical/ifcdirection.htm)
+representing the positive Y direction in 3D could be created using:
+
+    direction =
+        Step.entity "IFCDIRECTION"
+            [ Step.list
+                [ Step.float 0
+                , Step.float 1
+                , Step.float 0
+                ]
+            ]
+
+which would get encoded as `IFCDIRECTION((0.,1.,0.))`.
+
 -}
 entity : String -> List Attribute -> Entity
 entity givenTypeName givenAttributes =
