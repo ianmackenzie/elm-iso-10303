@@ -25,10 +25,22 @@ module Iso10303
 {-| This module allows you to encode data in [ISO 10303-21](https://en.wikipedia.org/wiki/ISO_10303-21)
 (STEP file) format.
 
-@docs Header, Entity, Attribute, file, entity
+@docs file
+
+
+# Header
+
+@docs Header
+
+
+# Entities
+
+@docs Entity, entity
 
 
 # Attributes
+
+@docs Attribute
 
 @docs default, null, int, float, string, referenceTo, enum, binary, list
 
