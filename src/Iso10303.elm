@@ -162,7 +162,7 @@ separate entities referring to each other by their automatically-generated IDs.
 
 Note that it is not actually necessary to list all entities explicitly, only
 top-level ones; any entities that are referenced by entities in the given list
-will alse get included in the output.
+will also get included in the output.
 
 -}
 file : Header -> List Entity -> String
