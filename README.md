@@ -12,9 +12,9 @@ Here is a sample STEP file (adapted from [Wikipedia](https://en.wikipedia.org/wi
 ```
 ISO-10303-21;
 HEADER;
-FILE_DESCRIPTION(('A minimal AP214 example with a single part'), '2;1');
-FILE_NAME('demo', '2003-12-27T11:57:53', ('Lothar Klein'), ('LKSoft'), ' ', 'IDA-STEP', ' ');
-FILE_SCHEMA (('AUTOMOTIVE_DESIGN { 1 0 10303 214 2 1 1}'));
+FILE_DESCRIPTION(('A minimal AP214 example with a single part'),'2;1');
+FILE_NAME('demo','2003-12-27T11:57:53',('Lothar Klein'),('LKSoft'),' ','IDA-STEP',' ');
+FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 2 1 1}'));
 ENDSEC;
 DATA;
 #10=ORGANIZATION('O0001','LKSoft','company');
