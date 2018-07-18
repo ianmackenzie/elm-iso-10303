@@ -32,7 +32,7 @@ ENDSEC;
 END-ISO-10303-21;
 ```
 
-To create this file using this package, you could use
+To create this file using this package, you could write
 
 ```elm
 module Example exposing (..)
