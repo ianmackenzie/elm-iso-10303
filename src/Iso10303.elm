@@ -204,7 +204,7 @@ representing the positive Y direction in 3D could be created using
             [ Step.list Step.float [ 0, 1, 0 ]
             ]
 
-which would get encoded as `IFCDIRECTION((0.,1.,0.))`.
+which might get encoded as `#1=IFCDIRECTION((0.,1.,0.));`.
 
 -}
 entity : String -> List Attribute -> Entity
