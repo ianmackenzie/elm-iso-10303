@@ -21,20 +21,6 @@ stepFile =
             , schemaIdentifiers = [ "AUTOMOTIVE_DESIGN { 1 0 10303 214 2 1 1}" ]
             }
 
-        organization =
-            Step.entity "ORGANIZATION"
-                [ Step.string "O0001"
-                , Step.string "LKSoft"
-                , Step.string "company"
-                ]
-
-        productDefinitionContext =
-            Step.entity "PRODUCT_DEFINITION_CONTEXT"
-                [ Step.string "part definition"
-                , Step.referenceTo applicationContext
-                , Step.string "manufacturing"
-                ]
-
         applicationContext =
             Step.entity "APPLICATION_CONTEXT"
                 [ Step.string "mechanical design"
@@ -48,67 +34,66 @@ stepFile =
                 , Step.referenceTo applicationContext
                 ]
 
-        productDefinition =
-            Step.entity "PRODUCT_DEFINITION"
-                [ Step.string "0"
-                , Step.null
-                , Step.referenceTo productDefinitionFormation
-                , Step.referenceTo productDefinitionContext
-                ]
-
-        productDefinitionFormation =
-            Step.entity "PRODUCT_DEFINITION_FORMATION"
-                [ Step.string "1"
-                , Step.null
-                , Step.referenceTo product
-                ]
-
         product =
             Step.entity "PRODUCT"
                 [ Step.string "A0001"
                 , Step.string "Test Part 1"
                 , Step.string ""
-                , Step.list [ Step.referenceTo productContext ]
+                , Step.list Step.referenceTo
+                    [ Step.entity "PRODUCT_CONTEXT"
+                        [ Step.string ""
+                        , Step.referenceTo applicationContext
+                        , Step.string ""
+                        ]
+                    ]
+                ]
+
+        productDefinition =
+            Step.entity "PRODUCT_DEFINITION"
+                [ Step.string "0"
+                , Step.null
+                , Step.referenceTo <|
+                    Step.entity "PRODUCT_DEFINITION_FORMATION"
+                        [ Step.string "1"
+                        , Step.null
+                        , Step.referenceTo product
+                        ]
+                , Step.referenceTo <|
+                    Step.entity "PRODUCT_DEFINITION_CONTEXT"
+                        [ Step.string "part definition"
+                        , Step.referenceTo applicationContext
+                        , Step.string "manufacturing"
+                        ]
                 ]
 
         productRelatedProductCategory =
             Step.entity "PRODUCT_RELATED_PRODUCT_CATEGORY"
                 [ Step.string "part"
                 , Step.null
-                , Step.list [ Step.referenceTo product ]
-                ]
-
-        productContext =
-            Step.entity "PRODUCT_CONTEXT"
-                [ Step.string ""
-                , Step.referenceTo applicationContext
-                , Step.string ""
+                , Step.list Step.referenceTo [ product ]
                 ]
 
         appliedOrganizationAssignment =
             Step.entity "APPLIED_ORGANIZATION_ASSIGNMENT"
-                [ Step.referenceTo organization
-                , Step.referenceTo organizationRole
-                , Step.list [ Step.referenceTo product ]
-                ]
-
-        organizationRole =
-            Step.entity "ORGANIZATION_ROLE"
-                [ Step.string "id owner"
+                [ Step.referenceTo <|
+                    Step.entity "ORGANIZATION"
+                        [ Step.string "O0001"
+                        , Step.string "LKSoft"
+                        , Step.string "company"
+                        ]
+                , Step.referenceTo <|
+                    Step.entity "ORGANIZATION_ROLE"
+                        [ Step.string "id owner"
+                        ]
+                , Step.list Step.referenceTo [ product ]
                 ]
     in
     Step.file header
-        [ organization
-        , productDefinitionContext
-        , applicationContext
+        [ applicationContext
         , applicationProtocolDefinition
         , productDefinition
-        , productDefinitionFormation
-        , product
         , productRelatedProductCategory
-        , productContext
         , appliedOrganizationAssignment
-        , organizationRole
         ]
 
 
