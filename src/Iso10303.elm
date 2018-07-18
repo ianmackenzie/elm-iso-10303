@@ -263,8 +263,8 @@ float value =
 
 
 {-| Construct a string-valued attribute. Unicode characters will be properly
-escaped according to the (wacky, non-standard) method specified in the STEP
-standard; for example,
+escaped according to the (weird, custom) method specified in the STEP standard;
+for example,
 
     Step.string "see § 4.1"
 
