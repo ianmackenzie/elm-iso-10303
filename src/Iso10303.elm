@@ -124,7 +124,7 @@ headerString header =
     let
         fileDescriptionEntity =
             entity "FILE_DESCRIPTION"
-                [ list (List.map string header.fileDescription)
+                [ list string header.fileDescription
                 , string "2;1"
                 ]
 
@@ -132,8 +132,8 @@ headerString header =
             entity "FILE_NAME"
                 [ string header.fileName
                 , string header.timeStamp
-                , list (List.map string header.author)
-                , list (List.map string header.organization)
+                , list string header.author
+                , list string header.organization
                 , string header.preprocessorVersion
                 , string header.originatingSystem
                 , string header.authorization
@@ -141,7 +141,7 @@ headerString header =
 
         fileSchemaEntity =
             entity "FILE_SCHEMA"
-                [ list (List.map string header.schemaIdentifiers)
+                [ list string header.schemaIdentifiers
                 ]
 
         headerEntities =
@@ -162,7 +162,7 @@ separate entities referring to each other by their automatically-generated IDs.
 
 Note that it is not actually necessary to list all entities explicitly, only
 top-level ones; any entities that are referenced by entities in the given list
-will alse get included in the output.
+will also get included in the output.
 
 -}
 file : Header -> List Entity -> String
@@ -201,14 +201,42 @@ representing the positive Y direction in 3D could be created using
 
     direction =
         Step.entity "IFCDIRECTION"
-            [ Step.list
-                [ Step.float 0
-                , Step.float 1
-                , Step.float 0
-                ]
+            [ Step.list Step.float [ 0, 1, 0 ]
             ]
 
-which would get encoded as `IFCDIRECTION((0.,1.,0.))`.
+which might get encoded as `#1=IFCDIRECTION((0.,1.,0.));`.
+
+If a given entity is _only_ referred to by a single other entity, you can create
+it directly inside the definition of the parent entity. For example, to create
+entity #121 from [this AP214 example](https://github.com/stepcode/stepcode/blob/master/data/ap214e3/as1-oc-214.stp),
+you could use
+
+    Step.entity "AXIS2_PLACEMENT_3D"
+        [ Step.string ""
+        , Step.referenceTo <|
+            Step.entity "CARTESIAN_POINT"
+                [ Step.list Step.float [ 20, 7.5, 0 ]
+                ]
+        , Step.referenceTo <|
+            Step.entity "DIRECTION"
+                [ Step.string ""
+                , Step.list Step.float [ 1, 0, 0 ]
+                ]
+        , Step.referenceTo <|
+            Step.entity "DIRECTION"
+                [ Step.string ""
+                , Step.list Step.float [ 0, 0, -1 ]
+                ]
+        ]
+
+When actually encoded to a STEP file, this will get converted into four separate
+entities, with the top-level entity referring to the other three by their
+automatically-generated IDs, something like:
+
+    #1=AXIS2_PLACEMENT_3D('',#2,#3,#4);
+    #2=CARTESIAN_POINT('',(20.,7.5,0.));
+    #3=DIRECTION('',(1.,0.,0.));
+    #4=DIRECTION('',(0.,0.,-1.));
 
 -}
 entity : String -> List Attribute -> Entity
@@ -263,8 +291,8 @@ float value =
 
 
 {-| Construct a string-valued attribute. Unicode characters will be properly
-escaped according to the (wacky, non-standard) method specified in the STEP
-standard; for example,
+escaped according to the (weird, custom) method specified in the STEP standard;
+for example,
 
     Step.string "see § 4.1"
 
@@ -300,11 +328,34 @@ binary value =
     Types.BinaryAttribute value
 
 
-{-| Construct an attribute which is itself a list of other attributes.
+{-| Construct an attribute which is itself a list of other attributes. You
+provide a list of values and a function to convert each of those values to an
+attribute (which will usually be one of the attribute construction functions in
+this module!). For example, to construct an attribute which is a list of floats:
+
+    Step.list Step.float [ 0, 1, 0 ]
+
+To construct a list of references to various entities:
+
+    Step.list Step.referenceTo
+        [ firstEntity
+        , secondEntity
+        , thirdEntity
+        ]
+
+In the odd case where you already have a `List Attribute`, you can use Elm's
+built-in `identity` function as the first argument:
+
+    Step.list identity
+        [ firstAttribute
+        , secondAttribute
+        , thirdAttribute
+        ]
+
 -}
-list : List Attribute -> Attribute
-list attributes =
-    Types.AttributeList attributes
+list : (a -> Attribute) -> List a -> Attribute
+list toAttribute values =
+    Types.AttributeList (List.map toAttribute values)
 
 
 {-| Construct a type-tagged Boolean-valued attribute.
@@ -351,9 +402,9 @@ binaryAs typeName value =
 
 {-| Construct a type-tagged list attribute.
 -}
-listAs : String -> List Attribute -> Attribute
-listAs typeName attributes =
-    typedAttribute typeName (list attributes)
+listAs : String -> (a -> Attribute) -> List a -> Attribute
+listAs typeName toAttribute values =
+    typedAttribute typeName (list toAttribute values)
 
 
 typedAttribute : String -> Attribute -> Attribute
