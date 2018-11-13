@@ -1,26 +1,11 @@
-module Iso10303
-    exposing
-        ( Attribute
-        , Entity
-        , Header
-        , binary
-        , binaryAs
-        , default
-        , entity
-        , enum
-        , enumAs
-        , file
-        , float
-        , floatAs
-        , int
-        , intAs
-        , list
-        , listAs
-        , null
-        , referenceTo
-        , string
-        , stringAs
-        )
+module Iso10303 exposing
+    ( file
+    , Header
+    , Entity, entity
+    , Attribute
+    , default, null, int, float, string, referenceTo, enum, binary, list
+    , intAs, floatAs, stringAs, enumAs, binaryAs, listAs
+    )
 
 {-| This module allows you to encode data in [ISO 10303-21](https://en.wikipedia.org/wiki/ISO_10303-21)
 (STEP file) format.
@@ -86,7 +71,7 @@ import StepFile.Types as Types
   - `schemaIdentifiers` identifies the EXPRESS schema used by entities in the
     file. This will usually be a list containing a single string, which may be
     either a simple string like "IFC2X3" or an 'object identifier' such as
-    "AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }" (more commonly known as
+    "AUTOMOTIVE\_DESIGN { 1 0 10303 214 1 1 1 1 }" (more commonly known as
     AP214).
 
 -}
