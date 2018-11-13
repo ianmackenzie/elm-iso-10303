@@ -63,3 +63,8 @@ $RECYCLE.BIN/
 *.lnk
 elm.exe
 docs.json
+
+# STEP files used for performance profiling (may be confidential)
+profiling/*.ifc
+profiling/*.stp
+profiling/*.step
