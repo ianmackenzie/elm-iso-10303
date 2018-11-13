@@ -3,7 +3,7 @@
     "name": "ianmackenzie/elm-step-file",
     "summary": "Create and parse data in ISO 10303-21 (STEP file) format",
     "license": "MPL-2.0",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "exposed-modules": [
         "Iso10303"
     ],
