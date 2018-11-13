@@ -1,5 +1,3 @@
-**DEPRECATED** - published by accident as `elm-step-file`, renamed to `elm-iso-10303`.
-
 # elm-iso-10303
 
 This package provides functionality for encoding data in [ISO 10303-21](https://en.wikipedia.org/wiki/ISO_10303-21)
