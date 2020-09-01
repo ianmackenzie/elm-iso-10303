@@ -1,4 +1,4 @@
-module Iso10303 exposing
+module Step.Encode exposing
     ( file
     , Header
     , Entity, entity
@@ -46,9 +46,9 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 -}
 
 import Dict exposing (Dict)
-import StepFile.Entities as Entities
-import StepFile.Format as Format
-import StepFile.Types as Types
+import Step.Entities as Entities
+import Step.Format as Format
+import Step.Types as Types
 
 
 {-| A `Header` represents the data stored in the header section of a STEP file:

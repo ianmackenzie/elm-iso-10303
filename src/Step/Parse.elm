@@ -1,9 +1,9 @@
-module StepFile.Parse exposing (entity, header, whitespace)
+module Step.Parse exposing (entity, header, whitespace)
 
 import Char
 import Parser exposing ((|.), (|=), Parser)
-import StepFile.EntityResolution as EntityResolution
-import StepFile.Types as Types exposing (Header, StepFile)
+import Step.EntityResolution as EntityResolution
+import Step.Types as Types exposing (Header, StepFile)
 import String
 
 

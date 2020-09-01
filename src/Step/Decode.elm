@@ -1,54 +1,50 @@
-module StepFile.Decode
-    exposing
-        ( Decoder
-        , andThen
-        , attribute
-        , attributes
-        , bool
-        , default
-        , entitiesBy
-        , entitiesOfType
-        , entitiesWhere
-        , entityOfType
-        , entityWhere
-        , fail
-        , file
-        , float
-        , int
-        , lazy
-        , list
-        , map
-        , map2
-        , map3
-        , map4
-        , map5
-        , map6
-        , map7
-        , map8
-        , null
-        , oneOf
-        , optional
-        , referencedEntity
-        , run
-        , string
-        , succeed
-        , toAttribute
-        , toEntity
-        , tuple2
-        , tuple3
-        , typeName
-        , withDefault
-        )
+module Step.Decode exposing
+    ( Decoder
+    , andThen
+    , attribute
+    , attributes
+    , bool
+    , default
+    , entitiesBy
+    , entitiesOfType
+    , entitiesWhere
+    , entityOfType
+    , entityWhere
+    , fail
+    , file
+    , float
+    , int
+    , lazy
+    , list
+    , map
+    , map2
+    , map3
+    , map4
+    , map5
+    , map6
+    , map7
+    , map8
+    , null
+    , oneOf
+    , optional
+    , referencedEntity
+    , run
+    , string
+    , succeed
+    , toAttribute
+    , toEntity
+    , tuple2
+    , tuple3
+    , typeName
+    , withDefault
+    )
 
 import Bitwise
 import Dict
 import List
 import List.Extra as List
 import Parser exposing ((|.), (|=), Parser)
-import StepFile.Attribute as Attribute exposing (Attribute)
-import StepFile.Entity as Entity exposing (Entity)
-import StepFile.Header as Header exposing (Header)
-import StepFile.Types as Types exposing (StepFile)
+import Step.Types as Types exposing (Attribute, Entity, Header, StepFile)
 
 
 {-| A `Decoder` describes how to attempt to decode a given `File`, `Entity` or
@@ -105,6 +101,7 @@ filterEntities predicate (Types.StepFile { entities }) =
         accumulate id entity accumulated =
             if predicate entity then
                 entity :: accumulated
+
             else
                 accumulated
     in

@@ -1,21 +1,8 @@
-module StepFile.Attributes
-    exposing
-        ( binary
-        , binaryAs
-        , default
-        , entityReference
-        , enum
-        , enumAs
-        , float
-        , floatAs
-        , int
-        , intAs
-        , list
-        , listAs
-        , null
-        , string
-        , stringAs
-        )
+module Step.Attributes exposing
+    ( Attribute
+    , entityReference, default, null, int, float, string, enum, binary, list
+    , intAs, floatAs, stringAs, enumAs, binaryAs, listAs
+    )
 
 {-| Functions for constructing STEP attributes.
 
@@ -35,8 +22,8 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 
 -}
 
-import StepFile.Format as Format
-import StepFile.Types as Types
+import Step.Format as Format
+import Step.Types as Types
 
 
 type alias Attribute =

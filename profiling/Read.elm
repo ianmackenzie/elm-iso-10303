@@ -56,7 +56,7 @@ parse string =
                 Time.now
                     |> Task.andThen
                         (\startTime ->
-                            case StepFile.parse string of
+                            case Step.parse string of
                                 Ok file ->
                                     Time.now
                                         |> Task.map
@@ -68,18 +68,18 @@ parse string =
                                                 ( duration, file )
                                             )
 
-                                Err (StepFile.SyntaxError message) ->
+                                Err (Step.SyntaxError message) ->
                                     Task.fail
                                         ("Syntax error: " ++ message)
 
-                                Err (StepFile.NonexistentEntity id) ->
+                                Err (Step.NonexistentEntity id) ->
                                     Task.fail
                                         ("Nonexistent entity with id "
                                             ++ String.fromInt id
                                             ++ " referenced"
                                         )
 
-                                Err (StepFile.CircularReference chain) ->
+                                Err (Step.CircularReference chain) ->
                                     Task.fail
                                         ("Circular reference detected: "
                                             ++ chainToString chain

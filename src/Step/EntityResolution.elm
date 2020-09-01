@@ -1,8 +1,8 @@
-module StepFile.EntityResolution exposing (Error(..), resolve)
+module Step.EntityResolution exposing (Error(..), resolve)
 
 import Dict exposing (Dict)
-import StepFile.EntityStack as EntityStack exposing (EntityStack)
-import StepFile.Types as Types
+import Step.EntityStack as EntityStack exposing (EntityStack)
+import Step.Types as Types
 
 
 type Error

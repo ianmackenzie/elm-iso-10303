@@ -1,4 +1,4 @@
-module StepFile.Examples exposing (..)
+module Step.Examples exposing (..)
 
 
 twoWalls : String

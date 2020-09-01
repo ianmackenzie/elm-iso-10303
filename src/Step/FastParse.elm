@@ -1,4 +1,4 @@
-module StepFile.FastParse exposing (..)
+module Step.FastParse exposing (..)
 
 {-| Functionality for parsing STEP files.
 
@@ -9,10 +9,10 @@ module StepFile.FastParse exposing (..)
 import Parser exposing ((|.), (|=))
 import Parser.LowLevel
 import Regex exposing (Regex)
+import Step.EntityResolution as EntityResolution
+import Step.Parse as Parse
+import Step.Types as Types
 import StepFile exposing (Entity, File, Header)
-import StepFile.EntityResolution as EntityResolution
-import StepFile.Parse as Parse
-import StepFile.Types as Types
 
 
 {-| Types of errors that can be encountered when parsing a file:
@@ -49,6 +49,7 @@ inspect : String -> String
 inspect input =
     if String.length input <= 20 then
         "\"" ++ input ++ "\""
+
     else
         "\"" ++ String.left 17 input ++ "...\""
 
@@ -144,8 +145,10 @@ parseEnum : String -> Result String ( Types.ParsedAttribute, String )
 parseEnum input =
     if String.startsWith ".T." input then
         Ok ( Types.ParsedBoolAttribute True, String.dropLeft 3 input )
+
     else if String.startsWith ".F." input then
         Ok ( Types.ParsedBoolAttribute False, String.dropLeft 3 input )
+
     else
         case find enumRegex input of
             [ { match } ] ->
@@ -156,8 +159,10 @@ parseEnum input =
                     parsedAttribute =
                         if value == "T" then
                             Types.ParsedBoolAttribute True
+
                         else if value == "F" then
                             Types.ParsedBoolAttribute False
+
                         else
                             Types.ParsedEnumAttribute (Types.EnumName value)
                 in
@@ -195,6 +200,7 @@ parseAttributes input =
     in
     if String.startsWith ")" inputPastParenthesis then
         Ok ( [], String.dropLeft 1 inputPastParenthesis )
+
     else
         accumulateAttributes inputPastParenthesis []
 
@@ -212,11 +218,13 @@ accumulateAttributes input accumulated =
             in
             if String.startsWith "," remainingInput then
                 accumulateAttributes followingInput prepended
+
             else if String.startsWith ")" remainingInput then
                 Ok
                     ( List.reverse prepended
                     , followingInput
                     )
+
             else
                 err "Could not parse attributes" input
 
@@ -256,6 +264,7 @@ parseTypedAttribute input =
                                 parsedAttribute
                             , String.dropLeft 1 remainingInput
                             )
+
                     else
                         err "Could not parse typed attribute" input
 
@@ -380,6 +389,7 @@ parseEntityInstance input =
                                             ( ( id, parsedEntity )
                                             , String.dropLeft 1 remainingInput
                                             )
+
                                     else
                                         err "Could not parse entity instance" input
 
@@ -407,8 +417,10 @@ parseEntityInstances input accumulated =
 
             Err msg ->
                 Err msg
+
     else if input == "ENDSEC;END-ISO-10303-21;" then
         Ok (List.reverse accumulated)
+
     else
         err "Could not parse entity instances" input
 
@@ -417,7 +429,7 @@ parseHeader : String -> Result String ( Header, String )
 parseHeader input =
     let
         parserWithOffset =
-            Parser.succeed (,)
+            Parser.succeed Tuple.pair
                 |= Parse.header
                 |= Parser.LowLevel.getOffset
     in
@@ -458,12 +470,14 @@ file string =
 
                         Err msg ->
                             Err (SyntaxError msg)
+
                 else
                     err "Could not parse file" input
                         |> Result.mapError SyntaxError
 
             Err msg ->
                 Err (SyntaxError msg)
+
     else
         err "Could not parse file" input
             |> Result.mapError SyntaxError

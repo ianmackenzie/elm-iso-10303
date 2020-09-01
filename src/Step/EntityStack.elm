@@ -1,9 +1,8 @@
-module StepFile.EntityStack
-    exposing
-        ( EntityStack
-        , push
-        , singleton
-        )
+module Step.EntityStack exposing
+    ( EntityStack
+    , push
+    , singleton
+    )
 
 {-| Helper data structure for detecting and reporting circular references
 between STEP entities.
@@ -30,5 +29,6 @@ push id (EntityStack idSet idStack) =
     in
     if Set.member id idSet then
         Err (updatedStack |> List.reverse |> List.dropWhile ((/=) id))
+
     else
         Ok (EntityStack (Set.insert id idSet) updatedStack)

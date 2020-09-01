@@ -1,21 +1,20 @@
-module StepFile.Format
-    exposing
-        ( binaryAttribute
-        , boolAttribute
-        , defaultAttribute
-        , entity
-        , enumAttribute
-        , enumName
-        , floatAttribute
-        , id
-        , intAttribute
-        , listAttribute
-        , nullAttribute
-        , referenceTo
-        , stringAttribute
-        , typeName
-        , typedAttribute
-        )
+module Step.Format exposing
+    ( binaryAttribute
+    , boolAttribute
+    , defaultAttribute
+    , entity
+    , enumAttribute
+    , enumName
+    , floatAttribute
+    , id
+    , intAttribute
+    , listAttribute
+    , nullAttribute
+    , referenceTo
+    , stringAttribute
+    , typeName
+    , typedAttribute
+    )
 
 {-| Various string-formatting utilities, many of which wrap their result in
 a type such as AttributeValue to improve type safety.
@@ -23,7 +22,7 @@ a type such as AttributeValue to improve type safety.
 
 import Bitwise
 import Char
-import StepFile.Types as Types
+import Step.Types as Types
 
 
 attributeValue : String -> Types.AttributeValue
@@ -57,8 +56,10 @@ encodedCharacter : Char -> String
 encodedCharacter character =
     if character == '\'' then
         "''"
+
     else if character == '\\' then
         "\\"
+
     else
         let
             codePoint =
@@ -66,14 +67,19 @@ encodedCharacter character =
         in
         if codePoint >= 0 && codePoint <= 0x1F then
             "\\X\\" ++ hexEncode 2 codePoint
+
         else if codePoint >= 0x20 && codePoint <= 0x7E then
             String.fromChar character
+
         else if codePoint >= 0x7F && codePoint <= 0xFF then
             "\\X\\" ++ hexEncode 2 codePoint
+
         else if codePoint >= 0x0100 && codePoint <= 0xFFFF then
             "\\X2\\" ++ hexEncode 4 codePoint ++ "\\X0\\"
+
         else if codePoint >= 0x00010000 && codePoint <= 0x0010FFFF then
             "\\X4\\" ++ hexEncode 8 codePoint ++ "\\X0\\"
+
         else
             ""
 
@@ -96,8 +102,10 @@ hexCharacterAtIndex index value =
     in
     if hexDigit >= 0 && hexDigit <= 9 then
         String.fromChar (Char.fromCode (Char.toCode '0' + hexDigit))
+
     else if hexDigit >= 0 && hexDigit <= 15 then
         String.fromChar (Char.fromCode (Char.toCode 'A' + (hexDigit - 10)))
+
     else
         ""
 
@@ -116,6 +124,7 @@ boolAttribute : Bool -> Types.AttributeValue
 boolAttribute bool =
     if bool then
         attributeValue ".T."
+
     else
         attributeValue ".F."
 
@@ -134,6 +143,7 @@ floatAttribute value =
     attributeValue <|
         if String.contains "." floatString then
             floatString
+
         else
             -- No decimal point, so must be an integer-valued float; add a
             -- trailing decimal point as required by the STEP standard

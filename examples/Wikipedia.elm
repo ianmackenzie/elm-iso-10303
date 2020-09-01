@@ -3,7 +3,7 @@ module Wikipedia exposing (..)
 import Browser
 import Html exposing (Html)
 import Html.Attributes
-import Iso10303 as Step
+import Step.Encode
 
 
 stepFile : String
@@ -22,73 +22,73 @@ stepFile =
             }
 
         applicationContext =
-            Step.entity "APPLICATION_CONTEXT"
-                [ Step.string "mechanical design"
+            Step.Encode.entity "APPLICATION_CONTEXT"
+                [ Step.Encode.string "mechanical design"
                 ]
 
         applicationProtocolDefinition =
-            Step.entity "APPLICATION_PROTOCOL_DEFINITION"
-                [ Step.string ""
-                , Step.string "automotive_design"
-                , Step.int 2003
-                , Step.referenceTo applicationContext
+            Step.Encode.entity "APPLICATION_PROTOCOL_DEFINITION"
+                [ Step.Encode.string ""
+                , Step.Encode.string "automotive_design"
+                , Step.Encode.int 2003
+                , Step.Encode.referenceTo applicationContext
                 ]
 
         product =
-            Step.entity "PRODUCT"
-                [ Step.string "A0001"
-                , Step.string "Test Part 1"
-                , Step.string ""
-                , Step.list Step.referenceTo
-                    [ Step.entity "PRODUCT_CONTEXT"
-                        [ Step.string ""
-                        , Step.referenceTo applicationContext
-                        , Step.string ""
+            Step.Encode.entity "PRODUCT"
+                [ Step.Encode.string "A0001"
+                , Step.Encode.string "Test Part 1"
+                , Step.Encode.string ""
+                , Step.Encode.list Step.Encode.referenceTo
+                    [ Step.Encode.entity "PRODUCT_CONTEXT"
+                        [ Step.Encode.string ""
+                        , Step.Encode.referenceTo applicationContext
+                        , Step.Encode.string ""
                         ]
                     ]
                 ]
 
         productDefinition =
-            Step.entity "PRODUCT_DEFINITION"
-                [ Step.string "0"
-                , Step.null
-                , Step.referenceTo <|
-                    Step.entity "PRODUCT_DEFINITION_FORMATION"
-                        [ Step.string "1"
-                        , Step.null
-                        , Step.referenceTo product
+            Step.Encode.entity "PRODUCT_DEFINITION"
+                [ Step.Encode.string "0"
+                , Step.Encode.null
+                , Step.Encode.referenceTo <|
+                    Step.Encode.entity "PRODUCT_DEFINITION_FORMATION"
+                        [ Step.Encode.string "1"
+                        , Step.Encode.null
+                        , Step.Encode.referenceTo product
                         ]
-                , Step.referenceTo <|
-                    Step.entity "PRODUCT_DEFINITION_CONTEXT"
-                        [ Step.string "part definition"
-                        , Step.referenceTo applicationContext
-                        , Step.string "manufacturing"
+                , Step.Encode.referenceTo <|
+                    Step.Encode.entity "PRODUCT_DEFINITION_CONTEXT"
+                        [ Step.Encode.string "part definition"
+                        , Step.Encode.referenceTo applicationContext
+                        , Step.Encode.string "manufacturing"
                         ]
                 ]
 
         productRelatedProductCategory =
-            Step.entity "PRODUCT_RELATED_PRODUCT_CATEGORY"
-                [ Step.string "part"
-                , Step.null
-                , Step.list Step.referenceTo [ product ]
+            Step.Encode.entity "PRODUCT_RELATED_PRODUCT_CATEGORY"
+                [ Step.Encode.string "part"
+                , Step.Encode.null
+                , Step.Encode.list Step.Encode.referenceTo [ product ]
                 ]
 
         appliedOrganizationAssignment =
-            Step.entity "APPLIED_ORGANIZATION_ASSIGNMENT"
-                [ Step.referenceTo <|
-                    Step.entity "ORGANIZATION"
-                        [ Step.string "O0001"
-                        , Step.string "LKSoft"
-                        , Step.string "company"
+            Step.Encode.entity "APPLIED_ORGANIZATION_ASSIGNMENT"
+                [ Step.Encode.referenceTo <|
+                    Step.Encode.entity "ORGANIZATION"
+                        [ Step.Encode.string "O0001"
+                        , Step.Encode.string "LKSoft"
+                        , Step.Encode.string "company"
                         ]
-                , Step.referenceTo <|
-                    Step.entity "ORGANIZATION_ROLE"
-                        [ Step.string "id owner"
+                , Step.Encode.referenceTo <|
+                    Step.Encode.entity "ORGANIZATION_ROLE"
+                        [ Step.Encode.string "id owner"
                         ]
-                , Step.list Step.referenceTo [ product ]
+                , Step.Encode.list Step.Encode.referenceTo [ product ]
                 ]
     in
-    Step.file header
+    Step.Encode.file header
         [ applicationContext
         , applicationProtocolDefinition
         , productDefinition
