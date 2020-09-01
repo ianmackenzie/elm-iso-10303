@@ -1,7 +1,7 @@
 module Step.Encode exposing
     ( file
     , Header
-    , Entity, entity
+    , Entity, entity, complexEntity
     , Attribute
     , default, null, int, float, string, referenceTo, enum, binary, list
     , intAs, floatAs, stringAs, enumAs, binaryAs, listAs
@@ -27,7 +27,7 @@ All examples below assume the module has been imported this way.
 
 # Entities
 
-@docs Entity, entity
+@docs Entity, entity, complexEntity
 
 
 # Attributes
@@ -226,7 +226,29 @@ automatically-generated IDs, something like:
 -}
 entity : String -> List Attribute -> Entity
 entity givenTypeName givenAttributes =
-    Types.Entity (Format.typeName givenTypeName) givenAttributes
+    Types.SimpleEntity (Format.typeName givenTypeName) givenAttributes
+
+
+{-| Construct a single 'complex entity'; for example
+
+    Step.Encode.complexEntity
+        [ ( "A", [ Step.Encode.int 1 ] )
+        , ( "B"
+          , [ Step.Encode.int 2
+            , Step.Encode.string "three"
+            ]
+          )
+        , ( "C", [ Step.Encode.enum "FOUR" ] )
+        ]
+
+will be encoded as
+
+    #1=(A(1)B(2,'three')C(.FOUR.));
+
+-}
+complexEntity : List ( String, List Attribute ) -> Entity
+complexEntity simpleEntities =
+    Types.ComplexEntity (List.map (Tuple.mapFirst Format.typeName) simpleEntities)
 
 
 {-| Construct a reference to another STEP entity (will end up being encoded

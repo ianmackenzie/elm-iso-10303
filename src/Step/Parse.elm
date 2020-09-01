@@ -177,7 +177,7 @@ entity : Parser ( Int, Types.ParsedEntity )
 entity =
     Parser.succeed
         (\id_ typeName_ attributes_ ->
-            ( id_, Types.ParsedEntity typeName_ attributes_ )
+            ( id_, Types.ParsedSimpleEntity typeName_ attributes_ )
         )
         |= id
         |. Parser.token "="

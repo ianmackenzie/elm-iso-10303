@@ -1,20 +1,19 @@
-module Step.FastDecode exposing (parse, preprocess)
+module Step.FastDecode exposing (Preprocessed, parse, preprocess)
 
 import Dict exposing (Dict)
 import Regex exposing (Regex)
 import Step.Types as Types exposing (Attribute, Entity, ParsedAttribute, ParsedEntity)
 
 
-type alias Database =
-    { unparsedEntities : Dict Int UnparsedEntity
+type alias Preprocessed =
+    { unparsedEntities : List ( Int, UnparsedEntity )
     , strings : Dict String String
     }
 
 
-type alias UnparsedEntity =
-    { typeName : String
-    , attributeData : String
-    }
+type UnparsedEntity
+    = UnparsedSimpleEntity String String
+    | UnparsedComplexEntity String
 
 
 stringOrCommentRegex : Regex
@@ -72,20 +71,26 @@ stringEntry { match, number } =
         Nothing
 
 
+stripWhitespace : String -> String
+stripWhitespace string =
+    Regex.replace whitespaceRegex stripAll string
+
+
 unparsedEntityEntry : Regex.Match -> Maybe ( Int, UnparsedEntity )
 unparsedEntityEntry { submatches } =
     case submatches of
         [ Just idString, Just typeName, Just attributeData ] ->
             case String.toInt idString of
                 Just id ->
-                    Just
-                        ( id
-                        , { typeName = String.toUpper typeName
-                          , attributeData =
-                                attributeData
-                                    |> Regex.replace whitespaceRegex stripAll
-                          }
-                        )
+                    Just ( id, UnparsedSimpleEntity typeName (stripWhitespace attributeData) )
+
+                Nothing ->
+                    Nothing
+
+        [ Just idString, Nothing, Just complexEntityData ] ->
+            case String.toInt idString of
+                Just id ->
+                    Just ( id, UnparsedComplexEntity (stripWhitespace complexEntityData) )
 
                 Nothing ->
                     Nothing
@@ -94,7 +99,7 @@ unparsedEntityEntry { submatches } =
             Nothing
 
 
-preprocess : String -> Database
+preprocess : String -> Preprocessed
 preprocess contents =
     let
         stringOrCommentMatches =
@@ -111,54 +116,99 @@ preprocess contents =
         unparsedEntities =
             Regex.find entityRegex stripped
                 |> List.filterMap unparsedEntityEntry
-                |> Dict.fromList
     in
     { unparsedEntities = unparsedEntities
     , strings = strings
     }
 
 
-parse : String -> Result String (List ( Int, ParsedEntity ))
-parse contents =
-    let
-        { unparsedEntities, strings } =
-            preprocess contents
-    in
-    parseEntities strings (Dict.toList unparsedEntities) []
+parse : Preprocessed -> Result String (List ( Int, ParsedEntity ))
+parse { unparsedEntities, strings } =
+    parseEntities strings unparsedEntities []
 
 
 parseEntities : Dict String String -> List ( Int, UnparsedEntity ) -> List ( Int, ParsedEntity ) -> Result String (List ( Int, ParsedEntity ))
 parseEntities strings unparsedEntities accumulated =
     case unparsedEntities of
         ( id, unparsedEntity ) :: rest ->
-            case parseAttributes strings unparsedEntity.attributeData of
-                Ok parsedAttributes ->
-                    let
-                        parsedEntity =
-                            { typeName = Types.TypeName unparsedEntity.typeName
-                            , parsedAttributes = parsedAttributes
-                            }
-                    in
-                    parseEntities strings rest (( id, parsedEntity ) :: accumulated)
+            case unparsedEntity of
+                UnparsedSimpleEntity typeName attributeData ->
+                    case parseAttributes strings attributeData of
+                        Ok parsedAttributes ->
+                            let
+                                parsedSimpleEntity =
+                                    Types.ParsedSimpleEntity (Types.TypeName typeName)
+                                        parsedAttributes
+                            in
+                            parseEntities strings rest (( id, parsedSimpleEntity ) :: accumulated)
 
-                Err message ->
-                    Err message
+                        Err message ->
+                            Err message
+
+                UnparsedComplexEntity complexEntityData ->
+                    case parseComplexEntity strings complexEntityData [] of
+                        Ok simpleEntities ->
+                            let
+                                parsedComplexEntity =
+                                    Types.ParsedComplexEntity simpleEntities
+                            in
+                            parseEntities strings rest (( id, parsedComplexEntity ) :: accumulated)
+
+                        Err message ->
+                            Err message
 
         [] ->
             Ok accumulated
 
 
-attributeTokenRegex : Regex
-attributeTokenRegex =
+entityTokenRegex : Regex
+entityTokenRegex =
     Regex.fromString "\\(|\\)|[^(),]+"
         |> Maybe.withDefault Regex.never
+
+
+parseComplexEntity :
+    Dict String String
+    -> String
+    -> List ( Types.TypeName, List ParsedAttribute )
+    -> Result String (List ( Types.TypeName, List ParsedAttribute ))
+parseComplexEntity strings complexEntityData accumulated =
+    let
+        matches =
+            Regex.find entityTokenRegex complexEntityData
+    in
+    collectSimpleEntities strings matches []
+
+
+collectSimpleEntities : Dict String String -> List Regex.Match -> List ( Types.TypeName, List ParsedAttribute ) -> Result String (List ( Types.TypeName, List ParsedAttribute ))
+collectSimpleEntities strings matches accumulated =
+    case matches of
+        first :: second :: rest ->
+            case ( first.match, second.match ) of
+                ( typeName, "(" ) ->
+                    case collectAttributes strings rest [] of
+                        Ok ( parsedAttributes, remaining ) ->
+                            collectSimpleEntities strings remaining <|
+                                (( Types.TypeName typeName, parsedAttributes ) :: accumulated)
+
+                        Err message ->
+                            Err message
+
+                _ ->
+                    Err "Error parsing complex entity"
+
+        [ single ] ->
+            Err ("Unexpected termination of complex entity at '" ++ single.match ++ "'")
+
+        [] ->
+            Ok (List.reverse accumulated)
 
 
 parseAttributes : Dict String String -> String -> Result String (List ParsedAttribute)
 parseAttributes strings attributeData =
     let
         matches =
-            Regex.find attributeTokenRegex attributeData
+            Regex.find entityTokenRegex attributeData
     in
     case collectAttributes strings matches [] of
         Ok ( parsedAttributes, [] ) ->

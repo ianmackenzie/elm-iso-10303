@@ -1,8 +1,8 @@
 module Step.Format exposing
     ( binaryAttribute
     , boolAttribute
+    , complexEntity
     , defaultAttribute
-    , entity
     , enumAttribute
     , enumName
     , floatAttribute
@@ -11,6 +11,7 @@ module Step.Format exposing
     , listAttribute
     , nullAttribute
     , referenceTo
+    , simpleEntity
     , stringAttribute
     , typeName
     , typedAttribute
@@ -198,8 +199,8 @@ id value =
     "#" ++ String.fromInt value
 
 
-entity : Types.TypeName -> List Types.AttributeValue -> String
-entity (Types.TypeName rawTypeName) attributeValues =
+simpleEntity : Types.TypeName -> List Types.AttributeValue -> String
+simpleEntity (Types.TypeName rawTypeName) attributeValues =
     let
         rawAttributeValues =
             attributeValues
@@ -209,3 +210,16 @@ entity (Types.TypeName rawTypeName) attributeValues =
                     )
     in
     rawTypeName ++ "(" ++ String.join "," rawAttributeValues ++ ")"
+
+
+complexEntity : List ( Types.TypeName, List Types.AttributeValue ) -> String
+complexEntity simpleEntities =
+    let
+        simpleEntityStrings =
+            simpleEntities
+                |> List.map
+                    (\( givenTypeName, givenAttributeValues ) ->
+                        simpleEntity givenTypeName givenAttributeValues
+                    )
+    in
+    "(" ++ String.concat simpleEntityStrings ++ ")"

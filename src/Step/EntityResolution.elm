@@ -31,24 +31,61 @@ store id entity entityResolution =
 
 
 addEntity : Int -> Types.ParsedEntity -> EntityResolution -> EntityStack -> Result Error ( Types.Entity, EntityResolution )
-addEntity id { typeName, parsedAttributes } entityResolution entityStack =
+addEntity id parsedEntity entityResolution entityStack =
     case Dict.get id entityResolution.resolvedMap of
         Just entity ->
             Ok ( entity, entityResolution )
 
         Nothing ->
-            addAttributeList parsedAttributes entityResolution entityStack
-                |> Result.map
-                    (\( attributeList, resolutionWithAttributes ) ->
-                        let
-                            entity =
-                                Types.Entity typeName attributeList
+            case parsedEntity of
+                Types.ParsedSimpleEntity typeName parsedAttributes ->
+                    addAttributeList parsedAttributes entityResolution entityStack
+                        |> Result.map
+                            (\( attributeList, resolutionWithAttributes ) ->
+                                let
+                                    entity =
+                                        Types.SimpleEntity typeName attributeList
 
-                            updatedResolution =
-                                store id entity resolutionWithAttributes
-                        in
-                        ( entity, updatedResolution )
-                    )
+                                    updatedResolution =
+                                        store id entity resolutionWithAttributes
+                                in
+                                ( entity, updatedResolution )
+                            )
+
+                Types.ParsedComplexEntity parsedSimpleEntities ->
+                    addSimpleEntities parsedSimpleEntities entityResolution entityStack []
+                        |> Result.map
+                            (\( simpleEntities, resolutionWithSimpleEntities ) ->
+                                let
+                                    entity =
+                                        Types.ComplexEntity simpleEntities
+
+                                    updatedResolution =
+                                        store id entity resolutionWithSimpleEntities
+                                in
+                                ( entity, updatedResolution )
+                            )
+
+
+addSimpleEntities :
+    List ( Types.TypeName, List Types.ParsedAttribute )
+    -> EntityResolution
+    -> EntityStack
+    -> List ( Types.TypeName, List Types.Attribute )
+    -> Result Error ( List ( Types.TypeName, List Types.Attribute ), EntityResolution )
+addSimpleEntities parsedSimpleEntities entityResolution entityStack accumulated =
+    case parsedSimpleEntities of
+        ( typeName, parsedAttributes ) :: rest ->
+            case addAttributeList parsedAttributes entityResolution entityStack of
+                Ok ( attributeList, resolutionWithAttributes ) ->
+                    addSimpleEntities rest resolutionWithAttributes entityStack <|
+                        (( typeName, attributeList ) :: accumulated)
+
+                Err error ->
+                    Err error
+
+        [] ->
+            Ok ( List.reverse accumulated, entityResolution )
 
 
 addAttribute : Types.ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( Types.Attribute, EntityResolution )

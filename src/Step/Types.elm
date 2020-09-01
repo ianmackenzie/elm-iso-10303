@@ -28,7 +28,8 @@ type EnumName
 {-| A single STEP entity.
 -}
 type Entity
-    = Entity TypeName (List Attribute)
+    = SimpleEntity TypeName (List Attribute)
+    | ComplexEntity (List ( TypeName, List Attribute ))
 
 
 {-| An attribute of a STEP entity.
@@ -67,10 +68,9 @@ type ParsedAttribute
 {-| An entity that has been parsed but not yet resolved (whose attributes may
 contain unresolved entity references).
 -}
-type alias ParsedEntity =
-    { typeName : TypeName
-    , parsedAttributes : List ParsedAttribute
-    }
+type ParsedEntity
+    = ParsedSimpleEntity TypeName (List ParsedAttribute)
+    | ParsedComplexEntity (List ( TypeName, List ParsedAttribute ))
 
 
 type Decoder i a

@@ -20,15 +20,46 @@ buildMap entities =
 
 
 addEntity : Entity -> EntityMap -> ( Int, EntityMap )
-addEntity ((Types.Entity typeName attributes) as entity) entityMap =
-    let
-        ( attributeValues, mapWithAttributes ) =
-            addAttributes attributes entityMap
+addEntity entity entityMap =
+    case entity of
+        Types.SimpleEntity typeName attributes ->
+            let
+                ( attributeValues, mapWithAttributes ) =
+                    addAttributes attributes entityMap
 
-        entityString =
-            Format.entity typeName attributeValues
-    in
-    update entity entityString mapWithAttributes
+                entityString =
+                    Format.simpleEntity typeName attributeValues
+            in
+            update entity entityString mapWithAttributes
+
+        Types.ComplexEntity simpleEntities ->
+            let
+                ( simpleEntityValues, mapWithSimpleEntities ) =
+                    addSimpleEntities simpleEntities entityMap []
+
+                entityString =
+                    Format.complexEntity simpleEntityValues
+            in
+            update entity entityString mapWithSimpleEntities
+
+
+addSimpleEntities :
+    List ( Types.TypeName, List Types.Attribute )
+    -> EntityMap
+    -> List ( Types.TypeName, List Types.AttributeValue )
+    -> ( List ( Types.TypeName, List Types.AttributeValue ), EntityMap )
+addSimpleEntities simpleEntities entityMap accumulated =
+    case simpleEntities of
+        ( typeName, attributes ) :: rest ->
+            let
+                ( attributeValues, mapWithAttributes ) =
+                    addAttributes attributes entityMap
+            in
+            addSimpleEntities rest mapWithAttributes <|
+                (( typeName, attributeValues ) :: accumulated)
+
+        [] ->
+            ( List.reverse accumulated, entityMap )
 
 
 addAttributes : List Attribute -> EntityMap -> ( List Types.AttributeValue, EntityMap )
