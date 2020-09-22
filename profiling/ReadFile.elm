@@ -1,6 +1,8 @@
 module ReadFile exposing (main)
 
+import Dict
 import Duration
+import Regex
 import Script exposing (Script)
 import Script.File as File exposing (File, ReadOnly)
 import Step.EntityResolution as EntityResolution
@@ -55,26 +57,45 @@ profile inputFile =
         |> Script.thenWith
             (\contents ->
                 time "Preprocess" (\() -> Ok (FastDecode.preprocess contents))
-            )
-        |> Script.thenWith
-            (\preprocessed ->
-                time "Parse" (\() -> FastDecode.parse preprocessed)
                     |> Script.thenWith
-                        (\parsedEntities ->
-                            time "Resolve" (\() -> EntityResolution.resolve parsedEntities)
-                                |> Script.onError
-                                    (\resolutionError ->
-                                        case resolutionError of
-                                            EntityResolution.NonexistentEntity id ->
-                                                case List.filter (Tuple.first >> (==) id) preprocessed.unparsedEntities of
-                                                    [ _ ] ->
-                                                        Script.fail ("Entity with ID " ++ String.fromInt id ++ "failed to parse")
+                        (\preprocessed ->
+                            time "Parse" (\() -> FastDecode.parse preprocessed)
+                                |> Script.thenWith
+                                    (\parsedEntities ->
+                                        time "Resolve" (\() -> EntityResolution.resolve parsedEntities)
+                                            |> Script.onError
+                                                (\resolutionError ->
+                                                    case resolutionError of
+                                                        EntityResolution.NonexistentEntity id ->
+                                                            case List.filter (Tuple.first >> (==) id) preprocessed.unparsedEntities of
+                                                                [ _ ] ->
+                                                                    Script.fail ("Entity with ID " ++ String.fromInt id ++ "failed to parse")
 
-                                                    _ ->
-                                                        Script.fail ("No entity found with ID " ++ String.fromInt id)
+                                                                _ ->
+                                                                    Script.fail ("No entity found with ID " ++ String.fromInt id)
 
-                                            EntityResolution.CircularReference ids ->
-                                                Script.fail ("Circular reference chain found: " ++ String.join "," (List.map String.fromInt ids))
+                                                        EntityResolution.CircularReference ids ->
+                                                            Script.fail ("Circular reference chain found: " ++ String.join "," (List.map String.fromInt ids))
+                                                )
+                                            |> Script.thenWith
+                                                (\entityDict ->
+                                                    let
+                                                        actualCount =
+                                                            Dict.size entityDict
+
+                                                        expectedCount =
+                                                            Regex.find (Regex.fromString "#\\d+\\s*=" |> Maybe.withDefault Regex.never) contents
+                                                                |> List.length
+
+                                                        expectedString =
+                                                            if actualCount == expectedCount then
+                                                                "as expected"
+
+                                                            else
+                                                                "expected: " ++ String.fromInt expectedCount
+                                                    in
+                                                    Script.printLine ("  " ++ String.fromInt actualCount ++ " entities loaded (" ++ expectedString ++ ")")
+                                                )
                                     )
                         )
             )
