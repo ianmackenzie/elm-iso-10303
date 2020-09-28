@@ -16,30 +16,58 @@ type UnparsedEntity
     | UnparsedComplexEntity String
 
 
+commentPattern : String
+commentPattern =
+    -- '/*' followed by anything (including newlines), followed by '*/'
+    -- ('\s\S', literally 'space or non-space', seems to be the most robust
+    -- way to match anything including newlines)
+    "/\\*[\\s\\S]*?\\*/"
+
+
+stringPattern : String
+stringPattern =
+    -- single apostrophey followed by some combination of non-apostrophes
+    -- or pairs of apostrophes together, followed by a single apostrophe
+    "'(''|[^'])*'"
+
+
+whitespacePattern : String
+whitespacePattern =
+    "\\s+"
+
+
 stringOrCommentRegex : Regex
 stringOrCommentRegex =
-    Regex.fromString "/\\*[\\s\\S]*?\\*/|'(''|[^'])*'"
+    -- Due to how regexes work, this seems to correctly handle both apostrophes
+    -- inside comments and comment begin/end tokens inside strings
+    Regex.fromString (commentPattern ++ "|" ++ stringPattern)
+        |> Maybe.withDefault Regex.never
+
+
+stringOrCommentOrWhitespaceRegex : Regex
+stringOrCommentOrWhitespaceRegex =
+    -- Due to how regexes work, this seems to correctly handle both apostrophes
+    -- inside comments and comment begin/end tokens inside strings
+    Regex.fromString (commentPattern ++ "|" ++ stringPattern ++ "|" ++ whitespacePattern)
         |> Maybe.withDefault Regex.never
 
 
 entityRegex : Regex
 entityRegex =
-    Regex.fromStringWith
-        { multiline = True
-        , caseInsensitive = False
-        }
-        -- ( id )         (  type name   )       (attributes) --
-        "^#(\\d+)\\s*=\\s*([!A-Za-z0-9_]*)\\s*\\(([\\s\\S]*?)\\);$"
-        |> Maybe.withDefault Regex.never
+    let
+        idPattern =
+            "#(\\d+)"
 
+        typeNamePattern =
+            "([!A-Za-z0-9_]*)"
 
-whitespaceRegex : Regex
-whitespaceRegex =
-    Regex.fromStringWith
-        { multiline = True
-        , caseInsensitive = False
-        }
-        "\\s+"
+        attributesPattern =
+            "\\(([\\s\\S]*?)\\)"
+
+        entityPattern =
+            idPattern ++ "=" ++ typeNamePattern ++ attributesPattern ++ ";"
+    in
+    Regex.fromStringWith { multiline = True, caseInsensitive = False } entityPattern
         |> Maybe.withDefault Regex.never
 
 
@@ -53,27 +81,13 @@ stringKey number =
     "%" ++ String.fromInt number
 
 
-stripStringOrComment : Regex.Match -> String
-stripStringOrComment { match, number } =
+stripStringOrCommentOrWhitespace : Regex.Match -> String
+stripStringOrCommentOrWhitespace { match, index } =
     if String.startsWith "'" match then
-        stringKey number
+        stringKey index
 
     else
         ""
-
-
-stringEntry : Regex.Match -> Maybe ( String, String )
-stringEntry { match, number } =
-    if String.startsWith "'" match then
-        Just ( stringKey number, String.slice 1 -1 match )
-
-    else
-        Nothing
-
-
-stripWhitespace : String -> String
-stripWhitespace string =
-    Regex.replace whitespaceRegex stripAll string
 
 
 unparsedEntityEntry : Regex.Match -> Maybe ( Int, UnparsedEntity )
@@ -82,7 +96,7 @@ unparsedEntityEntry { submatches } =
         [ Just idString, Just typeName, Just attributeData ] ->
             case String.toInt idString of
                 Just id ->
-                    Just ( id, UnparsedSimpleEntity typeName (stripWhitespace attributeData) )
+                    Just ( id, UnparsedSimpleEntity typeName attributeData )
 
                 Nothing ->
                     Nothing
@@ -90,13 +104,22 @@ unparsedEntityEntry { submatches } =
         [ Just idString, Nothing, Just complexEntityData ] ->
             case String.toInt idString of
                 Just id ->
-                    Just ( id, UnparsedComplexEntity (stripWhitespace complexEntityData) )
+                    Just ( id, UnparsedComplexEntity complexEntityData )
 
                 Nothing ->
                     Nothing
 
         _ ->
             Nothing
+
+
+addStringToDict : Regex.Match -> Dict String String -> Dict String String
+addStringToDict { match, index } accumulated =
+    if String.startsWith "'" match then
+        Dict.insert (stringKey index) (String.slice 1 -1 match) accumulated
+
+    else
+        accumulated
 
 
 preprocess : String -> Preprocessed
@@ -106,12 +129,10 @@ preprocess contents =
             Regex.find stringOrCommentRegex contents
 
         strings =
-            stringOrCommentMatches
-                |> List.filterMap stringEntry
-                |> Dict.fromList
+            List.foldl addStringToDict Dict.empty stringOrCommentMatches
 
         stripped =
-            Regex.replace stringOrCommentRegex stripStringOrComment contents
+            Regex.replace stringOrCommentOrWhitespaceRegex stripStringOrCommentOrWhitespace contents
 
         unparsedEntities =
             Regex.find entityRegex stripped
