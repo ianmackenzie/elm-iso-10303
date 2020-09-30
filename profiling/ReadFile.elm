@@ -59,10 +59,6 @@ profile inputFile =
                 time "Preprocess" (\() -> Ok (FastParse.preprocess contents))
                     |> Script.thenWith
                         (\preprocessed ->
-                                |> Script.aside
-                                    (\parsed ->
-                                        Script.printLine parsed.header.timeStamp
-                                    )
                             time "Parse" (\() -> FastParse.postprocess preprocessed)
                                 |> Script.thenWith
                                     (\parsed ->
@@ -80,6 +76,10 @@ profile inputFile =
 
                                                         EntityResolution.CircularReference ids ->
                                                             Script.fail ("Circular reference chain found: " ++ String.join "," (List.map String.fromInt ids))
+                                                )
+                                            |> Script.aside
+                                                (\_ ->
+                                                    Script.printLine ("  File timestamp: " ++ parsed.header.timeStamp)
                                                 )
                                             |> Script.thenWith
                                                 (\entityDict ->
