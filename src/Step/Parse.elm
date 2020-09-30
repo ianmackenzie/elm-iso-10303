@@ -200,20 +200,7 @@ header =
         stringList =
             list string
     in
-    Parser.succeed
-        (\fileDescription fileName timeStamp author organization preprocessorVersion originatingSystem authorization schemaIdentifiers ->
-            Types.Header
-                { fileDescription = fileDescription
-                , fileName = fileName
-                , timeStamp = timeStamp
-                , author = author
-                , organization = organization
-                , preprocessorVersion = preprocessorVersion
-                , originatingSystem = originatingSystem
-                , authorization = authorization
-                , schemaIdentifiers = schemaIdentifiers
-                }
-        )
+    Parser.succeed Types.Header
         |. Parser.token "HEADER;"
         |. whitespace
         |. start "FILE_DESCRIPTION"
@@ -222,7 +209,7 @@ header =
         |. whitespace
         |. comma
         |. whitespace
-        |. Parser.token "'2;1'"
+        |= string
         |. whitespace
         |. end
         |. whitespace

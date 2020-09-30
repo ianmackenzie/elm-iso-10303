@@ -93,15 +93,15 @@ type File
         }
 
 
-type Header
-    = Header
-        { fileDescription : List String
-        , fileName : String
-        , timeStamp : String
-        , author : List String
-        , organization : List String
-        , preprocessorVersion : String
-        , originatingSystem : String
-        , authorization : String
-        , schemaIdentifiers : List String
-        }
+type alias Header =
+    { description : List String
+    , implementationLevel : String
+    , fileName : String
+    , timeStamp : String
+    , author : List String
+    , organization : List String
+    , preprocessorVersion : String
+    , originatingSystem : String
+    , authorization : String
+    , schemaIdentifiers : List String
+    }
