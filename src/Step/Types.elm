@@ -111,3 +111,4 @@ type Error
     = ParseError String
     | NonexistentEntity Int
     | CircularReference (List Int)
+    | DecodeError String

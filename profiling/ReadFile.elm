@@ -64,6 +64,9 @@ handleError =
 
                 Step.Types.CircularReference ids ->
                     "Circular reference chain found: " ++ String.join "," (List.map String.fromInt ids)
+
+                Step.Types.DecodeError message ->
+                    "Decode error: " ++ message
         )
 
 
