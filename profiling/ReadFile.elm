@@ -6,7 +6,7 @@ import Regex
 import Script exposing (Script)
 import Script.File as File exposing (File, ReadOnly)
 import Step.EntityResolution as EntityResolution
-import Step.FastDecode as FastDecode
+import Step.FastParse as FastParse
 
 
 main : Script.Program
@@ -56,13 +56,17 @@ profile inputFile =
         |> Script.andThen (File.read inputFile)
         |> Script.thenWith
             (\contents ->
-                time "Preprocess" (\() -> Ok (FastDecode.preprocess contents))
+                time "Preprocess" (\() -> Ok (FastParse.preprocess contents))
                     |> Script.thenWith
                         (\preprocessed ->
-                            time "Parse" (\() -> FastDecode.parse preprocessed)
+                            time "Parse" (\() -> FastParse.parse preprocessed)
+                                |> Script.aside
+                                    (\parsed ->
+                                        Script.printLine parsed.header.timeStamp
+                                    )
                                 |> Script.thenWith
-                                    (\parsedEntities ->
-                                        time "Resolve" (\() -> EntityResolution.resolve parsedEntities)
+                                    (\parsed ->
+                                        time "Resolve" (\() -> EntityResolution.resolve parsed.entities)
                                             |> Script.onError
                                                 (\resolutionError ->
                                                     case resolutionError of
