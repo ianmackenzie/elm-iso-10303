@@ -59,11 +59,11 @@ profile inputFile =
                 time "Preprocess" (\() -> Ok (FastParse.preprocess contents))
                     |> Script.thenWith
                         (\preprocessed ->
-                            time "Parse" (\() -> FastParse.parse preprocessed)
                                 |> Script.aside
                                     (\parsed ->
                                         Script.printLine parsed.header.timeStamp
                                     )
+                            time "Parse" (\() -> FastParse.postprocess preprocessed)
                                 |> Script.thenWith
                                     (\parsed ->
                                         time "Resolve" (\() -> EntityResolution.resolve parsed.entities)

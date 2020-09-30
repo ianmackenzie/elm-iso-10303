@@ -1,4 +1,4 @@
-module Step.FastParse exposing (Preprocessed, parse, preprocess)
+module Step.FastParse exposing (Preprocessed, postprocess, preprocess)
 
 import Dict exposing (Dict)
 import Parser exposing ((|.), (|=), Parser)
@@ -167,8 +167,8 @@ parseHeader input =
         |> Result.mapError (always "Failed to parse header")
 
 
-parse : Preprocessed -> Result String Parsed
-parse { original, unparsedEntities, strings } =
+postprocess : Preprocessed -> Result String Parsed
+postprocess { original, unparsedEntities, strings } =
     Result.map2 Parsed
         (parseHeader original)
         (parseEntities strings unparsedEntities [])
