@@ -3,7 +3,7 @@ module Step.Encode exposing
     , Header
     , Entity, simpleEntity, complexEntity
     , Attribute
-    , default, null, int, float, string, referenceTo, enum, binary, list
+    , derived, null, int, float, string, referenceTo, enum, binary, list
     , intAs, floatAs, stringAs, enumAs, binaryAs, listAs
     )
 
@@ -34,7 +34,7 @@ All examples below assume the module has been imported this way.
 
 @docs Attribute
 
-@docs default, null, int, float, string, referenceTo, enum, binary, list
+@docs derived, null, int, float, string, referenceTo, enum, binary, list
 
 
 ## Typed attributes
@@ -266,11 +266,11 @@ referenceTo entity_ =
     Types.ReferenceTo entity_
 
 
-{-| The special 'default value' attribute (`*` in the resulting STEP file).
+{-| The special 'derived value' attribute (`*` in the resulting STEP file).
 -}
-default : Attribute
-default =
-    Types.DefaultAttribute
+derived : Attribute
+derived =
+    Types.DerivedAttribute
 
 
 {-| The special 'null value' attribute (`$` in the resulting STEP file).

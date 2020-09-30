@@ -1,6 +1,6 @@
 module Step.Attributes exposing
     ( Attribute
-    , entityReference, default, null, int, float, string, enum, binary, list
+    , entityReference, derived, null, int, float, string, enum, binary, list
     , intAs, floatAs, stringAs, enumAs, binaryAs, listAs
     )
 
@@ -11,7 +11,7 @@ module Step.Attributes exposing
 
 # Simple attributes
 
-@docs entityReference, default, null, int, float, string, enum, binary, list
+@docs entityReference, derived, null, int, float, string, enum, binary, list
 
 
 # Typed attributes
@@ -38,11 +38,11 @@ entityReference entity_ =
     Types.ReferenceTo entity_
 
 
-{-| The special 'default value' attribute (`*` in the resulting STEP file).
+{-| The special 'derived value' attribute (`*` in the resulting STEP file).
 -}
-default : Attribute
-default =
-    Types.DefaultAttribute
+derived : Attribute
+derived =
+    Types.DerivedAttribute
 
 
 {-| The special 'null value' attribute (`$` in the resulting STEP file).

@@ -43,7 +43,7 @@ type ComplexEntity
 {-| An attribute of a STEP entity.
 -}
 type Attribute
-    = DefaultAttribute
+    = DerivedAttribute
     | NullAttribute
     | BoolAttribute Bool
     | IntAttribute Int
@@ -60,7 +60,7 @@ type Attribute
 unresolved entity reference).
 -}
 type ParsedAttribute
-    = ParsedDefaultAttribute
+    = ParsedDerivedAttribute
     | ParsedNullAttribute
     | ParsedBoolAttribute Bool
     | ParsedIntAttribute Int

@@ -86,8 +86,8 @@ addSimpleEntities parsedSimpleEntities entityResolution entityStack accumulated 
 addAttribute : Types.ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( Types.Attribute, EntityResolution )
 addAttribute parsedAttribute entityResolution entityStack =
     case parsedAttribute of
-        Types.ParsedDefaultAttribute ->
-            Ok ( Types.DefaultAttribute, entityResolution )
+        Types.ParsedDerivedAttribute ->
+            Ok ( Types.DerivedAttribute, entityResolution )
 
         Types.ParsedNullAttribute ->
             Ok ( Types.NullAttribute, entityResolution )

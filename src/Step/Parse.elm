@@ -154,7 +154,7 @@ typedAttribute =
 attribute : Parser Types.ParsedAttribute
 attribute =
     Parser.oneOf
-        [ Parser.succeed Types.ParsedDefaultAttribute |. Parser.token "*"
+        [ Parser.succeed Types.ParsedDerivedAttribute |. Parser.token "*"
         , Parser.succeed Types.ParsedNullAttribute |. Parser.token "$"
         , Parser.succeed (Types.ParsedBoolAttribute True) |. Parser.token ".T."
         , Parser.succeed (Types.ParsedBoolAttribute False) |. Parser.token ".F."

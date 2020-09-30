@@ -2,7 +2,7 @@ module Step.Format exposing
     ( binaryAttribute
     , boolAttribute
     , complexEntity
-    , defaultAttribute
+    , derivedAttribute
     , enumAttribute
     , enumName
     , floatAttribute
@@ -156,8 +156,8 @@ referenceTo value =
     attributeValue (id value)
 
 
-defaultAttribute : Types.AttributeValue
-defaultAttribute =
+derivedAttribute : Types.AttributeValue
+derivedAttribute =
     attributeValue "*"
 
 

@@ -289,7 +289,7 @@ collectAttributes strings matches accumulated =
                     collectAttributes strings rest (Types.ParsedNullAttribute :: accumulated)
 
                 "*" ->
-                    collectAttributes strings rest (Types.ParsedDefaultAttribute :: accumulated)
+                    collectAttributes strings rest (Types.ParsedDerivedAttribute :: accumulated)
 
                 ".T." ->
                     collectAttributes strings rest (Types.ParsedBoolAttribute True :: accumulated)
