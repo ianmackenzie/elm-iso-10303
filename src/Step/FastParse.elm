@@ -1,13 +1,23 @@
-module Step.FastDecode exposing (Preprocessed, parse, preprocess)
+module Step.FastParse exposing (Preprocessed, parse, preprocess)
 
 import Dict exposing (Dict)
+import Parser exposing ((|.), (|=), Parser)
+import Parser.Advanced
 import Regex exposing (Regex)
-import Step.Types as Types exposing (Attribute, Entity, ParsedAttribute, ParsedEntity)
+import Step.Parse as Parse
+import Step.Types as Types exposing (Attribute, Entity, Header, ParsedAttribute, ParsedEntity)
 
 
 type alias Preprocessed =
-    { unparsedEntities : List ( Int, UnparsedEntity )
+    { original : String
+    , unparsedEntities : List ( Int, UnparsedEntity )
     , strings : Dict String String
+    }
+
+
+type alias Parsed =
+    { header : Header
+    , entities : List ( Int, ParsedEntity )
     }
 
 
@@ -138,14 +148,30 @@ preprocess contents =
             Regex.find entityRegex stripped
                 |> List.filterMap unparsedEntityEntry
     in
-    { unparsedEntities = unparsedEntities
+    { original = contents
+    , unparsedEntities = unparsedEntities
     , strings = strings
     }
 
 
-parse : Preprocessed -> Result String (List ( Int, ParsedEntity ))
-parse { unparsedEntities, strings } =
-    parseEntities strings unparsedEntities []
+parseHeader : String -> Result String Header
+parseHeader input =
+    let
+        parser =
+            Parser.succeed identity
+                |. Parser.token "ISO-10303-21;"
+                |. Parse.whitespace
+                |= Parse.header
+    in
+    Parser.run parser input
+        |> Result.mapError Debug.toString
+
+
+parse : Preprocessed -> Result String Parsed
+parse { original, unparsedEntities, strings } =
+    Result.map2 Parsed
+        (parseHeader original)
+        (parseEntities strings unparsedEntities [])
 
 
 parseEntities : Dict String String -> List ( Int, UnparsedEntity ) -> List ( Int, ParsedEntity ) -> Result String (List ( Int, ParsedEntity ))
