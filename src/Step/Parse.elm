@@ -3,7 +3,7 @@ module Step.Parse exposing (entity, header, whitespace)
 import Char
 import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
-import Step.Types as Types exposing (Header, StepFile)
+import Step.Types as Types exposing (File, Header)
 import String
 
 
