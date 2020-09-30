@@ -164,7 +164,7 @@ parseHeader input =
                 |= Parse.header
     in
     Parser.run parser input
-        |> Result.mapError Debug.toString
+        |> Result.mapError (always "Failed to parse header")
 
 
 parse : Preprocessed -> Result String Parsed
