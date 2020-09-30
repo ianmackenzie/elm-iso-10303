@@ -5,7 +5,7 @@ import Parser exposing ((|.), (|=), Parser)
 import Parser.Advanced
 import Regex exposing (Regex)
 import Step.Parse as Parse
-import Step.Types as Types exposing (Attribute, Entity, Header, ParsedAttribute, ParsedEntity)
+import Step.Types as Types exposing (Attribute, Entity, Error(..), Header, ParsedAttribute, ParsedEntity)
 
 
 type alias Preprocessed =
@@ -154,7 +154,7 @@ preprocess contents =
     }
 
 
-parseHeader : String -> Result String Header
+parseHeader : String -> Result Error Header
 parseHeader input =
     let
         parser =
@@ -164,17 +164,17 @@ parseHeader input =
                 |= Parse.header
     in
     Parser.run parser input
-        |> Result.mapError (always "Failed to parse header")
+        |> Result.mapError (always (ParseError "Failed to parse header"))
 
 
-postprocess : Preprocessed -> Result String Parsed
+postprocess : Preprocessed -> Result Error Parsed
 postprocess { original, unparsedEntities, strings } =
     Result.map2 Parsed
         (parseHeader original)
         (parseEntities strings unparsedEntities [])
 
 
-parseEntities : Dict String String -> List ( Int, UnparsedEntity ) -> List ( Int, ParsedEntity ) -> Result String (List ( Int, ParsedEntity ))
+parseEntities : Dict String String -> List ( Int, UnparsedEntity ) -> List ( Int, ParsedEntity ) -> Result Error (List ( Int, ParsedEntity ))
 parseEntities strings unparsedEntities accumulated =
     case unparsedEntities of
         ( id, unparsedEntity ) :: rest ->
@@ -190,7 +190,7 @@ parseEntities strings unparsedEntities accumulated =
                             parseEntities strings rest (( id, parsedSimpleEntity ) :: accumulated)
 
                         Err message ->
-                            Err message
+                            Err (ParseError message)
 
                 UnparsedComplexEntity complexEntityData ->
                     case parseComplexEntity strings complexEntityData [] of
@@ -202,7 +202,7 @@ parseEntities strings unparsedEntities accumulated =
                             parseEntities strings rest (( id, parsedComplexEntity ) :: accumulated)
 
                         Err message ->
-                            Err message
+                            Err (ParseError message)
 
         [] ->
             Ok accumulated

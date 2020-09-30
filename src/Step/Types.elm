@@ -105,3 +105,9 @@ type alias Header =
     , authorization : String
     , schemaIdentifiers : List String
     }
+
+
+type Error
+    = ParseError String
+    | NonexistentEntity Int
+    | CircularReference (List Int)

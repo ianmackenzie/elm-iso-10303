@@ -7,6 +7,7 @@ import Script exposing (Script)
 import Script.File as File exposing (File, ReadOnly)
 import Step.EntityResolution as EntityResolution
 import Step.FastParse as FastParse
+import Step.Types
 
 
 main : Script.Program
@@ -50,6 +51,22 @@ time tag givenFunction =
             )
 
 
+handleError : Script Step.Types.Error a -> Script String a
+handleError =
+    Script.mapError
+        (\error ->
+            case error of
+                Step.Types.ParseError message ->
+                    "Parse error: " ++ message
+
+                Step.Types.NonexistentEntity id ->
+                    "No valid entity found with ID " ++ String.fromInt id
+
+                Step.Types.CircularReference ids ->
+                    "Circular reference chain found: " ++ String.join "," (List.map String.fromInt ids)
+        )
+
+
 profile : File ReadOnly -> Script String ()
 profile inputFile =
     Script.printLine (File.name inputFile)
@@ -60,23 +77,11 @@ profile inputFile =
                     |> Script.thenWith
                         (\preprocessed ->
                             time "Parse" (\() -> FastParse.postprocess preprocessed)
+                                |> handleError
                                 |> Script.thenWith
                                     (\parsed ->
                                         time "Resolve" (\() -> EntityResolution.resolve parsed.entities)
-                                            |> Script.onError
-                                                (\resolutionError ->
-                                                    case resolutionError of
-                                                        EntityResolution.NonexistentEntity id ->
-                                                            case List.filter (Tuple.first >> (==) id) preprocessed.unparsedEntities of
-                                                                [ _ ] ->
-                                                                    Script.fail ("Entity with ID " ++ String.fromInt id ++ "failed to parse")
-
-                                                                _ ->
-                                                                    Script.fail ("No entity found with ID " ++ String.fromInt id)
-
-                                                        EntityResolution.CircularReference ids ->
-                                                            Script.fail ("Circular reference chain found: " ++ String.join "," (List.map String.fromInt ids))
-                                                )
+                                            |> handleError
                                             |> Script.aside
                                                 (\_ ->
                                                     Script.printLine ("  File timestamp: " ++ parsed.header.timeStamp)
