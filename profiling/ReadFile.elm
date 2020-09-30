@@ -108,4 +108,3 @@ profile inputFile =
                                     )
                         )
             )
-        |> Script.ignoreResult
