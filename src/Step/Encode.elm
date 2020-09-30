@@ -1,7 +1,7 @@
 module Step.Encode exposing
     ( file
     , Header
-    , Entity, entity, complexEntity
+    , Entity, simpleEntity, complexEntity
     , Attribute
     , default, null, int, float, string, referenceTo, enum, binary, list
     , intAs, floatAs, stringAs, enumAs, binaryAs, listAs
@@ -27,7 +27,7 @@ All examples below assume the module has been imported this way.
 
 # Entities
 
-@docs Entity, entity, complexEntity
+@docs Entity, simpleEntity, complexEntity
 
 
 # Attributes
@@ -108,13 +108,13 @@ headerString : Header -> String
 headerString header =
     let
         fileDescriptionEntity =
-            entity "FILE_DESCRIPTION"
+            simpleEntity "FILE_DESCRIPTION"
                 [ list string header.fileDescription
                 , string "2;1"
                 ]
 
         fileNameEntity =
-            entity "FILE_NAME"
+            simpleEntity "FILE_NAME"
                 [ string header.fileName
                 , string header.timeStamp
                 , list string header.author
@@ -125,7 +125,7 @@ headerString header =
                 ]
 
         fileSchemaEntity =
-            entity "FILE_SCHEMA"
+            simpleEntity "FILE_SCHEMA"
                 [ list string header.schemaIdentifiers
                 ]
 
@@ -180,12 +180,12 @@ file header entities =
         ]
 
 
-{-| Construct a single entity with the given type and attributes. The type name
-will be capitalized if necessary. An [`IfcDirection`](http://www.buildingsmart-tech.org/ifc/IFC4/final/html/schema/ifcgeometryresource/lexical/ifcdirection.htm)
+{-| Construct a single simple entity with the given type and attributes. The
+type name will be capitalized if necessary. An [`IfcDirection`](http://www.buildingsmart-tech.org/ifc/IFC4/final/html/schema/ifcgeometryresource/lexical/ifcdirection.htm)
 representing the positive Y direction in 3D could be created using
 
     direction =
-        Step.entity "IFCDIRECTION"
+        Step.simpleEntity "IFCDIRECTION"
             [ Step.list Step.float [ 0, 1, 0 ]
             ]
 
@@ -196,19 +196,20 @@ it directly inside the definition of the parent entity. For example, to create
 entity #121 from [this AP214 example](https://github.com/stepcode/stepcode/blob/master/data/ap214e3/as1-oc-214.stp),
 you could use
 
-    Step.entity "AXIS2_PLACEMENT_3D"
+    Step.simpleEntity "AXIS2_PLACEMENT_3D"
         [ Step.string ""
         , Step.referenceTo <|
-            Step.entity "CARTESIAN_POINT"
-                [ Step.list Step.float [ 20, 7.5, 0 ]
+            Step.simpleEntity "CARTESIAN_POINT"
+                [ Step.string ""
+                , Step.list Step.float [ 20, 7.5, 0 ]
                 ]
         , Step.referenceTo <|
-            Step.entity "DIRECTION"
+            Step.simpleEntity "DIRECTION"
                 [ Step.string ""
                 , Step.list Step.float [ 1, 0, 0 ]
                 ]
         , Step.referenceTo <|
-            Step.entity "DIRECTION"
+            Step.simpleEntity "DIRECTION"
                 [ Step.string ""
                 , Step.list Step.float [ 0, 0, -1 ]
                 ]
@@ -224,9 +225,9 @@ automatically-generated IDs, something like:
     #4=DIRECTION('',(0.,0.,-1.));
 
 -}
-entity : String -> List Attribute -> Entity
-entity givenTypeName givenAttributes =
-    Types.SimpleEntity (Format.typeName givenTypeName) givenAttributes
+simpleEntity : String -> List Attribute -> Entity
+simpleEntity givenTypeName givenAttributes =
+    Types.Simple (Types.SimpleEntity (Format.typeName givenTypeName) givenAttributes)
 
 
 {-| Construct a single 'complex entity'; for example
@@ -248,7 +249,13 @@ will be encoded as
 -}
 complexEntity : List ( String, List Attribute ) -> Entity
 complexEntity simpleEntities =
-    Types.ComplexEntity (List.map (Tuple.mapFirst Format.typeName) simpleEntities)
+    Types.Complex <|
+        Types.ComplexEntity <|
+            List.map
+                (\( givenTypeName, givenAttributes ) ->
+                    Types.SimpleEntity (Format.typeName givenTypeName) givenAttributes
+                )
+                simpleEntities
 
 
 {-| Construct a reference to another STEP entity (will end up being encoded

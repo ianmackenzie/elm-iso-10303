@@ -199,8 +199,8 @@ id value =
     "#" ++ String.fromInt value
 
 
-simpleEntity : Types.TypeName -> List Types.AttributeValue -> String
-simpleEntity (Types.TypeName rawTypeName) attributeValues =
+simpleEntity : ( Types.TypeName, List Types.AttributeValue ) -> String
+simpleEntity ( Types.TypeName rawTypeName, attributeValues ) =
     let
         rawAttributeValues =
             attributeValues
@@ -216,10 +216,6 @@ complexEntity : List ( Types.TypeName, List Types.AttributeValue ) -> String
 complexEntity simpleEntities =
     let
         simpleEntityStrings =
-            simpleEntities
-                |> List.map
-                    (\( givenTypeName, givenAttributeValues ) ->
-                        simpleEntity givenTypeName givenAttributeValues
-                    )
+            List.map simpleEntity simpleEntities
     in
     "(" ++ String.concat simpleEntityStrings ++ ")"

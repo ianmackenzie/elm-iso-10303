@@ -28,8 +28,16 @@ type EnumName
 {-| A single STEP entity.
 -}
 type Entity
+    = Simple SimpleEntity
+    | Complex ComplexEntity
+
+
+type SimpleEntity
     = SimpleEntity TypeName (List Attribute)
-    | ComplexEntity (List ( TypeName, List Attribute ))
+
+
+type ComplexEntity
+    = ComplexEntity (List SimpleEntity)
 
 
 {-| An attribute of a STEP entity.
