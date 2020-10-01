@@ -4,6 +4,7 @@ module Step.Types exposing (..)
 -}
 
 import Dict exposing (Dict)
+import Step.Header exposing (Header)
 
 
 {-| An attribute value string such as "1", "2.", "'some string'", ".STEEL." or
@@ -91,20 +92,6 @@ type File
         , entities : Dict Int Entity
         , contents : String
         }
-
-
-type alias Header =
-    { description : List String
-    , implementationLevel : String
-    , fileName : String
-    , timeStamp : String
-    , author : List String
-    , organization : List String
-    , preprocessorVersion : String
-    , originatingSystem : String
-    , authorization : String
-    , schemaIdentifiers : List String
-    }
 
 
 type Error

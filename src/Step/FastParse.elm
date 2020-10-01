@@ -5,8 +5,9 @@ import Parser exposing ((|.), (|=), Parser)
 import Parser.Advanced
 import Regex exposing (Regex)
 import Step.EntityResolution as EntityResolution
+import Step.Header exposing (Header)
 import Step.Parse as Parse
-import Step.Types as Types exposing (Attribute, Entity, Error(..), File, Header, ParsedAttribute, ParsedEntity)
+import Step.Types as Types exposing (Attribute, Entity, Error(..), File, ParsedAttribute, ParsedEntity)
 
 
 type alias Preprocessed =

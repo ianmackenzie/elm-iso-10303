@@ -3,7 +3,8 @@ module Step.Parse exposing (entity, header, whitespace)
 import Char
 import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
-import Step.Types as Types exposing (File, Header)
+import Step.Header exposing (Header)
+import Step.Types as Types exposing (File)
 import String
 
 
@@ -200,7 +201,7 @@ header =
         stringList =
             list string
     in
-    Parser.succeed Types.Header
+    Parser.succeed Header
         |. Parser.token "HEADER;"
         |. whitespace
         |. start "FILE_DESCRIPTION"
