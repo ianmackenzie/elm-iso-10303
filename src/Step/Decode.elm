@@ -1,50 +1,64 @@
 module Step.Decode exposing
-    ( Decoder
-    , andThen
-    , attribute
-    , attributes
-    , bool
-    , default
-    , entitiesBy
-    , entitiesOfType
-    , entitiesWhere
+    ( File, Entity, SimpleEntity, ComplexEntity, Attribute, Error
+    , Decoder
+    , file, header, singleEntityOfType, allEntitiesOfType
+    , attribute, bool, int, float, string, referenceTo, null, optional, list, tuple2, tuple3, derived
     , entityOfType
-    , entityWhere
-    , fail
-    , file
-    , float
-    , int
-    , lazy
-    , list
-    , map
-    , map2
-    , map3
-    , map4
-    , map5
-    , map6
-    , map7
-    , map8
-    , null
-    , oneOf
-    , optional
-    , referencedEntity
-    , run
-    , string
-    , succeed
-    , toAttribute
-    , toEntity
-    , tuple2
-    , tuple3
-    , typeName
-    , withDefault
+    , succeed, fail
+    , map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
     )
+
+{-|
+
+@docs File, Header, Entity, SimpleEntity, ComplexEntity, Attribute, Error
+
+@docs Decoder
+
+@docs file, header, singleEntityOfType, allEntitiesOfType
+
+@docs attribute, bool, int, float, string, referenceTo, null, optional, list, tuple2, tuple3, derived
+
+@docs entityOfType
+
+@docs succeed, fail
+
+@docs map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
+
+-}
 
 import Bitwise
 import Dict
 import List
 import List.Extra as List
 import Parser exposing ((|.), (|=), Parser)
-import Step.Types as Types exposing (Attribute, Entity, Header, StepFile)
+import Step.EntityResolution as EntityResolution
+import Step.FastParse as FastParse
+import Step.Header exposing (Header)
+import Step.Types as Types exposing (Attribute, Entity, File, SimpleEntity)
+
+
+type alias File =
+    Types.File
+
+
+type alias Entity =
+    Types.Entity
+
+
+type alias SimpleEntity =
+    Types.SimpleEntity
+
+
+type alias ComplexEntity =
+    Types.ComplexEntity
+
+
+type alias Attribute =
+    Types.Attribute
+
+
+type alias Error =
+    Types.Error
 
 
 {-| A `Decoder` describes how to attempt to decode a given `File`, `Entity` or
@@ -70,9 +84,15 @@ fail description =
     Types.Decoder (always (Err description))
 
 
-file : a -> Decoder StepFile a
-file constructor =
-    succeed constructor
+{-| Decode a STEP file given as a `String` using the given decoder.
+-}
+file : Decoder File a -> String -> Result Error a
+file decoder contents =
+    FastParse.parse contents
+        |> Result.andThen
+            (\parsedFile ->
+                run decoder parsedFile |> Result.mapError Types.DecodeError
+            )
 
 
 decodeAll : Decoder i a -> List i -> List a -> Result String (List a)
@@ -90,118 +110,94 @@ decodeAll decoder inputs accumulated =
                     Err message
 
 
-header : Decoder StepFile Header
+{-| Extract the header of a STEP file.
+-}
+header : Decoder File Header
 header =
-    Types.Decoder (\(Types.StepFile file_) -> Ok file_.header)
+    Types.Decoder (\(Types.File properties) -> Ok properties.header)
 
 
-filterEntities : (Entity -> Bool) -> StepFile -> List Entity
-filterEntities predicate (Types.StepFile { entities }) =
+filterSimpleEntities : (SimpleEntity -> Bool) -> File -> List SimpleEntity
+filterSimpleEntities givenPredicate (Types.File properties) =
     let
-        accumulate id entity accumulated =
-            if predicate entity then
-                entity :: accumulated
+        accumulate id currentEntity accumulated =
+            case currentEntity of
+                Types.Simple currentSimpleEntity ->
+                    if givenPredicate currentSimpleEntity then
+                        currentSimpleEntity :: accumulated
 
-            else
-                accumulated
+                    else
+                        accumulated
+
+                Types.Complex _ ->
+                    accumulated
     in
-    Dict.foldr accumulate [] entities
+    Dict.foldr accumulate [] properties.entities
 
 
-entityOfType : String -> Decoder Entity a -> Decoder StepFile a
-entityOfType typeName_ entityDecoder =
+entityOfType : String -> Decoder SimpleEntity a -> Decoder Entity a
+entityOfType givenTypeName decoder =
+    let
+        uppercasedTypeName =
+            String.toUpper givenTypeName
+    in
     Types.Decoder
-        (\file_ ->
-            case filterEntities (Entity.hasType typeName_) file_ of
-                [ singleEntity ] ->
-                    case run entityDecoder singleEntity of
-                        Ok value ->
-                            Ok value
+        (\currentEntity ->
+            case currentEntity of
+                Types.Simple ((Types.SimpleEntity (Types.TypeName entityTypeName) entityAttributes) as input) ->
+                    if entityTypeName == uppercasedTypeName then
+                        run decoder input
 
-                        Err message ->
-                            Err
-                                ("In entity of type '"
-                                    ++ typeName_
-                                    ++ "': "
-                                    ++ message
-                                )
+                    else
+                        Err ("Expected entity of type '" ++ uppercasedTypeName ++ "', got '" ++ entityTypeName ++ "'")
 
-                _ ->
-                    Err
-                        ("Expecting a single entity of type '"
-                            ++ typeName_
-                            ++ "'"
-                        )
+                Types.Complex _ ->
+                    Err "Expected a simple entity"
         )
 
 
-entityWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder StepFile a
-entityWhere predicate entityDecoder =
+simpleEntityHasType : String -> SimpleEntity -> Bool
+simpleEntityHasType givenTypeName =
+    let
+        upperCasedTypeName =
+            String.toUpper givenTypeName
+    in
+    \(Types.SimpleEntity (Types.TypeName entityTypeName) _) ->
+        upperCasedTypeName == entityTypeName
+
+
+singleEntityOfType : String -> Decoder SimpleEntity a -> Decoder File a
+singleEntityOfType givenTypeName entityDecoder =
     Types.Decoder
-        (\file_ ->
-            case filterEntities predicate file_ of
+        (\inputFile ->
+            case filterSimpleEntities (simpleEntityHasType givenTypeName) inputFile of
                 [ singleEntity ] ->
                     run entityDecoder singleEntity
 
                 _ ->
-                    Err "Expecting a single matching entity"
+                    Err ("Expecting a single entity of type '" ++ givenTypeName ++ "'")
         )
 
 
-entitiesOfType : String -> Decoder Entity a -> Decoder StepFile (List a)
-entitiesOfType typeName_ entityDecoder =
-    entitiesWhere (Entity.hasType typeName_) entityDecoder
-
-
-entitiesWhere : (Entity -> Bool) -> Decoder Entity a -> Decoder StepFile (List a)
-entitiesWhere predicate entityDecoder =
+allEntitiesOfType : String -> Decoder SimpleEntity a -> Decoder File (List a)
+allEntitiesOfType givenTypeName entityDecoder =
     Types.Decoder
-        (\file_ ->
+        (\inputFile ->
             let
-                filteredEntities =
-                    filterEntities predicate file_
+                inputEntities =
+                    filterSimpleEntities (simpleEntityHasType givenTypeName) inputFile
             in
-            decodeAll entityDecoder filteredEntities []
+            decodeAll entityDecoder inputEntities []
         )
 
 
-decodeAllBy : (i -> Maybe (Decoder i a)) -> List i -> List a -> Result String (List a)
-decodeAllBy decoderForInput inputs accumulated =
-    case inputs of
-        [] ->
-            Ok (List.reverse accumulated)
-
-        first :: rest ->
-            case decoderForInput first of
-                Just decoder ->
-                    case run decoder first of
-                        Ok value ->
-                            decodeAllBy decoderForInput
-                                rest
-                                (value :: accumulated)
-
-                        Err message ->
-                            Err message
-
-                Nothing ->
-                    decodeAllBy decoderForInput rest accumulated
-
-
-entitiesBy : (Entity -> Maybe (Decoder Entity a)) -> Decoder StepFile (List a)
-entitiesBy decoderForEntity =
-    Types.Decoder
-        (\(Types.StepFile { entities }) ->
-            decodeAllBy decoderForEntity (Dict.values entities) []
-        )
-
-
-attribute : Int -> Decoder Attribute a -> Decoder Entity a
+attribute : Int -> Decoder Attribute a -> Decoder SimpleEntity a
 attribute index attributeDecoder =
     Types.Decoder
-        (\entity ->
-            case List.getAt index (Entity.attributes entity) of
-                Just attribute_ ->
-                    case run attributeDecoder attribute_ of
+        (\(Types.SimpleEntity _ entityAttributes) ->
+            case List.getAt index entityAttributes of
+                Just entityAttribute ->
+                    case run attributeDecoder entityAttribute of
                         Ok value ->
                             Ok value
 
@@ -363,36 +359,16 @@ map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG dec
             )
 
 
-mapError : (String -> String) -> Decoder i a -> Decoder i a
-mapError mapFunction (Types.Decoder function) =
-    Types.Decoder (function >> Result.mapError mapFunction)
-
-
-toEntity : Decoder Entity Entity
-toEntity =
-    Types.Decoder Ok
-
-
-typeName : Decoder Entity String
+typeName : Decoder SimpleEntity String
 typeName =
-    Types.Decoder (Ok << Entity.typeName)
-
-
-attributes : Decoder Entity (List Attribute)
-attributes =
-    Types.Decoder (Ok << Entity.attributes)
-
-
-toAttribute : Decoder Attribute Attribute
-toAttribute =
-    Types.Decoder Ok
+    Types.Decoder (\(Types.SimpleEntity (Types.TypeName entityTypeName) _) -> Ok entityTypeName)
 
 
 bool : Decoder Attribute Bool
 bool =
     Types.Decoder
-        (\attribute_ ->
-            case attribute_ of
+        (\inputAttribute ->
+            case inputAttribute of
                 Types.BoolAttribute value ->
                     Ok value
 
@@ -404,8 +380,8 @@ bool =
 int : Decoder Attribute Int
 int =
     Types.Decoder
-        (\attribute_ ->
-            case attribute_ of
+        (\inputAttribute ->
+            case inputAttribute of
                 Types.IntAttribute value ->
                     Ok value
 
@@ -417,8 +393,8 @@ int =
 float : Decoder Attribute Float
 float =
     Types.Decoder
-        (\attribute_ ->
-            case attribute_ of
+        (\inputAttribute ->
+            case inputAttribute of
                 Types.FloatAttribute value ->
                     Ok value
 
@@ -587,19 +563,19 @@ string =
 
 
 collectDecodedAttributes : Decoder Attribute a -> List a -> List Attribute -> Result String (List a)
-collectDecodedAttributes decoder collected attributes_ =
-    case attributes_ of
+collectDecodedAttributes decoder accumulated remainingAttributes =
+    case remainingAttributes of
         [] ->
             -- No more attributes to decode, so succeed with all the results we
             -- have collected so far
-            Ok (List.reverse collected)
+            Ok (List.reverse accumulated)
 
         first :: rest ->
             case run decoder first of
                 -- Decoding succeeded on this attribute: continue with the
                 -- rest
                 Ok result ->
-                    collectDecodedAttributes decoder (result :: collected) rest
+                    collectDecodedAttributes decoder (result :: accumulated) rest
 
                 -- Decoding failed on this attribute: immediately abort
                 -- with the returned error message
@@ -610,8 +586,8 @@ collectDecodedAttributes decoder collected attributes_ =
 list : Decoder Attribute a -> Decoder Attribute (List a)
 list itemDecoder =
     Types.Decoder
-        (\attribute_ ->
-            case attribute_ of
+        (\inputAttribute ->
+            case inputAttribute of
                 Types.AttributeList attributes_ ->
                     collectDecodedAttributes itemDecoder [] attributes_
 
@@ -623,8 +599,8 @@ list itemDecoder =
 tuple2 : ( Decoder Attribute a, Decoder Attribute b ) -> Decoder Attribute ( a, b )
 tuple2 ( firstDecoder, secondDecoder ) =
     Types.Decoder
-        (\attribute_ ->
-            case attribute_ of
+        (\inputAttribute ->
+            case inputAttribute of
                 Types.AttributeList [ firstAttribute, secondAttribute ] ->
                     Result.map2 Tuple.pair
                         (run firstDecoder firstAttribute)
@@ -638,8 +614,8 @@ tuple2 ( firstDecoder, secondDecoder ) =
 tuple3 : ( Decoder Attribute a, Decoder Attribute b, Decoder Attribute c ) -> Decoder Attribute ( a, b, c )
 tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
     Types.Decoder
-        (\attribute_ ->
-            case attribute_ of
+        (\inputAttribute ->
+            case inputAttribute of
                 Types.AttributeList [ firstAttribute, secondAttribute, thirdAttribute ] ->
                     Result.map3
                         (\first second third -> ( first, second, third ))
@@ -652,13 +628,13 @@ tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
         )
 
 
-referencedEntity : Decoder Entity a -> Decoder Attribute a
-referencedEntity entityDecoder =
+referenceTo : Decoder Entity a -> Decoder Attribute a
+referenceTo entityDecoder =
     Types.Decoder
-        (\attribute_ ->
-            case attribute_ of
-                Types.ReferenceTo entity ->
-                    run entityDecoder entity
+        (\inputAttribute ->
+            case inputAttribute of
+                Types.ReferenceTo referencedEntity ->
+                    run entityDecoder referencedEntity
 
                 _ ->
                     Err "Expected a referenced entity"
@@ -698,8 +674,8 @@ oneOf decoders =
 null : a -> Decoder Attribute a
 null value =
     Types.Decoder
-        (\attribute_ ->
-            case attribute_ of
+        (\inputAttribute ->
+            case inputAttribute of
                 Types.NullAttribute ->
                     Ok value
 
@@ -708,22 +684,17 @@ null value =
         )
 
 
-default : a -> Decoder Attribute a
-default value =
+derived : a -> Decoder Attribute a
+derived value =
     Types.Decoder
-        (\attribute_ ->
-            case attribute_ of
-                Types.DefaultAttribute ->
+        (\inputAttribute ->
+            case inputAttribute of
+                Types.DerivedAttribute ->
                     Ok value
 
                 _ ->
-                    Err "Expecting 'default value' attribute (*)"
+                    Err "Expecting 'derived value' attribute (*)"
         )
-
-
-withDefault : a -> Decoder Attribute a -> Decoder Attribute a
-withDefault value decoder =
-    oneOf [ decoder, default value ]
 
 
 optional : Decoder Attribute a -> Decoder Attribute (Maybe a)
