@@ -1,11 +1,12 @@
-module Step.FastParse exposing (Preprocessed, postprocess, preprocess)
+module Step.FastParse exposing (Preprocessed, parse, postprocess, preprocess)
 
 import Dict exposing (Dict)
 import Parser exposing ((|.), (|=), Parser)
 import Parser.Advanced
 import Regex exposing (Regex)
+import Step.EntityResolution as EntityResolution
 import Step.Parse as Parse
-import Step.Types as Types exposing (Attribute, Entity, Error(..), Header, ParsedAttribute, ParsedEntity)
+import Step.Types as Types exposing (Attribute, Entity, Error(..), File, Header, ParsedAttribute, ParsedEntity)
 
 
 type alias Preprocessed =
@@ -376,3 +377,22 @@ collectAttributes strings matches accumulated =
 
         [] ->
             Ok ( List.reverse accumulated, [] )
+
+
+parse : String -> Result Error File
+parse contents =
+    contents
+        |> preprocess
+        |> postprocess
+        |> Result.andThen
+            (\postprocessed ->
+                EntityResolution.resolve postprocessed.entities
+                    |> Result.map
+                        (\resolvedEntities ->
+                            Types.File
+                                { entities = resolvedEntities
+                                , header = postprocessed.header
+                                , contents = contents
+                                }
+                        )
+            )
