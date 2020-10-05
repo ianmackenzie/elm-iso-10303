@@ -677,20 +677,20 @@ referenceTo entityDecoder =
         )
 
 
-oneOf : List (Decoder i Never a) -> Decoder i Never a
+oneOf : List (EntityDecoder a) -> EntityDecoder a
 oneOf decoders =
     Decoder (oneOfHelp decoders [])
 
 
-oneOfHelp : List (Decoder i Never a) -> List String -> i -> DecodeResult Never a
-oneOfHelp decoders errorMessages input =
+oneOfHelp : List (EntityDecoder a) -> List String -> Entity -> DecodeResult String a
+oneOfHelp decoders matchErrors input =
     case decoders of
         [] ->
             -- No more decoders to try: fail with an error message that
             -- aggregates all the individual error messages
             Failed
-                ("All possible decoders failed (error messages: \""
-                    ++ String.join "\", \"" (List.reverse errorMessages)
+                ("No decoders matched (error messages: \""
+                    ++ String.join "\", \"" (List.reverse matchErrors)
                     ++ "\")"
                 )
 
@@ -701,13 +701,18 @@ oneOfHelp decoders errorMessages input =
                 Succeeded result ->
                     Succeeded result
 
-                -- Decoding failed: move on to the next one, but save the error
-                -- message in case *all* decoders fail (see above)
+                -- Decoder matched the entity (based on type name) but then
+                -- failed decoding; in this case consider that the decoder has
+                -- 'committed' to decoding and so report the error instead of
+                -- ignoring it and moving to the next decoder
                 Failed message ->
-                    oneOfHelp rest (message :: errorMessages) input
+                    Failed message
 
-                NotMatched notMatched ->
-                    never notMatched
+                -- Decoder did not match the entity: move on to the next one,
+                -- but save the error message in case *all* decoders do not
+                -- match (see above)
+                NotMatched matchError ->
+                    oneOfHelp rest (matchError :: matchErrors) input
 
 
 null : a -> AttributeDecoder a
@@ -738,7 +743,23 @@ derived value =
 
 optional : AttributeDecoder a -> AttributeDecoder (Maybe a)
 optional decoder =
-    oneOf [ map Just decoder, null Nothing ]
+    Decoder
+        (\inputAttribute ->
+            case run decoder inputAttribute of
+                Succeeded value ->
+                    Succeeded (Just value)
+
+                Failed message ->
+                    case inputAttribute of
+                        Types.NullAttribute ->
+                            Succeeded Nothing
+
+                        _ ->
+                            Failed message
+
+                NotMatched notMatched ->
+                    never notMatched
+        )
 
 
 andThen : (a -> Decoder i Never b) -> Decoder i x a -> Decoder i x b
