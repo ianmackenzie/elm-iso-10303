@@ -1,6 +1,6 @@
 module Step.Decode exposing
-    , Decoder
     ( File, Header, Entity, SimpleEntity, ComplexEntity, Attribute, Error
+    , Decoder, FileDecoder, EntityDecoder, SimpleEntityDecoder, ComplexEntityDecoder, AttributeDecoder
     , file, header, singleEntityOfType, allEntitiesOfType
     , attribute, bool, int, float, string, referenceTo, null, optional, list, tuple2, tuple3, derived
     , entityOfType
@@ -12,7 +12,7 @@ module Step.Decode exposing
 
 @docs File, Header, Entity, SimpleEntity, ComplexEntity, Attribute, Error
 
-@docs Decoder
+@docs Decoder, FileDecoder, EntityDecoder, SimpleEntityDecoder, ComplexEntityDecoder, AttributeDecoder
 
 @docs file, header, singleEntityOfType, allEntitiesOfType
 
@@ -71,6 +71,26 @@ details on how to use and construct decoders.
 -}
 type alias Decoder i a =
     Types.Decoder i a
+
+
+type alias FileDecoder a =
+    Decoder File a
+
+
+type alias EntityDecoder a =
+    Decoder Entity a
+
+
+type alias SimpleEntityDecoder a =
+    Decoder SimpleEntity a
+
+
+type alias ComplexEntityDecoder a =
+    Decoder ComplexEntity a
+
+
+type alias AttributeDecoder a =
+    Decoder Attribute a
 
 
 run : Decoder i a -> i -> Result String a
