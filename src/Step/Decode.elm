@@ -1,6 +1,6 @@
 module Step.Decode exposing
-    ( File, Entity, SimpleEntity, ComplexEntity, Attribute, Error
     , Decoder
+    ( File, Header, Entity, SimpleEntity, ComplexEntity, Attribute, Error
     , file, header, singleEntityOfType, allEntitiesOfType
     , attribute, bool, int, float, string, referenceTo, null, optional, list, tuple2, tuple3, derived
     , entityOfType
@@ -33,12 +33,16 @@ import List.Extra as List
 import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
 import Step.FastParse as FastParse
-import Step.Header exposing (Header)
+import Step.Header as Header
 import Step.Types as Types exposing (Attribute, Entity, File, SimpleEntity)
 
 
 type alias File =
     Types.File
+
+
+type alias Header =
+    Header.Header
 
 
 type alias Entity =
