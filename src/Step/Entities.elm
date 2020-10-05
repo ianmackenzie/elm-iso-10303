@@ -22,7 +22,7 @@ buildMap entities =
 addEntity : Entity -> EntityMap -> ( Int, EntityMap )
 addEntity entity entityMap =
     case entity of
-        Types.Simple (Types.SimpleEntity typeName attributes) ->
+        Types.SimpleEntity { typeName, attributes } ->
             let
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap
@@ -32,10 +32,10 @@ addEntity entity entityMap =
             in
             update entity entityString mapWithAttributes
 
-        Types.Complex (Types.ComplexEntity simpleEntities) ->
+        Types.ComplexEntity entityRecords ->
             let
                 ( simpleEntityValues, mapWithSimpleEntities ) =
-                    addSimpleEntities simpleEntities entityMap []
+                    addEntityRecords entityRecords entityMap []
 
                 entityString =
                     Format.complexEntity simpleEntityValues
@@ -43,19 +43,19 @@ addEntity entity entityMap =
             update entity entityString mapWithSimpleEntities
 
 
-addSimpleEntities :
-    List Types.SimpleEntity
+addEntityRecords :
+    List Types.EntityRecord
     -> EntityMap
     -> List ( Types.TypeName, List Types.AttributeValue )
     -> ( List ( Types.TypeName, List Types.AttributeValue ), EntityMap )
-addSimpleEntities simpleEntities entityMap accumulated =
-    case simpleEntities of
-        (Types.SimpleEntity typeName attributes) :: rest ->
+addEntityRecords entityRecords entityMap accumulated =
+    case entityRecords of
+        { typeName, attributes } :: rest ->
             let
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap
             in
-            addSimpleEntities rest mapWithAttributes <|
+            addEntityRecords rest mapWithAttributes <|
                 (( typeName, attributeValues ) :: accumulated)
 
         [] ->

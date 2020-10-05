@@ -39,7 +39,7 @@ addEntity id parsedEntity entityResolution entityStack =
                             (\( attributes, resolutionWithAttributes ) ->
                                 let
                                     entity =
-                                        Types.Simple (Types.SimpleEntity typeName attributes)
+                                        Types.SimpleEntity { typeName = typeName, attributes = attributes }
 
                                     updatedResolution =
                                         store id entity resolutionWithAttributes
@@ -50,10 +50,10 @@ addEntity id parsedEntity entityResolution entityStack =
                 Types.ParsedComplexEntity parsedSimpleEntities ->
                     addSimpleEntities parsedSimpleEntities entityResolution entityStack []
                         |> Result.map
-                            (\( simpleEntities, resolutionWithSimpleEntities ) ->
+                            (\( entityRecords, resolutionWithSimpleEntities ) ->
                                 let
                                     entity =
-                                        Types.Complex (Types.ComplexEntity simpleEntities)
+                                        Types.ComplexEntity entityRecords
 
                                     updatedResolution =
                                         store id entity resolutionWithSimpleEntities
@@ -66,15 +66,15 @@ addSimpleEntities :
     List ( Types.TypeName, List Types.ParsedAttribute )
     -> EntityResolution
     -> EntityStack
-    -> List Types.SimpleEntity
-    -> Result Error ( List Types.SimpleEntity, EntityResolution )
+    -> List Types.EntityRecord
+    -> Result Error ( List Types.EntityRecord, EntityResolution )
 addSimpleEntities parsedSimpleEntities entityResolution entityStack accumulated =
     case parsedSimpleEntities of
         ( typeName, parsedAttributes ) :: rest ->
             case addAttributeList parsedAttributes entityResolution entityStack of
                 Ok ( attributes, resolutionWithAttributes ) ->
                     addSimpleEntities rest resolutionWithAttributes entityStack <|
-                        (Types.SimpleEntity typeName attributes :: accumulated)
+                        ({ typeName = typeName, attributes = attributes } :: accumulated)
 
                 Err error ->
                     Err error

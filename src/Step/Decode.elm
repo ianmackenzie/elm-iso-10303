@@ -1,28 +1,31 @@
 module Step.Decode exposing
-    ( File, Header, Entity, SimpleEntity, ComplexEntity, Attribute, Error
-    , Decoder, FileDecoder, EntityDecoder, SimpleEntityDecoder, ComplexEntityDecoder, AttributeDecoder
-    , file, header, singleEntityOfType, allEntitiesOfType
-    , attribute, bool, int, float, string, referenceTo, null, optional, list, tuple2, tuple3, derived
-    , entityOfType
-    , succeed, fail
-    , map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
+    ( File, Header, Entity, Attribute, Error
+    , Decoder, FileDecoder, EntityDecoder, AttributeListDecoder, AttributeDecoder
+    , file
+    , header, single, all
+    , entity
+    , attribute
+    , bool, int, float, string, referenceTo, null, optional, list, tuple2, tuple3, derived
+    , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
     )
 
 {-|
 
 @docs File, Header, Entity, SimpleEntity, ComplexEntity, Attribute, Error
 
-@docs Decoder, FileDecoder, EntityDecoder, SimpleEntityDecoder, ComplexEntityDecoder, AttributeDecoder
+@docs Decoder, FileDecoder, EntityDecoder, AttributeListDecoder, AttributeDecoder
 
-@docs file, header, singleEntityOfType, allEntitiesOfType
+@docs file
 
-@docs attribute, bool, int, float, string, referenceTo, null, optional, list, tuple2, tuple3, derived
+@docs header, single, all
 
-@docs entityOfType
+@docs entity
 
-@docs succeed, fail
+@docs attribute
 
-@docs map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
+@docs bool, int, float, string, referenceTo, null, optional, list, tuple2, tuple3, derived
+
+@docs succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
 
 -}
 
@@ -34,7 +37,7 @@ import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
 import Step.FastParse as FastParse
 import Step.Header as Header
-import Step.Types as Types exposing (Attribute, Entity, File, SimpleEntity)
+import Step.Types as Types exposing (Attribute, Entity, EntityRecord, File)
 
 
 type alias File =
@@ -49,14 +52,6 @@ type alias Entity =
     Types.Entity
 
 
-type alias SimpleEntity =
-    Types.SimpleEntity
-
-
-type alias ComplexEntity =
-    Types.ComplexEntity
-
-
 type alias Attribute =
     Types.Attribute
 
@@ -69,98 +64,137 @@ type alias Error =
 `Attribute` to produce a value of another type. See the `Decode` module for
 details on how to use and construct decoders.
 -}
-type Decoder i a
-    = Decoder (i -> Result String a)
+type Decoder i x a
+    = Decoder (i -> DecodeResult x a)
+
+
+type DecodeResult x a
+    = Succeeded a
+    | Failed String
+    | NotMatched x
 
 
 type alias FileDecoder a =
-    Decoder File a
+    Decoder File Never a
 
 
 type alias EntityDecoder a =
-    Decoder Entity a
+    Decoder Entity String a
 
 
-type alias SimpleEntityDecoder a =
-    Decoder SimpleEntity a
-
-
-type alias ComplexEntityDecoder a =
-    Decoder ComplexEntity a
+type alias AttributeListDecoder a =
+    Decoder (List Attribute) Never a
 
 
 type alias AttributeDecoder a =
-    Decoder Attribute a
+    Decoder Attribute Never a
 
 
-run : Decoder i a -> i -> Result String a
+run : Decoder i x a -> i -> DecodeResult x a
 run (Decoder function) input =
     function input
 
 
-succeed : a -> Decoder i a
+succeed : a -> Decoder i x a
 succeed value =
-    Decoder (always (Ok value))
+    Decoder (always (Succeeded value))
 
 
-fail : String -> Decoder i a
+fail : String -> Decoder i x a
 fail description =
-    Decoder (always (Err description))
+    Decoder (always (Failed description))
 
 
 {-| Decode a STEP file given as a `String` using the given decoder.
 -}
-file : Decoder File a -> String -> Result Error a
+file : FileDecoder a -> String -> Result Error a
 file decoder contents =
     FastParse.parse contents
         |> Result.andThen
             (\parsedFile ->
-                run decoder parsedFile |> Result.mapError Types.DecodeError
+                case run decoder parsedFile of
+                    Succeeded value ->
+                        Ok value
+
+                    Failed message ->
+                        Err (Types.DecodeError message)
+
+                    NotMatched notMatched ->
+                        never notMatched
             )
-
-
-decodeAll : Decoder i a -> List i -> List a -> Result String (List a)
-decodeAll decoder inputs accumulated =
-    case inputs of
-        [] ->
-            Ok (List.reverse accumulated)
-
-        first :: rest ->
-            case run decoder first of
-                Ok value ->
-                    decodeAll decoder rest (value :: accumulated)
-
-                Err message ->
-                    Err message
 
 
 {-| Extract the header of a STEP file.
 -}
-header : Decoder File Header
+header : FileDecoder Header
 header =
-    Decoder (\(Types.File properties) -> Ok properties.header)
+    Decoder (\(Types.File properties) -> Succeeded properties.header)
 
 
-filterSimpleEntities : (SimpleEntity -> Bool) -> File -> List SimpleEntity
-filterSimpleEntities givenPredicate (Types.File properties) =
-    let
-        accumulate id currentEntity accumulated =
-            case currentEntity of
-                Types.Simple currentSimpleEntity ->
-                    if givenPredicate currentSimpleEntity then
-                        currentSimpleEntity :: accumulated
-
-                    else
-                        accumulated
-
-                Types.Complex _ ->
-                    accumulated
-    in
-    Dict.foldr accumulate [] properties.entities
+single : EntityDecoder a -> FileDecoder a
+single entityDecoder =
+    Decoder
+        (\(Types.File { entities }) ->
+            singleEntity entityDecoder (Dict.values entities) Nothing
+        )
 
 
-entityOfType : String -> Decoder SimpleEntity a -> Decoder Entity a
-entityOfType givenTypeName decoder =
+singleEntity : EntityDecoder a -> List Entity -> Maybe a -> DecodeResult Never a
+singleEntity decoder entities currentValue =
+    case entities of
+        [] ->
+            case currentValue of
+                Just value ->
+                    Succeeded value
+
+                Nothing ->
+                    Failed "No matching entities found"
+
+        first :: rest ->
+            case run decoder first of
+                Succeeded value ->
+                    case currentValue of
+                        Nothing ->
+                            singleEntity decoder rest (Just value)
+
+                        Just _ ->
+                            Failed "More than one matching entity found"
+
+                Failed message ->
+                    Failed message
+
+                NotMatched _ ->
+                    singleEntity decoder rest currentValue
+
+
+all : EntityDecoder a -> FileDecoder (List a)
+all entityDecoder =
+    Decoder
+        (\(Types.File { entities }) ->
+            allEntities entityDecoder (Dict.values entities) []
+        )
+
+
+allEntities : EntityDecoder a -> List Entity -> List a -> DecodeResult Never (List a)
+allEntities decoder entities accumulated =
+    case entities of
+        [] ->
+            Succeeded (List.reverse accumulated)
+
+        first :: rest ->
+            case run decoder first of
+                Succeeded value ->
+                    allEntities decoder rest (value :: accumulated)
+
+                Failed message ->
+                    Failed message
+
+                NotMatched _ ->
+                    allEntities decoder rest accumulated
+
+
+entity : String -> AttributeListDecoder a -> EntityDecoder a
+entity givenTypeName decoder =
     let
         uppercasedTypeName =
             String.toUpper givenTypeName
@@ -168,158 +202,129 @@ entityOfType givenTypeName decoder =
     Decoder
         (\currentEntity ->
             case currentEntity of
-                Types.Simple ((Types.SimpleEntity (Types.TypeName entityTypeName) entityAttributes) as input) ->
+                Types.SimpleEntity entityRecord ->
+                    let
+                        (Types.TypeName entityTypeName) =
+                            entityRecord.typeName
+                    in
                     if entityTypeName == uppercasedTypeName then
-                        run decoder input
+                        case run decoder entityRecord.attributes of
+                            Succeeded a ->
+                                Succeeded a
+
+                            Failed message ->
+                                Failed message
+
+                            NotMatched notMatched ->
+                                never notMatched
 
                     else
-                        Err ("Expected entity of type '" ++ uppercasedTypeName ++ "', got '" ++ entityTypeName ++ "'")
+                        NotMatched ("Expected entity of type '" ++ uppercasedTypeName ++ "', got '" ++ entityTypeName ++ "'")
 
-                Types.Complex _ ->
-                    Err "Expected a simple entity"
+                Types.ComplexEntity _ ->
+                    NotMatched "Expected a simple entity"
         )
 
 
-simpleEntityHasType : String -> SimpleEntity -> Bool
-simpleEntityHasType givenTypeName =
-    let
-        upperCasedTypeName =
-            String.toUpper givenTypeName
-    in
-    \(Types.SimpleEntity (Types.TypeName entityTypeName) _) ->
-        upperCasedTypeName == entityTypeName
-
-
-singleEntityOfType : String -> Decoder SimpleEntity a -> Decoder File a
-singleEntityOfType givenTypeName entityDecoder =
-    Decoder
-        (\inputFile ->
-            case filterSimpleEntities (simpleEntityHasType givenTypeName) inputFile of
-                [ singleEntity ] ->
-                    run entityDecoder singleEntity
-
-                _ ->
-                    Err ("Expecting a single entity of type '" ++ givenTypeName ++ "'")
-        )
-
-
-allEntitiesOfType : String -> Decoder SimpleEntity a -> Decoder File (List a)
-allEntitiesOfType givenTypeName entityDecoder =
-    Decoder
-        (\inputFile ->
-            let
-                inputEntities =
-                    filterSimpleEntities (simpleEntityHasType givenTypeName) inputFile
-            in
-            decodeAll entityDecoder inputEntities []
-        )
-
-
-attribute : Int -> Decoder Attribute a -> Decoder SimpleEntity a
+attribute : Int -> AttributeDecoder a -> AttributeListDecoder a
 attribute index attributeDecoder =
     Decoder
-        (\(Types.SimpleEntity _ entityAttributes) ->
-            case List.getAt index entityAttributes of
+        (\attributeList ->
+            case List.getAt index attributeList of
                 Just entityAttribute ->
-                    case run attributeDecoder entityAttribute of
-                        Ok value ->
-                            Ok value
-
-                        Err message ->
-                            Err
-                                ("At attribute index "
-                                    ++ String.fromInt index
-                                    ++ ": "
-                                    ++ message
-                                )
+                    run attributeDecoder entityAttribute
 
                 Nothing ->
-                    Err ("No attribute at index " ++ String.fromInt index)
+                    Failed ("No attribute at index " ++ String.fromInt index)
         )
 
 
-map : (a -> b) -> Decoder i a -> Decoder i b
-map mapFunction (Decoder function) =
-    Decoder (function >> Result.map mapFunction)
+map : (a -> b) -> Decoder i x a -> Decoder i x b
+map mapFunction decoder =
+    Decoder
+        (\input ->
+            case run decoder input of
+                Succeeded value ->
+                    Succeeded (mapFunction value)
+
+                Failed message ->
+                    Failed message
+
+                NotMatched message ->
+                    NotMatched message
+        )
+
+
+map2Help : (a -> b -> c) -> DecodeResult Never a -> DecodeResult Never b -> DecodeResult x c
+map2Help function resultA resultB =
+    case ( resultA, resultB ) of
+        ( Succeeded valueA, Succeeded valueB ) ->
+            Succeeded (function valueA valueB)
+
+        ( Failed messageA, _ ) ->
+            Failed messageA
+
+        ( _, Failed messageB ) ->
+            Failed messageB
+
+        ( NotMatched notMatched, _ ) ->
+            never notMatched
+
+        ( _, NotMatched notMatched ) ->
+            never notMatched
 
 
 map2 :
     (a -> b -> c)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
+    -> Decoder i Never a
+    -> Decoder i Never b
+    -> Decoder i x c
 map2 function (Decoder functionA) (Decoder functionB) =
-    Decoder
-        (\input ->
-            Result.map2 function
-                (functionA input)
-                (functionB input)
-        )
+    Decoder (\input -> map2Help function (functionA input) (functionB input))
 
 
 map3 :
     (a -> b -> c -> d)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-map3 function (Decoder functionA) (Decoder functionB) (Decoder functionC) =
-    Decoder
-        (\input ->
-            Result.map3 function
-                (functionA input)
-                (functionB input)
-                (functionC input)
-        )
+    -> Decoder i Never a
+    -> Decoder i Never b
+    -> Decoder i Never c
+    -> Decoder i Never d
+map3 function decoderA decoderB decoderC =
+    decoderA |> andThen (\valueA -> map2 (function valueA) decoderB decoderC)
 
 
 map4 :
     (a -> b -> c -> d -> e)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-    -> Decoder i e
-map4 function (Decoder functionA) (Decoder functionB) (Decoder functionC) (Decoder functionD) =
-    Decoder
-        (\input ->
-            Result.map4 function
-                (functionA input)
-                (functionB input)
-                (functionC input)
-                (functionD input)
-        )
+    -> Decoder i Never a
+    -> Decoder i Never b
+    -> Decoder i Never c
+    -> Decoder i Never d
+    -> Decoder i Never e
+map4 function decoderA decoderB decoderC decoderD =
+    decoderA |> andThen (\valueA -> map3 (function valueA) decoderB decoderC decoderD)
 
 
 map5 :
     (a -> b -> c -> d -> e -> f)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-    -> Decoder i e
-    -> Decoder i f
-map5 function (Decoder functionA) (Decoder functionB) (Decoder functionC) (Decoder functionD) (Decoder functionE) =
-    Decoder
-        (\input ->
-            Result.map5 function
-                (functionA input)
-                (functionB input)
-                (functionC input)
-                (functionD input)
-                (functionE input)
-        )
+    -> Decoder i Never a
+    -> Decoder i Never b
+    -> Decoder i Never c
+    -> Decoder i Never d
+    -> Decoder i Never e
+    -> Decoder i Never f
+map5 function decoderA decoderB decoderC decoderD decoderE =
+    decoderA |> andThen (\valueA -> map4 (function valueA) decoderB decoderC decoderD decoderE)
 
 
 map6 :
     (a -> b -> c -> d -> e -> f -> g)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-    -> Decoder i e
-    -> Decoder i f
-    -> Decoder i g
+    -> Decoder i Never a
+    -> Decoder i Never b
+    -> Decoder i Never c
+    -> Decoder i Never d
+    -> Decoder i Never e
+    -> Decoder i Never f
+    -> Decoder i Never g
 map6 function decoderA decoderB decoderC decoderD decoderE decoderF =
     decoderA
         |> andThen
@@ -335,14 +340,14 @@ map6 function decoderA decoderB decoderC decoderD decoderE decoderF =
 
 map7 :
     (a -> b -> c -> d -> e -> f -> g -> h)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-    -> Decoder i e
-    -> Decoder i f
-    -> Decoder i g
-    -> Decoder i h
+    -> Decoder i Never a
+    -> Decoder i Never b
+    -> Decoder i Never c
+    -> Decoder i Never d
+    -> Decoder i Never e
+    -> Decoder i Never f
+    -> Decoder i Never g
+    -> Decoder i Never h
 map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG =
     decoderA
         |> andThen
@@ -359,15 +364,15 @@ map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG =
 
 map8 :
     (a -> b -> c -> d -> e -> f -> g -> h -> j)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-    -> Decoder i e
-    -> Decoder i f
-    -> Decoder i g
-    -> Decoder i h
-    -> Decoder i j
+    -> Decoder i Never a
+    -> Decoder i Never b
+    -> Decoder i Never c
+    -> Decoder i Never d
+    -> Decoder i Never e
+    -> Decoder i Never f
+    -> Decoder i Never g
+    -> Decoder i Never h
+    -> Decoder i Never j
 map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG decoderH =
     decoderA
         |> andThen
@@ -383,47 +388,42 @@ map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG dec
             )
 
 
-typeName : Decoder SimpleEntity String
-typeName =
-    Decoder (\(Types.SimpleEntity (Types.TypeName entityTypeName) _) -> Ok entityTypeName)
-
-
-bool : Decoder Attribute Bool
+bool : AttributeDecoder Bool
 bool =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.BoolAttribute value ->
-                    Ok value
+                    Succeeded value
 
                 _ ->
-                    Err "Expected a bool"
+                    Failed "Expected a bool"
         )
 
 
-int : Decoder Attribute Int
+int : AttributeDecoder Int
 int =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.IntAttribute value ->
-                    Ok value
+                    Succeeded value
 
                 _ ->
-                    Err "Expected an int"
+                    Failed "Expected an int"
         )
 
 
-float : Decoder Attribute Float
+float : AttributeDecoder Float
 float =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.FloatAttribute value ->
-                    Ok value
+                    Succeeded value
 
                 _ ->
-                    Err "Expected a float"
+                    Failed "Expected a float"
         )
 
 
@@ -565,7 +565,7 @@ parseString =
             )
 
 
-string : Decoder Attribute String
+string : AttributeDecoder String
 string =
     Decoder
         (\attribute_ ->
@@ -573,41 +573,44 @@ string =
                 Types.StringAttribute encodedString ->
                     case Parser.run parseString encodedString of
                         Ok decodedString ->
-                            Ok decodedString
+                            Succeeded decodedString
 
                         Err err ->
-                            Err
+                            Failed
                                 ("Could not parse encoded string '"
                                     ++ encodedString
                                 )
 
                 _ ->
-                    Err "Expected a string"
+                    Failed "Expected a string"
         )
 
 
-collectDecodedAttributes : Decoder Attribute a -> List a -> List Attribute -> Result String (List a)
+collectDecodedAttributes : AttributeDecoder a -> List a -> List Attribute -> DecodeResult Never (List a)
 collectDecodedAttributes decoder accumulated remainingAttributes =
     case remainingAttributes of
         [] ->
             -- No more attributes to decode, so succeed with all the results we
             -- have collected so far
-            Ok (List.reverse accumulated)
+            Succeeded (List.reverse accumulated)
 
         first :: rest ->
             case run decoder first of
                 -- Decoding succeeded on this attribute: continue with the
                 -- rest
-                Ok result ->
+                Succeeded result ->
                     collectDecodedAttributes decoder (result :: accumulated) rest
 
                 -- Decoding failed on this attribute: immediately abort
                 -- with the returned error message
-                Err message ->
-                    Err message
+                Failed message ->
+                    Failed message
+
+                NotMatched notMatched ->
+                    never notMatched
 
 
-list : Decoder Attribute a -> Decoder Attribute (List a)
+list : AttributeDecoder a -> AttributeDecoder (List a)
 list itemDecoder =
     Decoder
         (\inputAttribute ->
@@ -616,62 +619,76 @@ list itemDecoder =
                     collectDecodedAttributes itemDecoder [] attributes_
 
                 _ ->
-                    Err "Expected a list"
+                    Failed "Expected a list"
         )
 
 
-tuple2 : ( Decoder Attribute a, Decoder Attribute b ) -> Decoder Attribute ( a, b )
+tuple2 : ( AttributeDecoder a, AttributeDecoder b ) -> AttributeDecoder ( a, b )
 tuple2 ( firstDecoder, secondDecoder ) =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.AttributeList [ firstAttribute, secondAttribute ] ->
-                    Result.map2 Tuple.pair
+                    map2Help Tuple.pair
                         (run firstDecoder firstAttribute)
                         (run secondDecoder secondAttribute)
 
                 _ ->
-                    Err "Expected a list of two items"
+                    Failed "Expected a list of two items"
         )
 
 
-tuple3 : ( Decoder Attribute a, Decoder Attribute b, Decoder Attribute c ) -> Decoder Attribute ( a, b, c )
+tuple3 : ( AttributeDecoder a, AttributeDecoder b, AttributeDecoder c ) -> AttributeDecoder ( a, b, c )
 tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.AttributeList [ firstAttribute, secondAttribute, thirdAttribute ] ->
-                    Result.map3
-                        (\first second third -> ( first, second, third ))
-                        (run firstDecoder firstAttribute)
-                        (run secondDecoder secondAttribute)
+                    map2Help (<|)
+                        (map2Help (\first second third -> ( first, second, third ))
+                            (run firstDecoder firstAttribute)
+                            (run secondDecoder secondAttribute)
+                        )
                         (run thirdDecoder thirdAttribute)
 
                 _ ->
-                    Err "Expected a list of three items"
+                    Failed "Expected a list of three items"
         )
 
 
-referenceTo : Decoder Entity a -> Decoder Attribute a
+referenceTo : EntityDecoder a -> AttributeDecoder a
 referenceTo entityDecoder =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.ReferenceTo referencedEntity ->
-                    run entityDecoder referencedEntity
+                    case run entityDecoder referencedEntity of
+                        Succeeded value ->
+                            Succeeded value
+
+                        Failed message ->
+                            Failed message
+
+                        NotMatched message ->
+                            Failed message
 
                 _ ->
-                    Err "Expected a referenced entity"
+                    Failed "Expected a referenced entity"
         )
 
 
-try : List (Decoder i a) -> List String -> i -> Result String a
-try decoders errorMessages input =
+oneOf : List (Decoder i Never a) -> Decoder i Never a
+oneOf decoders =
+    Decoder (oneOfHelp decoders [])
+
+
+oneOfHelp : List (Decoder i Never a) -> List String -> i -> DecodeResult Never a
+oneOfHelp decoders errorMessages input =
     case decoders of
         [] ->
             -- No more decoders to try: fail with an error message that
             -- aggregates all the individual error messages
-            Err
+            Failed
                 ("All possible decoders failed (error messages: \""
                     ++ String.join "\", \"" (List.reverse errorMessages)
                     ++ "\")"
@@ -681,63 +698,73 @@ try decoders errorMessages input =
             -- At least one decoder left to try, so try it
             case run first input of
                 -- Decoding succeeded: return the result
-                Ok result ->
-                    Ok result
+                Succeeded result ->
+                    Succeeded result
 
                 -- Decoding failed: move on to the next one, but save the error
                 -- message in case *all* decoders fail (see above)
-                Err message ->
-                    try rest (message :: errorMessages) input
+                Failed message ->
+                    oneOfHelp rest (message :: errorMessages) input
+
+                NotMatched notMatched ->
+                    never notMatched
 
 
-oneOf : List (Decoder i a) -> Decoder i a
-oneOf decoders =
-    Decoder (try decoders [])
-
-
-null : a -> Decoder Attribute a
+null : a -> AttributeDecoder a
 null value =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.NullAttribute ->
-                    Ok value
+                    Succeeded value
 
                 _ ->
-                    Err "Expecting null attribute ($)"
+                    Failed "Expecting null attribute ($)"
         )
 
 
-derived : a -> Decoder Attribute a
+derived : a -> AttributeDecoder a
 derived value =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.DerivedAttribute ->
-                    Ok value
+                    Succeeded value
 
                 _ ->
-                    Err "Expecting 'derived value' attribute (*)"
+                    Failed "Expecting 'derived value' attribute (*)"
         )
 
 
-optional : Decoder Attribute a -> Decoder Attribute (Maybe a)
+optional : AttributeDecoder a -> AttributeDecoder (Maybe a)
 optional decoder =
     oneOf [ map Just decoder, null Nothing ]
 
 
-andThen : (a -> Decoder i b) -> Decoder i a -> Decoder i b
+andThen : (a -> Decoder i Never b) -> Decoder i x a -> Decoder i x b
 andThen function decoder =
     Decoder
         (\input ->
-            run decoder input
-                |> Result.andThen
-                    (\result ->
-                        run (function result) input
-                    )
+            case run decoder input of
+                Succeeded intermediateValue ->
+                    case run (function intermediateValue) input of
+                        Succeeded value ->
+                            Succeeded value
+
+                        Failed message ->
+                            Failed message
+
+                        NotMatched notMatched ->
+                            never notMatched
+
+                Failed message ->
+                    Failed message
+
+                NotMatched notMatched ->
+                    NotMatched notMatched
         )
 
 
-lazy : (() -> Decoder i a) -> Decoder i a
+lazy : (() -> Decoder i x a) -> Decoder i x a
 lazy constructor =
     Decoder (\input -> run (constructor ()) input)

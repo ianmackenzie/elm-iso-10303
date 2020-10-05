@@ -29,16 +29,14 @@ type EnumName
 {-| A single STEP entity.
 -}
 type Entity
-    = Simple SimpleEntity
-    | Complex ComplexEntity
+    = SimpleEntity EntityRecord
+    | ComplexEntity (List EntityRecord)
 
 
-type SimpleEntity
-    = SimpleEntity TypeName (List Attribute)
-
-
-type ComplexEntity
-    = ComplexEntity (List SimpleEntity)
+type alias EntityRecord =
+    { typeName : TypeName
+    , attributes : List Attribute
+    }
 
 
 {-| An attribute of a STEP entity.
