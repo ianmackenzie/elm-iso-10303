@@ -82,10 +82,6 @@ type ParsedEntity
     | ParsedComplexEntity (List ( TypeName, List ParsedAttribute ))
 
 
-type Decoder i a
-    = Decoder (i -> Result String a)
-
-
 type File
     = File
         { header : Header

@@ -69,8 +69,8 @@ type alias Error =
 `Attribute` to produce a value of another type. See the `Decode` module for
 details on how to use and construct decoders.
 -}
-type alias Decoder i a =
-    Types.Decoder i a
+type Decoder i a
+    = Decoder (i -> Result String a)
 
 
 type alias FileDecoder a =
@@ -94,18 +94,18 @@ type alias AttributeDecoder a =
 
 
 run : Decoder i a -> i -> Result String a
-run (Types.Decoder function) input =
+run (Decoder function) input =
     function input
 
 
 succeed : a -> Decoder i a
 succeed value =
-    Types.Decoder (always (Ok value))
+    Decoder (always (Ok value))
 
 
 fail : String -> Decoder i a
 fail description =
-    Types.Decoder (always (Err description))
+    Decoder (always (Err description))
 
 
 {-| Decode a STEP file given as a `String` using the given decoder.
@@ -138,7 +138,7 @@ decodeAll decoder inputs accumulated =
 -}
 header : Decoder File Header
 header =
-    Types.Decoder (\(Types.File properties) -> Ok properties.header)
+    Decoder (\(Types.File properties) -> Ok properties.header)
 
 
 filterSimpleEntities : (SimpleEntity -> Bool) -> File -> List SimpleEntity
@@ -165,7 +165,7 @@ entityOfType givenTypeName decoder =
         uppercasedTypeName =
             String.toUpper givenTypeName
     in
-    Types.Decoder
+    Decoder
         (\currentEntity ->
             case currentEntity of
                 Types.Simple ((Types.SimpleEntity (Types.TypeName entityTypeName) entityAttributes) as input) ->
@@ -192,7 +192,7 @@ simpleEntityHasType givenTypeName =
 
 singleEntityOfType : String -> Decoder SimpleEntity a -> Decoder File a
 singleEntityOfType givenTypeName entityDecoder =
-    Types.Decoder
+    Decoder
         (\inputFile ->
             case filterSimpleEntities (simpleEntityHasType givenTypeName) inputFile of
                 [ singleEntity ] ->
@@ -205,7 +205,7 @@ singleEntityOfType givenTypeName entityDecoder =
 
 allEntitiesOfType : String -> Decoder SimpleEntity a -> Decoder File (List a)
 allEntitiesOfType givenTypeName entityDecoder =
-    Types.Decoder
+    Decoder
         (\inputFile ->
             let
                 inputEntities =
@@ -217,7 +217,7 @@ allEntitiesOfType givenTypeName entityDecoder =
 
 attribute : Int -> Decoder Attribute a -> Decoder SimpleEntity a
 attribute index attributeDecoder =
-    Types.Decoder
+    Decoder
         (\(Types.SimpleEntity _ entityAttributes) ->
             case List.getAt index entityAttributes of
                 Just entityAttribute ->
@@ -239,8 +239,8 @@ attribute index attributeDecoder =
 
 
 map : (a -> b) -> Decoder i a -> Decoder i b
-map mapFunction (Types.Decoder function) =
-    Types.Decoder (function >> Result.map mapFunction)
+map mapFunction (Decoder function) =
+    Decoder (function >> Result.map mapFunction)
 
 
 map2 :
@@ -248,8 +248,8 @@ map2 :
     -> Decoder i a
     -> Decoder i b
     -> Decoder i c
-map2 function (Types.Decoder functionA) (Types.Decoder functionB) =
-    Types.Decoder
+map2 function (Decoder functionA) (Decoder functionB) =
+    Decoder
         (\input ->
             Result.map2 function
                 (functionA input)
@@ -263,8 +263,8 @@ map3 :
     -> Decoder i b
     -> Decoder i c
     -> Decoder i d
-map3 function (Types.Decoder functionA) (Types.Decoder functionB) (Types.Decoder functionC) =
-    Types.Decoder
+map3 function (Decoder functionA) (Decoder functionB) (Decoder functionC) =
+    Decoder
         (\input ->
             Result.map3 function
                 (functionA input)
@@ -280,8 +280,8 @@ map4 :
     -> Decoder i c
     -> Decoder i d
     -> Decoder i e
-map4 function (Types.Decoder functionA) (Types.Decoder functionB) (Types.Decoder functionC) (Types.Decoder functionD) =
-    Types.Decoder
+map4 function (Decoder functionA) (Decoder functionB) (Decoder functionC) (Decoder functionD) =
+    Decoder
         (\input ->
             Result.map4 function
                 (functionA input)
@@ -299,8 +299,8 @@ map5 :
     -> Decoder i d
     -> Decoder i e
     -> Decoder i f
-map5 function (Types.Decoder functionA) (Types.Decoder functionB) (Types.Decoder functionC) (Types.Decoder functionD) (Types.Decoder functionE) =
-    Types.Decoder
+map5 function (Decoder functionA) (Decoder functionB) (Decoder functionC) (Decoder functionD) (Decoder functionE) =
+    Decoder
         (\input ->
             Result.map5 function
                 (functionA input)
@@ -385,12 +385,12 @@ map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG dec
 
 typeName : Decoder SimpleEntity String
 typeName =
-    Types.Decoder (\(Types.SimpleEntity (Types.TypeName entityTypeName) _) -> Ok entityTypeName)
+    Decoder (\(Types.SimpleEntity (Types.TypeName entityTypeName) _) -> Ok entityTypeName)
 
 
 bool : Decoder Attribute Bool
 bool =
-    Types.Decoder
+    Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.BoolAttribute value ->
@@ -403,7 +403,7 @@ bool =
 
 int : Decoder Attribute Int
 int =
-    Types.Decoder
+    Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.IntAttribute value ->
@@ -416,7 +416,7 @@ int =
 
 float : Decoder Attribute Float
 float =
-    Types.Decoder
+    Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.FloatAttribute value ->
@@ -567,7 +567,7 @@ parseString =
 
 string : Decoder Attribute String
 string =
-    Types.Decoder
+    Decoder
         (\attribute_ ->
             case attribute_ of
                 Types.StringAttribute encodedString ->
@@ -609,7 +609,7 @@ collectDecodedAttributes decoder accumulated remainingAttributes =
 
 list : Decoder Attribute a -> Decoder Attribute (List a)
 list itemDecoder =
-    Types.Decoder
+    Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.AttributeList attributes_ ->
@@ -622,7 +622,7 @@ list itemDecoder =
 
 tuple2 : ( Decoder Attribute a, Decoder Attribute b ) -> Decoder Attribute ( a, b )
 tuple2 ( firstDecoder, secondDecoder ) =
-    Types.Decoder
+    Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.AttributeList [ firstAttribute, secondAttribute ] ->
@@ -637,7 +637,7 @@ tuple2 ( firstDecoder, secondDecoder ) =
 
 tuple3 : ( Decoder Attribute a, Decoder Attribute b, Decoder Attribute c ) -> Decoder Attribute ( a, b, c )
 tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
-    Types.Decoder
+    Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.AttributeList [ firstAttribute, secondAttribute, thirdAttribute ] ->
@@ -654,7 +654,7 @@ tuple3 ( firstDecoder, secondDecoder, thirdDecoder ) =
 
 referenceTo : Decoder Entity a -> Decoder Attribute a
 referenceTo entityDecoder =
-    Types.Decoder
+    Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.ReferenceTo referencedEntity ->
@@ -692,12 +692,12 @@ try decoders errorMessages input =
 
 oneOf : List (Decoder i a) -> Decoder i a
 oneOf decoders =
-    Types.Decoder (try decoders [])
+    Decoder (try decoders [])
 
 
 null : a -> Decoder Attribute a
 null value =
-    Types.Decoder
+    Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.NullAttribute ->
@@ -710,7 +710,7 @@ null value =
 
 derived : a -> Decoder Attribute a
 derived value =
-    Types.Decoder
+    Decoder
         (\inputAttribute ->
             case inputAttribute of
                 Types.DerivedAttribute ->
@@ -728,7 +728,7 @@ optional decoder =
 
 andThen : (a -> Decoder i b) -> Decoder i a -> Decoder i b
 andThen function decoder =
-    Types.Decoder
+    Decoder
         (\input ->
             run decoder input
                 |> Result.andThen
@@ -740,4 +740,4 @@ andThen function decoder =
 
 lazy : (() -> Decoder i a) -> Decoder i a
 lazy constructor =
-    Types.Decoder (\input -> run (constructor ()) input)
+    Decoder (\input -> run (constructor ()) input)
