@@ -14,4 +14,4 @@ fromString string =
 
 toString : EnumName -> String
 toString (Types.EnumName string) =
-    "." ++ string ++ "."
+    string

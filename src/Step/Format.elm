@@ -118,7 +118,7 @@ binaryAttribute value =
 
 enumAttribute : Types.EnumName -> Types.AttributeValue
 enumAttribute enumName =
-    attributeValue (EnumName.toString enumName)
+    attributeValue ("." ++ EnumName.toString enumName ++ ".")
 
 
 boolAttribute : Bool -> Types.AttributeValue
