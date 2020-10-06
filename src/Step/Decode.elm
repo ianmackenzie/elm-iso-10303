@@ -224,9 +224,35 @@ entity givenTypeName decoder =
                                 ++ "'"
                             )
 
-                Types.ComplexEntity _ ->
-                    NotMatched "Expected a simple entity"
+                Types.ComplexEntity entityRecords ->
+                    partialEntity searchTypeName decoder entityRecords
         )
+
+
+partialEntity : Types.TypeName -> AttributeListDecoder a -> List EntityRecord -> DecodeResult String a
+partialEntity searchTypeName decoder entityRecords =
+    case entityRecords of
+        [] ->
+            NotMatched
+                ("Complex entity has no sub-entity of type '"
+                    ++ TypeName.toString searchTypeName
+                    ++ "'"
+                )
+
+        first :: rest ->
+            if first.typeName == searchTypeName then
+                case run decoder first.attributes of
+                    Succeeded value ->
+                        Succeeded value
+
+                    Failed message ->
+                        Failed message
+
+                    NotMatched notMatched ->
+                        never notMatched
+
+            else
+                partialEntity searchTypeName decoder rest
 
 
 attribute : Int -> AttributeDecoder a -> AttributeListDecoder a
