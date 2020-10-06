@@ -239,45 +239,41 @@ attribute index attributeDecoder =
         )
 
 
+mapHelp : (a -> b) -> DecodeResult x a -> DecodeResult x b
+mapHelp function result =
+    case result of
+        Succeeded value ->
+            Succeeded (function value)
+
+        Failed message ->
+            Failed message
+
+        NotMatched message ->
+            NotMatched message
+
+
 map : (a -> b) -> Decoder i x a -> Decoder i x b
 map mapFunction decoder =
-    Decoder
-        (\input ->
-            case run decoder input of
-                Succeeded value ->
-                    Succeeded (mapFunction value)
-
-                Failed message ->
-                    Failed message
-
-                NotMatched message ->
-                    NotMatched message
-        )
+    Decoder (\input -> mapHelp mapFunction (run decoder input))
 
 
-map2Help : (a -> b -> c) -> DecodeResult Never a -> DecodeResult Never b -> DecodeResult x c
+map2Help : (a -> b -> c) -> DecodeResult x a -> DecodeResult x b -> DecodeResult x c
 map2Help function resultA resultB =
-    case ( resultA, resultB ) of
-        ( Succeeded valueA, Succeeded valueB ) ->
-            Succeeded (function valueA valueB)
+    case resultA of
+        Succeeded value ->
+            mapHelp (function value) resultB
 
-        ( Failed messageA, _ ) ->
-            Failed messageA
+        NotMatched message ->
+            NotMatched message
 
-        ( _, Failed messageB ) ->
-            Failed messageB
-
-        ( NotMatched notMatched, _ ) ->
-            never notMatched
-
-        ( _, NotMatched notMatched ) ->
-            never notMatched
+        Failed message ->
+            Failed message
 
 
 map2 :
     (a -> b -> c)
-    -> Decoder i Never a
-    -> Decoder i Never b
+    -> Decoder i x a
+    -> Decoder i x b
     -> Decoder i x c
 map2 function (Decoder functionA) (Decoder functionB) =
     Decoder (\input -> map2Help function (functionA input) (functionB input))
@@ -285,107 +281,77 @@ map2 function (Decoder functionA) (Decoder functionB) =
 
 map3 :
     (a -> b -> c -> d)
-    -> Decoder i Never a
-    -> Decoder i Never b
-    -> Decoder i Never c
-    -> Decoder i Never d
+    -> Decoder i x a
+    -> Decoder i x b
+    -> Decoder i x c
+    -> Decoder i x d
 map3 function decoderA decoderB decoderC =
-    decoderA |> andThen (\valueA -> map2 (function valueA) decoderB decoderC)
+    map2 (<|) (map2 function decoderA decoderB) decoderC
 
 
 map4 :
     (a -> b -> c -> d -> e)
-    -> Decoder i Never a
-    -> Decoder i Never b
-    -> Decoder i Never c
-    -> Decoder i Never d
-    -> Decoder i Never e
+    -> Decoder i x a
+    -> Decoder i x b
+    -> Decoder i x c
+    -> Decoder i x d
+    -> Decoder i x e
 map4 function decoderA decoderB decoderC decoderD =
-    decoderA |> andThen (\valueA -> map3 (function valueA) decoderB decoderC decoderD)
+    map2 (<|) (map3 function decoderA decoderB decoderC) decoderD
 
 
 map5 :
     (a -> b -> c -> d -> e -> f)
-    -> Decoder i Never a
-    -> Decoder i Never b
-    -> Decoder i Never c
-    -> Decoder i Never d
-    -> Decoder i Never e
-    -> Decoder i Never f
+    -> Decoder i x a
+    -> Decoder i x b
+    -> Decoder i x c
+    -> Decoder i x d
+    -> Decoder i x e
+    -> Decoder i x f
 map5 function decoderA decoderB decoderC decoderD decoderE =
-    decoderA |> andThen (\valueA -> map4 (function valueA) decoderB decoderC decoderD decoderE)
+    map2 (<|) (map4 function decoderA decoderB decoderC decoderD) decoderE
 
 
 map6 :
     (a -> b -> c -> d -> e -> f -> g)
-    -> Decoder i Never a
-    -> Decoder i Never b
-    -> Decoder i Never c
-    -> Decoder i Never d
-    -> Decoder i Never e
-    -> Decoder i Never f
-    -> Decoder i Never g
+    -> Decoder i x a
+    -> Decoder i x b
+    -> Decoder i x c
+    -> Decoder i x d
+    -> Decoder i x e
+    -> Decoder i x f
+    -> Decoder i x g
 map6 function decoderA decoderB decoderC decoderD decoderE decoderF =
-    decoderA
-        |> andThen
-            (\valueA ->
-                map5 (function valueA)
-                    decoderB
-                    decoderC
-                    decoderD
-                    decoderE
-                    decoderF
-            )
+    map2 (<|) (map5 function decoderA decoderB decoderC decoderD decoderE) decoderF
 
 
 map7 :
     (a -> b -> c -> d -> e -> f -> g -> h)
-    -> Decoder i Never a
-    -> Decoder i Never b
-    -> Decoder i Never c
-    -> Decoder i Never d
-    -> Decoder i Never e
-    -> Decoder i Never f
-    -> Decoder i Never g
-    -> Decoder i Never h
+    -> Decoder i x a
+    -> Decoder i x b
+    -> Decoder i x c
+    -> Decoder i x d
+    -> Decoder i x e
+    -> Decoder i x f
+    -> Decoder i x g
+    -> Decoder i x h
 map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG =
-    decoderA
-        |> andThen
-            (\valueA ->
-                map6 (function valueA)
-                    decoderB
-                    decoderC
-                    decoderD
-                    decoderE
-                    decoderF
-                    decoderG
-            )
+    map2 (<|) (map6 function decoderA decoderB decoderC decoderD decoderE decoderF) decoderG
 
 
 map8 :
     (a -> b -> c -> d -> e -> f -> g -> h -> j)
-    -> Decoder i Never a
-    -> Decoder i Never b
-    -> Decoder i Never c
-    -> Decoder i Never d
-    -> Decoder i Never e
-    -> Decoder i Never f
-    -> Decoder i Never g
-    -> Decoder i Never h
-    -> Decoder i Never j
+    -> Decoder i x a
+    -> Decoder i x b
+    -> Decoder i x c
+    -> Decoder i x d
+    -> Decoder i x e
+    -> Decoder i x f
+    -> Decoder i x g
+    -> Decoder i x h
+    -> Decoder i x j
 map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG decoderH =
-    decoderA
-        |> andThen
-            (\valueA ->
-                map7 (function valueA)
-                    decoderB
-                    decoderC
-                    decoderD
-                    decoderE
-                    decoderF
-                    decoderG
-                    decoderH
-            )
+    map2 (<|) (map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG) decoderH
 
 
 bool : AttributeDecoder Bool
