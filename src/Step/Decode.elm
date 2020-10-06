@@ -5,7 +5,7 @@ module Step.Decode exposing
     , header, single, all
     , entity
     , attribute
-    , bool, int, float, string, referenceTo, null, optional, list, tuple2, tuple3, derived
+    , bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derived
     , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
     )
 
@@ -23,7 +23,7 @@ module Step.Decode exposing
 
 @docs attribute
 
-@docs bool, int, float, string, referenceTo, null, optional, list, tuple2, tuple3, derived
+@docs bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derived
 
 @docs succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
 
@@ -35,6 +35,7 @@ import List
 import List.Extra as List
 import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
+import Step.EnumName as EnumName
 import Step.FastParse as FastParse
 import Step.Header as Header
 import Step.TypeName as TypeName
@@ -578,6 +579,34 @@ string =
 
                 _ ->
                     Failed "Expected a string"
+        )
+
+
+enum : List ( String, a ) -> AttributeDecoder a
+enum cases =
+    let
+        lookupDict =
+            cases
+                |> List.map (Tuple.mapFirst (EnumName.fromString >> EnumName.toString))
+                |> Dict.fromList
+    in
+    Decoder
+        (\inputAttribute ->
+            case inputAttribute of
+                Types.EnumAttribute enumName ->
+                    case Dict.get (EnumName.toString enumName) lookupDict of
+                        Just value ->
+                            Succeeded value
+
+                        Nothing ->
+                            Failed
+                                ("Unrecognized enum value '"
+                                    ++ EnumName.toString enumName
+                                    ++ "'"
+                                )
+
+                _ ->
+                    Failed "Expected an enum"
         )
 
 
