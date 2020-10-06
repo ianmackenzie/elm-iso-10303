@@ -5,8 +5,10 @@ import Parser exposing ((|.), (|=), Parser)
 import Parser.Advanced
 import Regex exposing (Regex)
 import Step.EntityResolution as EntityResolution
+import Step.EnumName as EnumName
 import Step.Header exposing (Header)
 import Step.Parse as Parse
+import Step.TypeName as TypeName
 import Step.Types as Types exposing (Attribute, Entity, Error(..), File, ParsedAttribute, ParsedEntity)
 
 
@@ -181,12 +183,12 @@ parseEntities strings unparsedEntities accumulated =
     case unparsedEntities of
         ( id, unparsedEntity ) :: rest ->
             case unparsedEntity of
-                UnparsedSimpleEntity typeName attributeData ->
+                UnparsedSimpleEntity rawTypeName attributeData ->
                     case parseAttributes strings attributeData of
                         Ok parsedAttributes ->
                             let
                                 parsedSimpleEntity =
-                                    Types.ParsedSimpleEntity (Types.TypeName typeName)
+                                    Types.ParsedSimpleEntity (TypeName.fromString rawTypeName)
                                         parsedAttributes
                             in
                             parseEntities strings rest (( id, parsedSimpleEntity ) :: accumulated)
@@ -238,7 +240,7 @@ collectSimpleEntities strings matches accumulated =
                     case collectAttributes strings rest [] of
                         Ok ( parsedAttributes, remaining ) ->
                             collectSimpleEntities strings remaining <|
-                                (( Types.TypeName typeName, parsedAttributes ) :: accumulated)
+                                (( TypeName.fromString typeName, parsedAttributes ) :: accumulated)
 
                         Err message ->
                             Err message
@@ -334,7 +336,7 @@ collectAttributes strings matches accumulated =
                                     if String.endsWith "." value then
                                         let
                                             enumName =
-                                                Types.EnumName (String.slice 1 -1 value)
+                                                EnumName.fromString value
                                         in
                                         collectAttributes strings rest <|
                                             (Types.ParsedEnumAttribute enumName :: accumulated)
@@ -362,7 +364,7 @@ collectAttributes strings matches accumulated =
                                                     case collectAttributes strings following [] of
                                                         Ok ( [ rawAttribute ], remainingMatches ) ->
                                                             collectAttributes strings remainingMatches <|
-                                                                (Types.ParsedTypedAttribute (Types.TypeName value) rawAttribute :: accumulated)
+                                                                (Types.ParsedTypedAttribute (TypeName.fromString value) rawAttribute :: accumulated)
 
                                                         Ok ( _, _ ) ->
                                                             Err ("Expected exactly one attribute value for typed attribute of type '" ++ value ++ "'")

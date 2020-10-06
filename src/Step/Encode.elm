@@ -46,8 +46,10 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 
 import Dict exposing (Dict)
 import Step.Entities as Entities
+import Step.EnumName as EnumName
 import Step.Format as Format
 import Step.Header exposing (Header)
+import Step.TypeName as TypeName
 import Step.Types as Types
 
 
@@ -195,7 +197,7 @@ simpleEntity givenTypeName givenAttributes =
 
 entityRecord : String -> List Attribute -> Types.EntityRecord
 entityRecord givenTypeName givenAttributes =
-    { typeName = Format.typeName givenTypeName
+    { typeName = TypeName.fromString givenTypeName
     , attributes = givenAttributes
     }
 
@@ -299,7 +301,7 @@ This function will capitalize and add periods if necessary, so both `Step.enum
 -}
 enum : String -> Attribute
 enum value =
-    Types.EnumAttribute (Format.enumName value)
+    Types.EnumAttribute (EnumName.fromString value)
 
 
 {-| Construct a binary-valued attribute. The provided string is assumed to
@@ -343,55 +345,55 @@ list toAttribute values =
 {-| Construct a type-tagged Boolean-valued attribute.
 -}
 boolAs : String -> Bool -> Attribute
-boolAs typeName value =
-    typedAttribute typeName (bool value)
+boolAs givenTypeName value =
+    typedAttribute givenTypeName (bool value)
 
 
 {-| Construct a type-tagged integer-valued attribute.
 -}
 intAs : String -> Int -> Attribute
-intAs typeName value =
-    typedAttribute typeName (int value)
+intAs givenTypeName value =
+    typedAttribute givenTypeName (int value)
 
 
 {-| Construct a type-tagged float-valued attribute.
 -}
 floatAs : String -> Float -> Attribute
-floatAs typeName value =
-    typedAttribute typeName (float value)
+floatAs givenTypeName value =
+    typedAttribute givenTypeName (float value)
 
 
 {-| Construct a type-tagged string-valued attribute.
 -}
 stringAs : String -> String -> Attribute
-stringAs typeName value =
-    typedAttribute typeName (string value)
+stringAs givenTypeName value =
+    typedAttribute givenTypeName (string value)
 
 
 {-| Construct a type-tagged enumeration attribute.
 -}
 enumAs : String -> String -> Attribute
-enumAs typeName value =
-    typedAttribute typeName (enum value)
+enumAs givenTypeName value =
+    typedAttribute givenTypeName (enum value)
 
 
 {-| Construct a type-tagged binary-valued attribute.
 -}
 binaryAs : String -> String -> Attribute
-binaryAs typeName value =
-    typedAttribute typeName (binary value)
+binaryAs givenTypeName value =
+    typedAttribute givenTypeName (binary value)
 
 
 {-| Construct a type-tagged list attribute.
 -}
 listAs : String -> (a -> Attribute) -> List a -> Attribute
-listAs typeName toAttribute values =
-    typedAttribute typeName (list toAttribute values)
+listAs givenTypeName toAttribute values =
+    typedAttribute givenTypeName (list toAttribute values)
 
 
 typedAttribute : String -> Attribute -> Attribute
-typedAttribute typeName attribute =
-    Types.TypedAttribute (Format.typeName typeName) attribute
+typedAttribute givenTypeName attribute =
+    Types.TypedAttribute (TypeName.fromString givenTypeName) attribute
 
 
 

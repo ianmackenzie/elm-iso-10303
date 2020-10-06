@@ -4,7 +4,6 @@ module Step.Format exposing
     , complexEntity
     , derivedAttribute
     , enumAttribute
-    , enumName
     , floatAttribute
     , id
     , intAttribute
@@ -13,7 +12,6 @@ module Step.Format exposing
     , referenceTo
     , simpleEntity
     , stringAttribute
-    , typeName
     , typedAttribute
     )
 
@@ -23,6 +21,8 @@ a type such as AttributeValue to improve type safety.
 
 import Bitwise
 import Char
+import Step.EnumName as EnumName
+import Step.TypeName as TypeName
 import Step.Types as Types
 
 
@@ -117,8 +117,8 @@ binaryAttribute value =
 
 
 enumAttribute : Types.EnumName -> Types.AttributeValue
-enumAttribute (Types.EnumName rawEnumName) =
-    attributeValue ("." ++ rawEnumName ++ ".")
+enumAttribute enumName =
+    attributeValue (EnumName.toString enumName)
 
 
 boolAttribute : Bool -> Types.AttributeValue
@@ -179,19 +179,9 @@ listAttribute attributeValues =
     attributeValue ("(" ++ String.join "," rawAttributeValues ++ ")")
 
 
-typeName : String -> Types.TypeName
-typeName value =
-    Types.TypeName (String.toUpper value)
-
-
-enumName : String -> Types.EnumName
-enumName value =
-    Types.EnumName (value |> String.toUpper |> String.replace "." "")
-
-
 typedAttribute : Types.TypeName -> Types.AttributeValue -> Types.AttributeValue
-typedAttribute (Types.TypeName rawTypeName) (Types.AttributeValue rawAttributeValue) =
-    attributeValue (rawTypeName ++ "(" ++ rawAttributeValue ++ ")")
+typedAttribute typeName (Types.AttributeValue rawAttributeValue) =
+    attributeValue (TypeName.toString typeName ++ "(" ++ rawAttributeValue ++ ")")
 
 
 id : Int -> String
@@ -200,7 +190,7 @@ id value =
 
 
 simpleEntity : ( Types.TypeName, List Types.AttributeValue ) -> String
-simpleEntity ( Types.TypeName rawTypeName, attributeValues ) =
+simpleEntity ( typeName, attributeValues ) =
     let
         rawAttributeValues =
             attributeValues
@@ -209,7 +199,7 @@ simpleEntity ( Types.TypeName rawTypeName, attributeValues ) =
                         rawAttributeValue
                     )
     in
-    rawTypeName ++ "(" ++ String.join "," rawAttributeValues ++ ")"
+    TypeName.toString typeName ++ "(" ++ String.join "," rawAttributeValues ++ ")"
 
 
 complexEntity : List ( Types.TypeName, List Types.AttributeValue ) -> String

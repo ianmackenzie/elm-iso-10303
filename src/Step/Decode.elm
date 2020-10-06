@@ -37,6 +37,7 @@ import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
 import Step.FastParse as FastParse
 import Step.Header as Header
+import Step.TypeName as TypeName
 import Step.Types as Types exposing (Attribute, Entity, EntityRecord, File)
 
 
@@ -196,18 +197,14 @@ allEntities decoder entities accumulated =
 entity : String -> AttributeListDecoder a -> EntityDecoder a
 entity givenTypeName decoder =
     let
-        uppercasedTypeName =
-            String.toUpper givenTypeName
+        searchTypeName =
+            TypeName.fromString givenTypeName
     in
     Decoder
         (\currentEntity ->
             case currentEntity of
                 Types.SimpleEntity entityRecord ->
-                    let
-                        (Types.TypeName entityTypeName) =
-                            entityRecord.typeName
-                    in
-                    if entityTypeName == uppercasedTypeName then
+                    if entityRecord.typeName == searchTypeName then
                         case run decoder entityRecord.attributes of
                             Succeeded a ->
                                 Succeeded a
@@ -219,7 +216,13 @@ entity givenTypeName decoder =
                                 never notMatched
 
                     else
-                        NotMatched ("Expected entity of type '" ++ uppercasedTypeName ++ "', got '" ++ entityTypeName ++ "'")
+                        NotMatched
+                            ("Expected entity of type '"
+                                ++ TypeName.toString searchTypeName
+                                ++ "', got '"
+                                ++ TypeName.toString entityRecord.typeName
+                                ++ "'"
+                            )
 
                 Types.ComplexEntity _ ->
                     NotMatched "Expected a simple entity"
