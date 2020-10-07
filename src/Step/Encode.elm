@@ -38,7 +38,7 @@ To create this file using this package, you could write
 
     module Example exposing (..)
 
-    import Step.Encode
+    import Step.Encode as Encode
 
     stepFile : String
     stepFile =
@@ -57,73 +57,73 @@ To create this file using this package, you could write
                 }
 
             applicationContext =
-                Step.Encode.entity "APPLICATION_CONTEXT"
-                    [ Step.Encode.string "mechanical design"
+                Encode.entity "APPLICATION_CONTEXT"
+                    [ Encode.string "mechanical design"
                     ]
 
             applicationProtocolDefinition =
-                Step.Encode.entity "APPLICATION_PROTOCOL_DEFINITION"
-                    [ Step.Encode.string ""
-                    , Step.Encode.string "automotive_design"
-                    , Step.Encode.int 2003
-                    , Step.Encode.referenceTo applicationContext
+                Encode.entity "APPLICATION_PROTOCOL_DEFINITION"
+                    [ Encode.string ""
+                    , Encode.string "automotive_design"
+                    , Encode.int 2003
+                    , Encode.referenceTo applicationContext
                     ]
 
             product =
-                Step.Encode.entity "PRODUCT"
-                    [ Step.Encode.string "A0001"
-                    , Step.Encode.string "Test Part 1"
-                    , Step.Encode.string ""
-                    , Step.Encode.list Step.Encode.referenceTo
-                        [ Step.Encode.entity "PRODUCT_CONTEXT"
-                            [ Step.Encode.string ""
-                            , Step.Encode.referenceTo applicationContext
-                            , Step.Encode.string ""
+                Encode.entity "PRODUCT"
+                    [ Encode.string "A0001"
+                    , Encode.string "Test Part 1"
+                    , Encode.string ""
+                    , Encode.list Encode.referenceTo
+                        [ Encode.entity "PRODUCT_CONTEXT"
+                            [ Encode.string ""
+                            , Encode.referenceTo applicationContext
+                            , Encode.string ""
                             ]
                         ]
                     ]
 
             productDefinition =
-                Step.Encode.entity "PRODUCT_DEFINITION"
-                    [ Step.Encode.string "0"
-                    , Step.Encode.null
-                    , Step.Encode.referenceTo <|
-                        Step.Encode.entity "PRODUCT_DEFINITION_FORMATION"
-                            [ Step.Encode.string "1"
-                            , Step.Encode.null
-                            , Step.Encode.referenceTo product
+                Encode.entity "PRODUCT_DEFINITION"
+                    [ Encode.string "0"
+                    , Encode.null
+                    , Encode.referenceTo <|
+                        Encode.entity "PRODUCT_DEFINITION_FORMATION"
+                            [ Encode.string "1"
+                            , Encode.null
+                            , Encode.referenceTo product
                             ]
-                    , Step.Encode.referenceTo <|
-                        Step.Encode.entity "PRODUCT_DEFINITION_CONTEXT"
-                            [ Step.Encode.string "part definition"
-                            , Step.Encode.referenceTo applicationContext
-                            , Step.Encode.string "manufacturing"
+                    , Encode.referenceTo <|
+                        Encode.entity "PRODUCT_DEFINITION_CONTEXT"
+                            [ Encode.string "part definition"
+                            , Encode.referenceTo applicationContext
+                            , Encode.string "manufacturing"
                             ]
                     ]
 
             productRelatedProductCategory =
-                Step.Encode.entity "PRODUCT_RELATED_PRODUCT_CATEGORY"
-                    [ Step.Encode.string "part"
-                    , Step.Encode.null
-                    , Step.Encode.list Step.Encode.referenceTo [ product ]
+                Encode.entity "PRODUCT_RELATED_PRODUCT_CATEGORY"
+                    [ Encode.string "part"
+                    , Encode.null
+                    , Encode.list Encode.referenceTo [ product ]
                     ]
 
             appliedOrganizationAssignment =
-                Step.Encode.entity "APPLIED_ORGANIZATION_ASSIGNMENT"
-                    [ Step.Encode.referenceTo <|
-                        Step.Encode.entity "ORGANIZATION"
-                            [ Step.Encode.string "O0001"
-                            , Step.Encode.string "LKSoft"
-                            , Step.Encode.string "company"
+                Encode.entity "APPLIED_ORGANIZATION_ASSIGNMENT"
+                    [ Encode.referenceTo <|
+                        Encode.entity "ORGANIZATION"
+                            [ Encode.string "O0001"
+                            , Encode.string "LKSoft"
+                            , Encode.string "company"
                             ]
-                    , Step.Encode.referenceTo <|
-                        Step.Encode.entity "ORGANIZATION_ROLE"
-                            [ Step.Encode.string "id owner"
+                    , Encode.referenceTo <|
+                        Encode.entity "ORGANIZATION_ROLE"
+                            [ Encode.string "id owner"
                             ]
-                    , Step.Encode.list Step.Encode.referenceTo [ product ]
+                    , Encode.list Encode.referenceTo [ product ]
                     ]
         in
-        Step.Encode.file header
+        Encode.file header
             [ applicationContext
             , applicationProtocolDefinition
             , productDefinition
@@ -249,9 +249,8 @@ type name will be capitalized if necessary. An [`IfcDirection`](http://www.build
 representing the positive Y direction in 3D could be created using
 
     direction =
-        Step.Encode.entity "IFCDIRECTION"
-            [ Step.Encode.list Step.Encode.float
-                [ 0, 1, 0 ]
+        Encode.entity "IFCDIRECTION"
+            [ Encode.list Encode.float [ 0, 1, 0 ]
             ]
 
 which might get encoded as `#1=IFCDIRECTION((0.,1.,0.));`.
@@ -261,25 +260,22 @@ it directly inside the definition of the parent entity. For example, to create
 entity #121 from [this AP214 example](https://github.com/stepcode/stepcode/blob/master/data/ap214e3/as1-oc-214.stp),
 you could use
 
-    Step.Encode.entity "AXIS2_PLACEMENT_3D"
-        [ Step.Encode.string ""
-        , Step.Encode.referenceTo <|
-            Step.Encode.entity "CARTESIAN_POINT"
-                [ Step.Encode.string ""
-                , Step.Encode.list Step.Encode.float
-                    [ 20, 7.5, 0 ]
+    Encode.entity "AXIS2_PLACEMENT_3D"
+        [ Encode.string ""
+        , Encode.referenceTo <|
+            Encode.entity "CARTESIAN_POINT"
+                [ Encode.string ""
+                , Encode.list Encode.float [ 20, 7.5, 0 ]
                 ]
-        , Step.Encode.referenceTo <|
-            Step.Encode.entity "DIRECTION"
-                [ Step.Encode.string ""
-                , Step.Encode.list Step.Encode.float
-                    [ 1, 0, 0 ]
+        , Encode.referenceTo <|
+            Encode.entity "DIRECTION"
+                [ Encode.string ""
+                , Encode.list Encode.float [ 1, 0, 0 ]
                 ]
-        , Step.Encode.referenceTo <|
-            Step.Encode.entity "DIRECTION"
-                [ Step.Encode.string ""
-                , Step.Encode.list Step.Encode.float
-                    [ 0, 0, -1 ]
+        , Encode.referenceTo <|
+            Encode.entity "DIRECTION"
+                [ Encode.string ""
+                , Encode.list Encode.float [ 0, 0, -1 ]
                 ]
         ]
 
@@ -307,14 +303,14 @@ entityRecord givenTypeName givenAttributes =
 
 {-| Construct a single 'complex entity'; for example
 
-    Step.Encode.complexEntity
-        [ ( "A", [ Step.Encode.int 1 ] )
+    Encode.complexEntity
+        [ ( "A", [ Encode.int 1 ] )
         , ( "B"
-          , [ Step.Encode.int 2
-            , Step.Encode.string "three"
+          , [ Encode.int 2
+            , Encode.string "three"
             ]
           )
-        , ( "C", [ Step.Encode.enum "FOUR" ] )
+        , ( "C", [ Encode.enum "FOUR" ] )
         ]
 
 will be encoded as
@@ -382,7 +378,7 @@ float value =
 escaped according to the (weird, custom) method specified in the STEP standard;
 for example,
 
-    Step.Encode.string "see § 4.1"
+    Encode.string "see § 4.1"
 
 will end up being encoded as
 
@@ -398,8 +394,9 @@ string value =
 EXPRESS schema. Enumeration values are always encoded as all-caps with leading
 and trailing periods, like `.STEEL.`.
 
-This function will capitalize and add periods if necessary, so both `Step.enum
-"steel"` and `Step.enum ".STEEL."` will be encoded as `.STEEL.`.
+This function will capitalize and add periods if necessary, so both
+`Encode.enum "steel"` and `Encode.enum ".STEEL."` will be encoded as
+`.STEEL.`.
 
 -}
 enum : String -> Attribute
@@ -420,11 +417,11 @@ provide a list of values and a function to convert each of those values to an
 attribute (which will usually be one of the attribute construction functions in
 this module!). For example, to construct an attribute which is a list of floats:
 
-    Step.Encode.list Step.Encode.float [ 0, 1, 0 ]
+    Encode.list Encode.float [ 0, 1, 0 ]
 
 To construct a list of references to various entities:
 
-    Step.Encode.list Step.Encode.referenceTo
+    Encode.list Encode.referenceTo
         [ firstEntity
         , secondEntity
         , thirdEntity
@@ -433,7 +430,7 @@ To construct a list of references to various entities:
 In the odd case where you already have a `List Attribute`, you can use Elm's
 built-in `identity` function as the first argument:
 
-    Step.Encode.list identity
+    Encode.list identity
         [ firstAttribute
         , secondAttribute
         , thirdAttribute
