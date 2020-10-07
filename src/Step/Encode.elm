@@ -1,7 +1,7 @@
 module Step.Encode exposing
     ( file
     , entity, complexEntity
-    , derived, null, bool, int, float, string, referenceTo, enum, binary, list
+    , derived, null, optional, bool, int, float, string, referenceTo, enum, binary, list, tuple2, tuple3
     , boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs
     )
 
@@ -148,7 +148,7 @@ order.
 
 # Attributes
 
-@docs derived, null, bool, int, float, string, referenceTo, enum, binary, list
+@docs derived, null, optional, bool, int, float, string, referenceTo, enum, binary, list, tuple2, tuple3
 
 
 ## Typed attributes
@@ -350,6 +350,19 @@ null =
     Types.NullAttribute
 
 
+{-| Encode a `Maybe` either using the given decoder if it is a `Just value`, or
+as null if it is `Nothing`.
+-}
+optional : (a -> Attribute) -> Maybe a -> Attribute
+optional encoder maybe =
+    case maybe of
+        Just value ->
+            encoder value
+
+        Nothing ->
+            null
+
+
 {-| Construct a Boolean-valued attribute.
 
 Boolean values are actually encoded as enumeration values `.T.` and `.F.`.
@@ -440,6 +453,20 @@ built-in `identity` function as the first argument:
 list : (a -> Attribute) -> List a -> Attribute
 list toAttribute values =
     Types.AttributeList (List.map toAttribute values)
+
+
+{-| Encode a tuple of two values as a list using the given encoding function.
+-}
+tuple2 : (a -> Attribute) -> ( a, a ) -> Attribute
+tuple2 toAttribute ( first, second ) =
+    list toAttribute [ first, second ]
+
+
+{-| Encode a tuple of three values as a list using the given encoding function.
+-}
+tuple3 : (a -> Attribute) -> ( a, a, a ) -> Attribute
+tuple3 toAttribute ( first, second, third ) =
+    list toAttribute [ first, second, third ]
 
 
 {-| Construct a type-tagged Boolean-valued attribute.
