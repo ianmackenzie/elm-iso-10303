@@ -781,7 +781,7 @@ oneOfHelp decoders matchErrors input =
         [] ->
             -- No more decoders to try: fail with an error message that
             -- aggregates all the individual error messages
-            Failed
+            NotMatched
                 ("No decoders matched (error messages: \""
                     ++ String.join "\", \"" (List.reverse matchErrors)
                     ++ "\")"
