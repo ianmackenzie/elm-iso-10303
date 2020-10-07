@@ -377,7 +377,7 @@ partialEntity searchTypeName decoder id entityRecords =
 
 
 {-| Decode a specific attribute by index (starting from 0) in an attribute list.
-To decode data from multiple attributes, you can use one of the `mapN`
+To decode data from multiple attributes in a list, you can use one of the `mapN`
 functions, for example:
 
     type alias MyAttributes =
