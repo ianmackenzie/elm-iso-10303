@@ -1,4 +1,4 @@
-module Step.FastParse exposing (Preprocessed, parse, postprocess, preprocess)
+module Step.FastParse exposing (Parsed, Preprocessed, parse, postprocess, preprocess)
 
 import Dict exposing (Dict)
 import Parser exposing ((|.), (|=), Parser)
@@ -6,10 +6,10 @@ import Parser.Advanced
 import Regex exposing (Regex)
 import Step.EntityResolution as EntityResolution
 import Step.EnumName as EnumName
-import Step.Header exposing (Header)
+import Step.File exposing (Header)
 import Step.Parse as Parse
 import Step.TypeName as TypeName
-import Step.Types as Types exposing (Attribute, Entity, Error(..), File, ParsedAttribute, ParsedEntity)
+import Step.Types as Types exposing (Attribute, Entity, File, ParsedAttribute, ParsedEntity)
 
 
 type alias Preprocessed =
@@ -158,7 +158,7 @@ preprocess contents =
     }
 
 
-parseHeader : String -> Result Error Header
+parseHeader : String -> Result String Header
 parseHeader input =
     let
         parser =
@@ -168,17 +168,17 @@ parseHeader input =
                 |= Parse.header
     in
     Parser.run parser input
-        |> Result.mapError (always (ParseError "Failed to parse header"))
+        |> Result.mapError (always "Failed to parse header")
 
 
-postprocess : Preprocessed -> Result Error Parsed
+postprocess : Preprocessed -> Result String Parsed
 postprocess { original, unparsedEntities, strings } =
     Result.map2 Parsed
         (parseHeader original)
         (parseEntities strings unparsedEntities [])
 
 
-parseEntities : Dict String String -> List ( Int, UnparsedEntity ) -> List ( Int, ParsedEntity ) -> Result Error (List ( Int, ParsedEntity ))
+parseEntities : Dict String String -> List ( Int, UnparsedEntity ) -> List ( Int, ParsedEntity ) -> Result String (List ( Int, ParsedEntity ))
 parseEntities strings unparsedEntities accumulated =
     case unparsedEntities of
         ( id, unparsedEntity ) :: rest ->
@@ -194,7 +194,7 @@ parseEntities strings unparsedEntities accumulated =
                             parseEntities strings rest (( id, parsedSimpleEntity ) :: accumulated)
 
                         Err message ->
-                            Err (ParseError message)
+                            Err message
 
                 UnparsedComplexEntity complexEntityData ->
                     case parseComplexEntity strings complexEntityData [] of
@@ -206,7 +206,7 @@ parseEntities strings unparsedEntities accumulated =
                             parseEntities strings rest (( id, parsedComplexEntity ) :: accumulated)
 
                         Err message ->
-                            Err (ParseError message)
+                            Err message
 
         [] ->
             Ok accumulated
@@ -382,20 +382,6 @@ collectAttributes strings matches accumulated =
             Ok ( List.reverse accumulated, [] )
 
 
-parse : String -> Result Error File
+parse : String -> Result String Parsed
 parse contents =
-    contents
-        |> preprocess
-        |> postprocess
-        |> Result.andThen
-            (\postprocessed ->
-                EntityResolution.resolve postprocessed.entities
-                    |> Result.map
-                        (\resolvedEntities ->
-                            Types.File
-                                { entities = resolvedEntities
-                                , header = postprocessed.header
-                                , contents = contents
-                                }
-                        )
-            )
+    contents |> preprocess |> postprocess

@@ -4,7 +4,7 @@ import Char
 import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
 import Step.EnumName as EnumName
-import Step.Header exposing (Header)
+import Step.File exposing (Header)
 import Step.TypeName as TypeName
 import Step.Types as Types exposing (File)
 import String

@@ -7,7 +7,7 @@
     "exposed-modules": [
         "Step.Encode",
         "Step.Decode",
-        "Step.Header"
+        "Step.File"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {

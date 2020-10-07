@@ -1,8 +1,13 @@
-module Step.EntityResolution exposing (resolve)
+module Step.EntityResolution exposing (Error(..), resolve)
 
 import Dict exposing (Dict)
 import Step.EntityStack as EntityStack exposing (EntityStack)
-import Step.Types as Types exposing (Error(..))
+import Step.Types as Types
+
+
+type Error
+    = NonexistentEntity Int
+    | CircularReference (List Int)
 
 
 type alias EntityResolution =

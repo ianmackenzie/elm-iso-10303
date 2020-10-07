@@ -1,10 +1,19 @@
-module Step.Header exposing (Header)
+module Step.File exposing (File, Header, Entity, Attribute)
 
-{-|
+{-| The types in this module are shared between the [`Encode`](Step-Encode) and
+[`Decode`](Step-Decode) modules.
 
-@docs Header
+@docs File, Header, Entity, Attribute
 
 -}
+
+import Step.Types as Types
+
+
+{-| Represents an entire STEP file composed of a header and a list of entities.
+-}
+type alias File =
+    Types.File
 
 
 {-| A `Header` represents the data stored in the header section of a STEP file:
@@ -30,8 +39,8 @@ module Step.Header exposing (Header)
     sending the file.
   - `schemaIdentifiers` identifies the EXPRESS schema used by entities in the
     file. This will usually be a list containing a single string, which may be
-    either a simple string like "IFC2X3" or an 'object identifier' such as
-    "AUTOMOTIVE\_DESIGN { 1 0 10303 214 1 1 1 1 }" (more commonly known as
+    either a simple string like `"IFC2X3"` or an 'object identifier' such as
+    `"AUTOMOTIVE\_DESIGN { 1 0 10303 214 1 1 1 1 }"` (more commonly known as
     AP214).
 
 -}
@@ -47,3 +56,20 @@ type alias Header =
     , authorization : String
     , schemaIdentifiers : List String
     }
+
+
+{-| An `Entity` represents a single entity stored in the data section of a STEP
+file. An entity may be a point, a curve, a part, an assembly, or even an entire
+building. Entities may be 'simple' (having a type and a list of attributes,
+which can themselves be references to other entities) or 'complex' (effectively
+a list of simple entities combined together).
+-}
+type alias Entity =
+    Types.Entity
+
+
+{-| An `Attribute` represents a single attribute of an `Entity`, such as an X
+coordinate value, a GUID string, or a reference to another entity.
+-}
+type alias Attribute =
+    Types.Attribute

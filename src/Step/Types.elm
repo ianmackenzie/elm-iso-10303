@@ -4,7 +4,6 @@ module Step.Types exposing (..)
 -}
 
 import Dict exposing (Dict)
-import Step.Header exposing (Header)
 
 
 {-| An attribute value string such as "1", "2.", "'some string'", ".STEEL." or
@@ -82,14 +81,19 @@ type ParsedEntity
 
 type File
     = File
-        { header : Header
+        { header :
+            -- Header type definition copied from File.elm to avoid circular reference
+            { description : List String
+            , implementationLevel : String
+            , fileName : String
+            , timeStamp : String
+            , author : List String
+            , organization : List String
+            , preprocessorVersion : String
+            , originatingSystem : String
+            , authorization : String
+            , schemaIdentifiers : List String
+            }
         , entities : Dict Int Entity
         , contents : String
         }
-
-
-type Error
-    = ParseError String
-    | NonexistentEntity Int
-    | CircularReference (List Int)
-    | DecodeError String
