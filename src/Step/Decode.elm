@@ -388,7 +388,7 @@ functions, for example:
 
     myAttributesDecoder : AttributeListDecoder MyAttributes
     myAttributesDecoder =
-        Step.Decode.map3 MyAttributes
+        Decode.map3 MyAttributes
             (Decode.attribute 0 Decode.string)
             (Decode.attribute 1 Decode.int)
             (Decode.attribute 2 Decode.float)
@@ -767,7 +767,7 @@ values `.RED.`, `.YELLOW.` and `.GREEN.` you might write:
 
     lightColorDecoder : AttributeDecoder LightColor
     lightColorDecoder =
-        Step.Decode.enum
+        Decode.enum
             [ ( "RED", Red )
             , ( "YELLOW", Yellow )
             , ( "GREEN", Green )
