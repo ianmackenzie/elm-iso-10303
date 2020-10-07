@@ -71,7 +71,7 @@ _fail_ if it encountered a `CARTESIAN_POINT` in an unexpected format (no XYZ
 coordinates, for example) but would _not match_ a `DIRECTION` entity. This
 distinction is important to avoid silently swallowing errors.
 
-The `x` type parameter indicates whether a decoder has this ability to match or
+The `m` type parameter indicates whether a decoder has this ability to match or
 not match inputs; it is equal to `String` for entity decoders and `Never`
 otherwise.
 
@@ -81,8 +81,8 @@ compiler error messages so it is useful to understand what the type parameters
 mean.
 
 -}
-type Decoder i x a
-    = Decoder (i -> DecodeResult x a)
+type Decoder i m a
+    = Decoder (i -> DecodeResult m a)
 
 
 {-| A `Decoder` that takes an entire STEP file as input and produces some
@@ -135,13 +135,13 @@ type Error
     | DecodeError String
 
 
-type DecodeResult x a
+type DecodeResult m a
     = Succeeded a
     | Failed String
-    | NotMatched x
+    | NotMatched m
 
 
-run : Decoder i x a -> i -> DecodeResult x a
+run : Decoder i m a -> i -> DecodeResult m a
 run (Decoder function) input =
     function input
 
@@ -149,14 +149,14 @@ run (Decoder function) input =
 {-| A special decoder that always succeeds with the given value. Primarily
 useful with [`andThen`](#andThen).
 -}
-succeed : a -> Decoder i x a
+succeed : a -> Decoder i m a
 succeed value =
     Decoder (always (Succeeded value))
 
 
 {-| A special decoder that always fails with the given error message.
 -}
-fail : String -> Decoder i x a
+fail : String -> Decoder i m a
 fail description =
     Decoder (always (Failed description))
 
@@ -407,7 +407,7 @@ attribute index attributeDecoder =
         )
 
 
-mapHelp : (a -> b) -> DecodeResult x a -> DecodeResult x b
+mapHelp : (a -> b) -> DecodeResult m a -> DecodeResult m b
 mapHelp function result =
     case result of
         Succeeded value ->
@@ -422,12 +422,12 @@ mapHelp function result =
 
 {-| Map the value produced by a decoder.
 -}
-map : (a -> b) -> Decoder i x a -> Decoder i x b
+map : (a -> b) -> Decoder i m a -> Decoder i m b
 map mapFunction decoder =
     Decoder (\input -> mapHelp mapFunction (run decoder input))
 
 
-map2Help : (a -> b -> c) -> DecodeResult x a -> DecodeResult x b -> DecodeResult x c
+map2Help : (a -> b -> c) -> DecodeResult m a -> DecodeResult m b -> DecodeResult m c
 map2Help function resultA resultB =
     case resultA of
         Succeeded value ->
@@ -444,9 +444,9 @@ map2Help function resultA resultB =
 -}
 map2 :
     (a -> b -> c)
-    -> Decoder i x a
-    -> Decoder i x b
-    -> Decoder i x c
+    -> Decoder i m a
+    -> Decoder i m b
+    -> Decoder i m c
 map2 function (Decoder functionA) (Decoder functionB) =
     Decoder (\input -> map2Help function (functionA input) (functionB input))
 
@@ -455,10 +455,10 @@ map2 function (Decoder functionA) (Decoder functionB) =
 -}
 map3 :
     (a -> b -> c -> d)
-    -> Decoder i x a
-    -> Decoder i x b
-    -> Decoder i x c
-    -> Decoder i x d
+    -> Decoder i m a
+    -> Decoder i m b
+    -> Decoder i m c
+    -> Decoder i m d
 map3 function decoderA decoderB decoderC =
     map2 (<|) (map2 function decoderA decoderB) decoderC
 
@@ -467,11 +467,11 @@ map3 function decoderA decoderB decoderC =
 -}
 map4 :
     (a -> b -> c -> d -> e)
-    -> Decoder i x a
-    -> Decoder i x b
-    -> Decoder i x c
-    -> Decoder i x d
-    -> Decoder i x e
+    -> Decoder i m a
+    -> Decoder i m b
+    -> Decoder i m c
+    -> Decoder i m d
+    -> Decoder i m e
 map4 function decoderA decoderB decoderC decoderD =
     map2 (<|) (map3 function decoderA decoderB decoderC) decoderD
 
@@ -480,12 +480,12 @@ map4 function decoderA decoderB decoderC decoderD =
 -}
 map5 :
     (a -> b -> c -> d -> e -> f)
-    -> Decoder i x a
-    -> Decoder i x b
-    -> Decoder i x c
-    -> Decoder i x d
-    -> Decoder i x e
-    -> Decoder i x f
+    -> Decoder i m a
+    -> Decoder i m b
+    -> Decoder i m c
+    -> Decoder i m d
+    -> Decoder i m e
+    -> Decoder i m f
 map5 function decoderA decoderB decoderC decoderD decoderE =
     map2 (<|) (map4 function decoderA decoderB decoderC decoderD) decoderE
 
@@ -494,13 +494,13 @@ map5 function decoderA decoderB decoderC decoderD decoderE =
 -}
 map6 :
     (a -> b -> c -> d -> e -> f -> g)
-    -> Decoder i x a
-    -> Decoder i x b
-    -> Decoder i x c
-    -> Decoder i x d
-    -> Decoder i x e
-    -> Decoder i x f
-    -> Decoder i x g
+    -> Decoder i m a
+    -> Decoder i m b
+    -> Decoder i m c
+    -> Decoder i m d
+    -> Decoder i m e
+    -> Decoder i m f
+    -> Decoder i m g
 map6 function decoderA decoderB decoderC decoderD decoderE decoderF =
     map2 (<|) (map5 function decoderA decoderB decoderC decoderD decoderE) decoderF
 
@@ -509,14 +509,14 @@ map6 function decoderA decoderB decoderC decoderD decoderE decoderF =
 -}
 map7 :
     (a -> b -> c -> d -> e -> f -> g -> h)
-    -> Decoder i x a
-    -> Decoder i x b
-    -> Decoder i x c
-    -> Decoder i x d
-    -> Decoder i x e
-    -> Decoder i x f
-    -> Decoder i x g
-    -> Decoder i x h
+    -> Decoder i m a
+    -> Decoder i m b
+    -> Decoder i m c
+    -> Decoder i m d
+    -> Decoder i m e
+    -> Decoder i m f
+    -> Decoder i m g
+    -> Decoder i m h
 map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG =
     map2 (<|) (map6 function decoderA decoderB decoderC decoderD decoderE decoderF) decoderG
 
@@ -525,15 +525,15 @@ map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG =
 -}
 map8 :
     (a -> b -> c -> d -> e -> f -> g -> h -> j)
-    -> Decoder i x a
-    -> Decoder i x b
-    -> Decoder i x c
-    -> Decoder i x d
-    -> Decoder i x e
-    -> Decoder i x f
-    -> Decoder i x g
-    -> Decoder i x h
-    -> Decoder i x j
+    -> Decoder i m a
+    -> Decoder i m b
+    -> Decoder i m c
+    -> Decoder i m d
+    -> Decoder i m e
+    -> Decoder i m f
+    -> Decoder i m g
+    -> Decoder i m h
+    -> Decoder i m j
 map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG decoderH =
     map2 (<|) (map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG) decoderH
 
@@ -1076,7 +1076,7 @@ decoder to apply next. The only restriction is that this _second_ decoder must
 be of a type that always matches (so not an [`entity`](#entity) decoder), since
 it is the _first_ decoder that decides whether to match the input or not.
 -}
-andThen : (a -> Decoder i Never b) -> Decoder i x a -> Decoder i x b
+andThen : (a -> Decoder i Never b) -> Decoder i m a -> Decoder i m b
 andThen function decoder =
     Decoder
         (\input ->
@@ -1103,6 +1103,6 @@ andThen function decoder =
 {-| Define a decoder lazily such that it is only constructed if needed. This is
 primarily used to break circular reference chains between decoders.
 -}
-lazy : (() -> Decoder i x a) -> Decoder i x a
+lazy : (() -> Decoder i m a) -> Decoder i m a
 lazy constructor =
     Decoder (\input -> run (constructor ()) input)
