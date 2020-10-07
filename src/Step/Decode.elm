@@ -165,12 +165,12 @@ fail description =
 to extract the file header and all `CARTESIAN_POINT` entities from a given file,
 you might write:
 
+    import Step.File
     import Step.Decode as Decode exposing
         ( Decoder
-        , EntityDecoder
         , FileDecoder
+        , EntityDecoder
         )
-    import Step.File
 
     type alias FileData =
         { header : Step.File.Header
