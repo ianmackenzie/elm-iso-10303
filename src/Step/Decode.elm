@@ -425,6 +425,11 @@ float =
                 Types.FloatAttribute value ->
                     Succeeded value
 
+                Types.NullAttribute ->
+                    -- Some STEP files seem to use $ to indicate NaN even though
+                    -- that doesn't seem to be allowed by the spec
+                    Succeeded (0 / 0)
+
                 _ ->
                     Failed "Expected a float"
         )
