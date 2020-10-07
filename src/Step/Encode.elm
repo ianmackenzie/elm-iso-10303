@@ -2,8 +2,8 @@ module Step.Encode exposing
     ( file
     , Entity, simpleEntity, complexEntity
     , Attribute
-    , derived, null, int, float, string, referenceTo, enum, binary, list
-    , intAs, floatAs, stringAs, enumAs, binaryAs, listAs
+    , derived, null, bool, int, float, string, referenceTo, enum, binary, list
+    , boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs
     )
 
 {-| This module allows you to encode data in [ISO 10303-21](https://en.wikipedia.org/wiki/ISO_10303-21)
@@ -33,14 +33,14 @@ All examples below assume the module has been imported this way.
 
 @docs Attribute
 
-@docs derived, null, int, float, string, referenceTo, enum, binary, list
+@docs derived, null, bool, int, float, string, referenceTo, enum, binary, list
 
 
 ## Typed attributes
 
 Typed attributes are sometimes needed when dealing with SELECT types.
 
-@docs intAs, floatAs, stringAs, enumAs, binaryAs, listAs
+@docs boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs
 
 -}
 
