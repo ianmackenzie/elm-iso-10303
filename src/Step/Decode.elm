@@ -9,7 +9,7 @@ module Step.Decode exposing
     )
 
 {-| This module lets you decode data from STEP files in a similar way to how
-you might decode [JSON](https://package.elm-lang.org/packages/elm/json/latest/Json-Decode).
+you decode [JSON](https://package.elm-lang.org/packages/elm/json/latest/Json-Decode).
 
 
 # Decoder types
