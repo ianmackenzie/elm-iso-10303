@@ -207,38 +207,42 @@ entity givenTypeName decoder =
     Decoder
         (\currentEntity ->
             case currentEntity of
-                Types.SimpleEntity entityRecord ->
+                Types.SimpleEntity id entityRecord ->
                     if entityRecord.typeName == searchTypeName then
                         case run decoder entityRecord.attributes of
                             Succeeded a ->
                                 Succeeded a
 
                             Failed message ->
-                                Failed message
+                                Failed ("In entity " ++ String.fromInt id ++ ": " ++ message)
 
                             NotMatched notMatched ->
                                 never notMatched
 
                     else
                         NotMatched
-                            ("Expected entity of type '"
+                            ("Expected entity "
+                                ++ String.fromInt id
+                                ++ " to have type '"
                                 ++ TypeName.toString searchTypeName
                                 ++ "', got '"
                                 ++ TypeName.toString entityRecord.typeName
                                 ++ "'"
                             )
 
-                Types.ComplexEntity entityRecords ->
-                    partialEntity searchTypeName decoder entityRecords
+                Types.ComplexEntity id entityRecords ->
+                    partialEntity searchTypeName decoder id entityRecords
         )
 
 
-partialEntity : Types.TypeName -> AttributeListDecoder a -> List EntityRecord -> DecodeResult String a
-partialEntity searchTypeName decoder entityRecords =
+partialEntity : Types.TypeName -> AttributeListDecoder a -> Int -> List EntityRecord -> DecodeResult String a
+partialEntity searchTypeName decoder id entityRecords =
     case entityRecords of
         [] ->
             NotMatched
-                ("Complex entity has no sub-entity of type '"
+                ("Complex entity "
+                    ++ String.fromInt id
+                    ++ " has no sub-entity of type '"
                     ++ TypeName.toString searchTypeName
                     ++ "'"
                 )
@@ -256,7 +260,7 @@ partialEntity searchTypeName decoder entityRecords =
                         never notMatched
 
             else
-                partialEntity searchTypeName decoder rest
+                partialEntity searchTypeName decoder id rest
 
 
 attribute : Int -> AttributeDecoder a -> AttributeListDecoder a
