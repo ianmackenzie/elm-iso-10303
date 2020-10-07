@@ -6,6 +6,7 @@ module Step.Decode exposing
     , entity
     , attribute
     , bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derived
+    , boolAs, intAs, floatAs, stringAs, enumAs, listAs
     , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
     )
 
@@ -24,6 +25,8 @@ module Step.Decode exposing
 @docs attribute
 
 @docs bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derived
+
+@docs boolAs, intAs, floatAs, stringAs, enumAs, listAs
 
 @docs succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
 
@@ -645,6 +648,63 @@ list itemDecoder =
                 _ ->
                     Failed "Expected a list"
         )
+
+
+typedAttribute : String -> AttributeDecoder a -> AttributeDecoder a
+typedAttribute givenTypeName decoder =
+    let
+        expectedTypeName =
+            TypeName.fromString givenTypeName
+    in
+    Decoder
+        (\inputAttribute ->
+            case inputAttribute of
+                Types.TypedAttribute attributeTypeName underlyingAttribute ->
+                    if attributeTypeName == expectedTypeName then
+                        run decoder underlyingAttribute
+
+                    else
+                        Failed
+                            ("Expected a typed attribute of type '"
+                                ++ TypeName.toString expectedTypeName
+                                ++ "', got '"
+                                ++ TypeName.toString attributeTypeName
+                                ++ "'"
+                            )
+
+                _ ->
+                    Failed "Expected a typed attribute"
+        )
+
+
+boolAs : String -> AttributeDecoder Bool
+boolAs givenTypeName =
+    typedAttribute givenTypeName bool
+
+
+intAs : String -> AttributeDecoder Int
+intAs givenTypeName =
+    typedAttribute givenTypeName int
+
+
+floatAs : String -> AttributeDecoder Float
+floatAs givenTypeName =
+    typedAttribute givenTypeName float
+
+
+stringAs : String -> AttributeDecoder String
+stringAs givenTypeName =
+    typedAttribute givenTypeName string
+
+
+enumAs : String -> List ( String, a ) -> AttributeDecoder a
+enumAs givenTypeName cases =
+    typedAttribute givenTypeName (enum cases)
+
+
+listAs : String -> AttributeDecoder a -> AttributeDecoder (List a)
+listAs givenTypeName itemDecoder =
+    typedAttribute givenTypeName (list itemDecoder)
 
 
 tuple2 : ( AttributeDecoder a, AttributeDecoder b ) -> AttributeDecoder ( a, b )
