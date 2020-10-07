@@ -232,7 +232,7 @@ file decoder contents =
             )
 
 
-{-| Extract the header of a STEP file.
+{-| Extract the [header](Step-File#Header) of a STEP file.
 -}
 header : FileDecoder Header
 header =
