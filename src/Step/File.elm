@@ -40,7 +40,7 @@ type alias File =
   - `schemaIdentifiers` identifies the EXPRESS schema used by entities in the
     file. This will usually be a list containing a single string, which may be
     either a simple string like `"IFC2X3"` or an 'object identifier' such as
-    `"AUTOMOTIVE\_DESIGN { 1 0 10303 214 1 1 1 1 }"` (more commonly known as
+    `"AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }"` (more commonly known as
     AP214).
 
 -}
