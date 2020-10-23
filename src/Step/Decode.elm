@@ -5,7 +5,7 @@ module Step.Decode exposing
     , attribute
     , bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derived
     , boolAs, intAs, floatAs, stringAs, enumAs, listAs
-    , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
+    , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy, identity, run
     )
 
 {-| This module lets you decode data from STEP files in a similar way to how
@@ -44,7 +44,7 @@ you decode [JSON](https://package.elm-lang.org/packages/elm/json/latest/Json-Dec
 
 # Working with decoders
 
-@docs succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy
+@docs succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy, identity, run
 
 -}
 
@@ -141,9 +141,26 @@ type DecodeResult m a
     | NotMatched m
 
 
-run : Decoder i m a -> i -> DecodeResult m a
-run (Decoder function) input =
+decodeResult : Decoder i m a -> i -> DecodeResult m a
+decodeResult (Decoder function) input =
     function input
+
+
+{-| Run a decoder on some input. You will not usually need to use this function
+directly, but it may be necessary if you use [`Decode.identity`](#identity) to
+access raw `Entity` and `Attribute` values.
+-}
+run : Decoder i m a -> i -> Result String a
+run decoder input =
+    case decodeResult decoder input of
+        Succeeded value ->
+            Ok value
+
+        Failed message ->
+            Err message
+
+        NotMatched _ ->
+            Err "Not matched"
 
 
 {-| A special decoder that always succeeds with the given value. Primarily
@@ -159,6 +176,14 @@ succeed value =
 fail : String -> Decoder i m a
 fail description =
     Decoder (always (Failed description))
+
+
+{-| A special decoder that just returns its input unmodified. This can be useful
+if you want to get a raw `Entity` or `Attribute` value and inspect it.
+-}
+identity : Decoder i m i
+identity =
+    Decoder (\input -> Succeeded input)
 
 
 {-| Decode a STEP file given as a `String` using the given decoder. For example,
@@ -220,7 +245,7 @@ file decoder contents =
             )
         |> Result.andThen
             (\inputFile ->
-                case run decoder inputFile of
+                case decodeResult decoder inputFile of
                     Succeeded value ->
                         Ok value
 
@@ -263,7 +288,7 @@ singleEntity decoder entities currentValue =
                     Failed "No matching entities found"
 
         first :: rest ->
-            case run decoder first of
+            case decodeResult decoder first of
                 Succeeded value ->
                     case currentValue of
                         Nothing ->
@@ -296,7 +321,7 @@ allEntities decoder entities accumulated =
             Succeeded (List.reverse accumulated)
 
         first :: rest ->
-            case run decoder first of
+            case decodeResult decoder first of
                 Succeeded value ->
                     allEntities decoder rest (value :: accumulated)
 
@@ -322,7 +347,7 @@ entity givenTypeName decoder =
             case currentEntity of
                 Types.SimpleEntity id entityRecord ->
                     if entityRecord.typeName == searchTypeName then
-                        case run decoder entityRecord.attributes of
+                        case decodeResult decoder entityRecord.attributes of
                             Succeeded a ->
                                 Succeeded a
 
@@ -362,7 +387,7 @@ partialEntity searchTypeName decoder id entityRecords =
 
         first :: rest ->
             if first.typeName == searchTypeName then
-                case run decoder first.attributes of
+                case decodeResult decoder first.attributes of
                     Succeeded value ->
                         Succeeded value
 
@@ -400,7 +425,7 @@ attribute index attributeDecoder =
         (\attributeList ->
             case List.getAt index attributeList of
                 Just entityAttribute ->
-                    run attributeDecoder entityAttribute
+                    decodeResult attributeDecoder entityAttribute
 
                 Nothing ->
                     Failed ("No attribute at index " ++ String.fromInt index)
@@ -424,7 +449,7 @@ mapHelp function result =
 -}
 map : (a -> b) -> Decoder i m a -> Decoder i m b
 map mapFunction decoder =
-    Decoder (\input -> mapHelp mapFunction (run decoder input))
+    Decoder (\input -> mapHelp mapFunction (decodeResult decoder input))
 
 
 map2Help : (a -> b -> c) -> DecodeResult m a -> DecodeResult m b -> DecodeResult m c
@@ -815,7 +840,7 @@ collectDecodedAttributes decoder accumulated remainingAttributes =
             Succeeded (List.reverse accumulated)
 
         first :: rest ->
-            case run decoder first of
+            case decodeResult decoder first of
                 -- Decoding succeeded on this attribute: continue with the
                 -- rest
                 Succeeded result ->
@@ -857,7 +882,7 @@ typedAttribute givenTypeName decoder =
             case inputAttribute of
                 Types.TypedAttribute attributeTypeName underlyingAttribute ->
                     if attributeTypeName == expectedTypeName then
-                        run decoder underlyingAttribute
+                        decodeResult decoder underlyingAttribute
 
                     else
                         Failed
@@ -925,8 +950,8 @@ tuple2 decoder =
             case inputAttribute of
                 Types.AttributeList [ firstAttribute, secondAttribute ] ->
                     map2Help Tuple.pair
-                        (run decoder firstAttribute)
-                        (run decoder secondAttribute)
+                        (decodeResult decoder firstAttribute)
+                        (decodeResult decoder secondAttribute)
 
                 _ ->
                     Failed "Expected a list of two items"
@@ -944,10 +969,10 @@ tuple3 decoder =
                 Types.AttributeList [ firstAttribute, secondAttribute, thirdAttribute ] ->
                     map2Help (<|)
                         (map2Help (\first second third -> ( first, second, third ))
-                            (run decoder firstAttribute)
-                            (run decoder secondAttribute)
+                            (decodeResult decoder firstAttribute)
+                            (decodeResult decoder secondAttribute)
                         )
-                        (run decoder thirdAttribute)
+                        (decodeResult decoder thirdAttribute)
 
                 _ ->
                     Failed "Expected a list of three items"
@@ -963,7 +988,7 @@ referenceTo entityDecoder =
         (\inputAttribute ->
             case inputAttribute of
                 Types.ReferenceTo referencedEntity ->
-                    case run entityDecoder referencedEntity of
+                    case decodeResult entityDecoder referencedEntity of
                         Succeeded value ->
                             Succeeded value
 
@@ -999,7 +1024,7 @@ oneOfHelp decoders matchErrors input =
 
         first :: rest ->
             -- At least one decoder left to try, so try it
-            case run first input of
+            case decodeResult first input of
                 -- Decoding succeeded: return the result
                 Succeeded result ->
                     Succeeded result
@@ -1054,7 +1079,7 @@ optional : AttributeDecoder a -> AttributeDecoder (Maybe a)
 optional decoder =
     Decoder
         (\inputAttribute ->
-            case run decoder inputAttribute of
+            case decodeResult decoder inputAttribute of
                 Succeeded value ->
                     Succeeded (Just value)
 
@@ -1080,9 +1105,9 @@ andThen : (a -> Decoder i Never b) -> Decoder i m a -> Decoder i m b
 andThen function decoder =
     Decoder
         (\input ->
-            case run decoder input of
+            case decodeResult decoder input of
                 Succeeded intermediateValue ->
-                    case run (function intermediateValue) input of
+                    case decodeResult (function intermediateValue) input of
                         Succeeded value ->
                             Succeeded value
 
@@ -1105,4 +1130,4 @@ primarily used to break circular reference chains between decoders.
 -}
 lazy : (() -> Decoder i m a) -> Decoder i m a
 lazy constructor =
-    Decoder (\input -> run (constructor ()) input)
+    Decoder (\input -> decodeResult (constructor ()) input)
