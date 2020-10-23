@@ -28,8 +28,8 @@ type EnumName
 {-| A single STEP entity.
 -}
 type Entity
-    = SimpleEntity Int EntityRecord
-    | ComplexEntity Int (List EntityRecord)
+    = SimpleEntity EntityRecord
+    | ComplexEntity (List EntityRecord)
 
 
 type alias EntityRecord =

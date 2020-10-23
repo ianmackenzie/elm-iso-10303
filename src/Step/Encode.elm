@@ -291,7 +291,7 @@ automatically-generated IDs, something like:
 -}
 entity : String -> List Attribute -> Entity
 entity givenTypeName givenAttributes =
-    Types.SimpleEntity -1 (entityRecord givenTypeName givenAttributes)
+    Types.SimpleEntity (entityRecord givenTypeName givenAttributes)
 
 
 entityRecord : String -> List Attribute -> Types.EntityRecord
@@ -320,7 +320,7 @@ will be encoded as
 -}
 complexEntity : List ( String, List Attribute ) -> Entity
 complexEntity simpleEntities =
-    Types.ComplexEntity -1 <|
+    Types.ComplexEntity <|
         List.map
             (\( givenTypeName, givenAttributes ) ->
                 entityRecord givenTypeName givenAttributes

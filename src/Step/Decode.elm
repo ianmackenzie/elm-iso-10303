@@ -272,11 +272,11 @@ single : EntityDecoder a -> FileDecoder a
 single entityDecoder =
     Decoder
         (\(Types.File { entities }) ->
-            singleEntity entityDecoder (Dict.values entities) Nothing
+            singleEntity entityDecoder (Dict.toList entities) Nothing
         )
 
 
-singleEntity : EntityDecoder a -> List Entity -> Maybe a -> DecodeResult Never a
+singleEntity : EntityDecoder a -> List ( Int, Entity ) -> Maybe a -> DecodeResult Never a
 singleEntity decoder entities currentValue =
     case entities of
         [] ->
@@ -287,7 +287,7 @@ singleEntity decoder entities currentValue =
                 Nothing ->
                     Failed "No matching entities found"
 
-        first :: rest ->
+        ( id, first ) :: rest ->
             case decodeResult decoder first of
                 Succeeded value ->
                     case currentValue of
@@ -298,7 +298,7 @@ singleEntity decoder entities currentValue =
                             Failed "More than one matching entity found"
 
                 Failed message ->
-                    Failed message
+                    Failed ("In entity " ++ String.fromInt id ++ ": " ++ message)
 
                 NotMatched _ ->
                     singleEntity decoder rest currentValue
@@ -310,23 +310,23 @@ all : EntityDecoder a -> FileDecoder (List a)
 all entityDecoder =
     Decoder
         (\(Types.File { entities }) ->
-            allEntities entityDecoder (Dict.values entities) []
+            allEntities entityDecoder (Dict.toList entities) []
         )
 
 
-allEntities : EntityDecoder a -> List Entity -> List a -> DecodeResult Never (List a)
+allEntities : EntityDecoder a -> List ( Int, Entity ) -> List a -> DecodeResult Never (List a)
 allEntities decoder entities accumulated =
     case entities of
         [] ->
             Succeeded (List.reverse accumulated)
 
-        first :: rest ->
+        ( id, first ) :: rest ->
             case decodeResult decoder first of
                 Succeeded value ->
                     allEntities decoder rest (value :: accumulated)
 
                 Failed message ->
-                    Failed message
+                    Failed ("In entity " ++ String.fromInt id ++ ": " ++ message)
 
                 NotMatched _ ->
                     allEntities decoder rest accumulated
@@ -345,42 +345,38 @@ entity givenTypeName decoder =
     Decoder
         (\currentEntity ->
             case currentEntity of
-                Types.SimpleEntity id entityRecord ->
+                Types.SimpleEntity entityRecord ->
                     if entityRecord.typeName == searchTypeName then
                         case decodeResult decoder entityRecord.attributes of
                             Succeeded a ->
                                 Succeeded a
 
                             Failed message ->
-                                Failed ("In entity " ++ String.fromInt id ++ ": " ++ message)
+                                Failed message
 
                             NotMatched notMatched ->
                                 never notMatched
 
                     else
                         NotMatched
-                            ("Expected entity "
-                                ++ String.fromInt id
-                                ++ " to have type '"
+                            ("Expected entity to have type '"
                                 ++ TypeName.toString searchTypeName
                                 ++ "', got '"
                                 ++ TypeName.toString entityRecord.typeName
                                 ++ "'"
                             )
 
-                Types.ComplexEntity id entityRecords ->
-                    partialEntity searchTypeName decoder id entityRecords
+                Types.ComplexEntity entityRecords ->
+                    partialEntity searchTypeName decoder entityRecords
         )
 
 
-partialEntity : Types.TypeName -> AttributeListDecoder a -> Int -> List EntityRecord -> DecodeResult String a
-partialEntity searchTypeName decoder id entityRecords =
+partialEntity : Types.TypeName -> AttributeListDecoder a -> List EntityRecord -> DecodeResult String a
+partialEntity searchTypeName decoder entityRecords =
     case entityRecords of
         [] ->
             NotMatched
-                ("Complex entity "
-                    ++ String.fromInt id
-                    ++ " has no sub-entity of type '"
+                ("Complex entity has no sub-entity of type '"
                     ++ TypeName.toString searchTypeName
                     ++ "'"
                 )
@@ -398,7 +394,7 @@ partialEntity searchTypeName decoder id entityRecords =
                         never notMatched
 
             else
-                partialEntity searchTypeName decoder id rest
+                partialEntity searchTypeName decoder rest
 
 
 {-| Decode a specific attribute by index (starting from 0) in an attribute list.
@@ -425,7 +421,15 @@ attribute index attributeDecoder =
         (\attributeList ->
             case List.getAt index attributeList of
                 Just entityAttribute ->
-                    decodeResult attributeDecoder entityAttribute
+                    case decodeResult attributeDecoder entityAttribute of
+                        Succeeded value ->
+                            Succeeded value
+
+                        Failed message ->
+                            Failed ("At attribute index " ++ String.fromInt index ++ ": " ++ message)
+
+                        NotMatched notMatched ->
+                            never notMatched
 
                 Nothing ->
                     Failed ("No attribute at index " ++ String.fromInt index)

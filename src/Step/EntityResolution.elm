@@ -44,7 +44,7 @@ addEntity id parsedEntity entityResolution entityStack =
                             (\( attributes, resolutionWithAttributes ) ->
                                 let
                                     entity =
-                                        Types.SimpleEntity id { typeName = typeName, attributes = attributes }
+                                        Types.SimpleEntity { typeName = typeName, attributes = attributes }
 
                                     updatedResolution =
                                         store id entity resolutionWithAttributes
@@ -58,7 +58,7 @@ addEntity id parsedEntity entityResolution entityStack =
                             (\( entityRecords, resolutionWithSimpleEntities ) ->
                                 let
                                     entity =
-                                        Types.ComplexEntity id entityRecords
+                                        Types.ComplexEntity entityRecords
 
                                     updatedResolution =
                                         store id entity resolutionWithSimpleEntities

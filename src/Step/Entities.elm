@@ -22,7 +22,7 @@ buildMap entities =
 addEntity : Entity -> EntityMap -> ( Int, EntityMap )
 addEntity entity entityMap =
     case entity of
-        Types.SimpleEntity _ { typeName, attributes } ->
+        Types.SimpleEntity { typeName, attributes } ->
             let
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap
@@ -32,7 +32,7 @@ addEntity entity entityMap =
             in
             update entity entityString mapWithAttributes
 
-        Types.ComplexEntity _ entityRecords ->
+        Types.ComplexEntity entityRecords ->
             let
                 ( simpleEntityValues, mapWithSimpleEntities ) =
                     addEntityRecords entityRecords entityMap []
