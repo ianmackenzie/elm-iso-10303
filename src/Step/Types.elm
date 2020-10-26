@@ -4,7 +4,7 @@ module Step.Types exposing (..)
 -}
 
 import Dict exposing (Dict)
-import Step.EnumName as EnumName exposing (EnumName)
+import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.TypeName as TypeName exposing (TypeName)
 
 
@@ -38,7 +38,7 @@ type Attribute
     | FloatAttribute Float
     | StringAttribute String
     | BinaryAttribute String
-    | EnumAttribute EnumName
+    | EnumAttribute EnumValue
     | ReferenceTo Entity
     | TypedAttribute TypeName Attribute
     | AttributeList (List Attribute)
@@ -55,7 +55,7 @@ type ParsedAttribute
     | ParsedFloatAttribute Float
     | ParsedStringAttribute String
     | ParsedBinaryAttribute String
-    | ParsedEnumAttribute EnumName
+    | ParsedEnumAttribute EnumValue
     | ParsedReference Int
     | ParsedTypedAttribute TypeName ParsedAttribute
     | ParsedAttributeList (List ParsedAttribute)

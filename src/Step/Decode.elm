@@ -54,7 +54,7 @@ import List
 import List.Extra as List
 import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
-import Step.EnumName as EnumName exposing (EnumName)
+import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
 import Step.File exposing (Attribute, Entity, File, Header)
 import Step.TypeName as TypeName exposing (TypeName)
@@ -812,21 +812,21 @@ enum cases =
     let
         lookupDict =
             cases
-                |> List.map (Tuple.mapFirst (EnumName.fromString >> EnumName.toString))
+                |> List.map (Tuple.mapFirst (EnumValue.fromString >> EnumValue.toString))
                 |> Dict.fromList
     in
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.EnumAttribute enumName ->
-                    case Dict.get (EnumName.toString enumName) lookupDict of
+                Types.EnumAttribute enumValue ->
+                    case Dict.get (EnumValue.toString enumValue) lookupDict of
                         Just value ->
                             Succeeded value
 
                         Nothing ->
                             Failed
                                 ("Unrecognized enum value '"
-                                    ++ EnumName.toString enumName
+                                    ++ EnumValue.toString enumValue
                                     ++ "'"
                                 )
 

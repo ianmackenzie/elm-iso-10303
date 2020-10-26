@@ -5,7 +5,7 @@ import Parser exposing ((|.), (|=), Parser)
 import Parser.Advanced
 import Regex exposing (Regex)
 import Step.EntityResolution as EntityResolution
-import Step.EnumName as EnumName exposing (EnumName)
+import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.File exposing (Header)
 import Step.Parse as Parse
 import Step.TypeName as TypeName exposing (TypeName)
@@ -335,11 +335,11 @@ collectAttributes strings matches accumulated =
                                 "." ->
                                     if String.endsWith "." value then
                                         let
-                                            enumName =
-                                                EnumName.fromString value
+                                            enumValue =
+                                                EnumValue.fromString value
                                         in
                                         collectAttributes strings rest <|
-                                            (Types.ParsedEnumAttribute enumName :: accumulated)
+                                            (Types.ParsedEnumAttribute enumValue :: accumulated)
 
                                     else
                                         Err ("Expected enum value '" ++ value ++ "' to end with '.'")

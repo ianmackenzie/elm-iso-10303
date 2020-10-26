@@ -1,7 +1,7 @@
 module Step.Entities exposing (compile)
 
 import Dict exposing (Dict)
-import Step.EnumName as EnumName exposing (EnumName)
+import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.Format as Format
 import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types exposing (Attribute, Entity)
@@ -105,8 +105,8 @@ addAttribute attribute entityMap =
         Types.BinaryAttribute string ->
             ( Format.binaryAttribute string, entityMap )
 
-        Types.EnumAttribute enumName ->
-            ( Format.enumAttribute enumName, entityMap )
+        Types.EnumAttribute enumValue ->
+            ( Format.enumAttribute enumValue, entityMap )
 
         Types.ReferenceTo entity ->
             let

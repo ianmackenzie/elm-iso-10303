@@ -2,7 +2,7 @@ module Step.EntityResolution exposing (Error(..), resolve)
 
 import Dict exposing (Dict)
 import Step.EntityStack as EntityStack exposing (EntityStack)
-import Step.EnumName as EnumName exposing (EnumName)
+import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types
 

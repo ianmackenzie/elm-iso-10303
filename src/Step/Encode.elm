@@ -161,7 +161,7 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 
 import Dict exposing (Dict)
 import Step.Entities as Entities
-import Step.EnumName as EnumName
+import Step.EnumValue as EnumValue
 import Step.File exposing (Attribute, Entity, File, Header)
 import Step.Format as Format
 import Step.TypeName as TypeName
@@ -414,7 +414,7 @@ This function will capitalize and add periods if necessary, so both
 -}
 enum : String -> Attribute
 enum value =
-    Types.EnumAttribute (EnumName.fromString value)
+    Types.EnumAttribute (EnumValue.fromString value)
 
 
 {-| Construct a binary-valued attribute. The provided string is assumed to

@@ -21,7 +21,7 @@ a type such as AttributeValue to improve type safety.
 
 import Bitwise
 import Char
-import Step.EnumName as EnumName exposing (EnumName)
+import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types
 
@@ -116,9 +116,9 @@ binaryAttribute value =
     attributeValue ("\"" ++ value ++ "\"")
 
 
-enumAttribute : EnumName -> Types.AttributeValue
-enumAttribute enumName =
-    attributeValue ("." ++ EnumName.toString enumName ++ ".")
+enumAttribute : EnumValue -> Types.AttributeValue
+enumAttribute enumValue =
+    attributeValue ("." ++ EnumValue.toString enumValue ++ ".")
 
 
 boolAttribute : Bool -> Types.AttributeValue
