@@ -92,11 +92,15 @@ type Attribute
     | AttributeList (List Attribute)
 
 
+{-| Get the header of a file.
+-}
 header : File -> Header
 header (File fileHeader _) =
     fileHeader
 
 
+{-| Get all entities in a file.
+-}
 entities : File -> List Entity
 entities (File _ fileEntities) =
     fileEntities
