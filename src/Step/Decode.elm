@@ -776,7 +776,7 @@ string =
 
 {-| Decode a single enum attribute, by passing a list of enum cases as their
 STEP type name and corresponding Elm value. For example, given a STEP enum with
-values `.RED.`, `.YELLOW.` and `.GREEN.` you might write:
+values `RED`, `YELLOW` and `GREEN` you might write:
 
     type LightColor
         = Red
