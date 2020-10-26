@@ -3,7 +3,6 @@ module Step.Types exposing (..)
 {-| The internal STEP types used during both encoding and decoding.
 -}
 
-import Dict exposing (Dict)
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.TypeName as TypeName exposing (TypeName)
 
