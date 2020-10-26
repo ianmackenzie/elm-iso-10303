@@ -79,5 +79,4 @@ type File
             , schemaIdentifiers : List String
             }
         , entities : Dict Int Entity
-        , contents : String
         }

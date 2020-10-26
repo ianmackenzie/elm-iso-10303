@@ -234,7 +234,6 @@ file decoder contents =
                             Types.File
                                 { entities = resolvedEntities
                                 , header = parsed.header
-                                , contents = contents
                                 }
 
                     Err (EntityResolution.NonexistentEntity id) ->
