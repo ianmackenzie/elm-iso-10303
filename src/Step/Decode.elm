@@ -54,10 +54,10 @@ import List
 import List.Extra as List
 import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
-import Step.EnumName as EnumName
+import Step.EnumName as EnumName exposing (EnumName)
 import Step.FastParse as FastParse
 import Step.File exposing (Attribute, Entity, File, Header)
-import Step.TypeName as TypeName
+import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types exposing (Attribute, Entity, EntityRecord, File)
 
 
@@ -371,7 +371,7 @@ entity givenTypeName decoder =
         )
 
 
-partialEntity : Types.TypeName -> AttributeListDecoder a -> List EntityRecord -> DecodeResult String a
+partialEntity : TypeName -> AttributeListDecoder a -> List EntityRecord -> DecodeResult String a
 partialEntity searchTypeName decoder entityRecords =
     case entityRecords of
         [] ->

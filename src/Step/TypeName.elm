@@ -1,17 +1,19 @@
 module Step.TypeName exposing (TypeName, fromString, toString)
 
-import Step.Types as Types
+{-| -}
 
 
-type alias TypeName =
-    Types.TypeName
+{-| A capitalized type name like "IFCWALL".
+-}
+type TypeName
+    = TypeName String
 
 
 fromString : String -> TypeName
 fromString string =
-    Types.TypeName (String.toUpper string)
+    TypeName (String.toUpper string)
 
 
 toString : TypeName -> String
-toString (Types.TypeName string) =
+toString (TypeName string) =
     string

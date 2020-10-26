@@ -21,8 +21,8 @@ a type such as AttributeValue to improve type safety.
 
 import Bitwise
 import Char
-import Step.EnumName as EnumName
-import Step.TypeName as TypeName
+import Step.EnumName as EnumName exposing (EnumName)
+import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types
 
 
@@ -116,7 +116,7 @@ binaryAttribute value =
     attributeValue ("\"" ++ value ++ "\"")
 
 
-enumAttribute : Types.EnumName -> Types.AttributeValue
+enumAttribute : EnumName -> Types.AttributeValue
 enumAttribute enumName =
     attributeValue ("." ++ EnumName.toString enumName ++ ".")
 
@@ -179,7 +179,7 @@ listAttribute attributeValues =
     attributeValue ("(" ++ String.join "," rawAttributeValues ++ ")")
 
 
-typedAttribute : Types.TypeName -> Types.AttributeValue -> Types.AttributeValue
+typedAttribute : TypeName -> Types.AttributeValue -> Types.AttributeValue
 typedAttribute typeName (Types.AttributeValue rawAttributeValue) =
     attributeValue (TypeName.toString typeName ++ "(" ++ rawAttributeValue ++ ")")
 
@@ -189,7 +189,7 @@ id value =
     "#" ++ String.fromInt value
 
 
-simpleEntity : ( Types.TypeName, List Types.AttributeValue ) -> String
+simpleEntity : ( TypeName, List Types.AttributeValue ) -> String
 simpleEntity ( typeName, attributeValues ) =
     let
         rawAttributeValues =
@@ -202,7 +202,7 @@ simpleEntity ( typeName, attributeValues ) =
     TypeName.toString typeName ++ "(" ++ String.join "," rawAttributeValues ++ ")"
 
 
-complexEntity : List ( Types.TypeName, List Types.AttributeValue ) -> String
+complexEntity : List ( TypeName, List Types.AttributeValue ) -> String
 complexEntity simpleEntities =
     let
         simpleEntityStrings =

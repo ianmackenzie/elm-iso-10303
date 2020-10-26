@@ -1,7 +1,9 @@
 module Step.Entities exposing (compile)
 
 import Dict exposing (Dict)
+import Step.EnumName as EnumName exposing (EnumName)
 import Step.Format as Format
+import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types exposing (Attribute, Entity)
 
 
@@ -46,8 +48,8 @@ addEntity entity entityMap =
 addEntityRecords :
     List Types.EntityRecord
     -> EntityMap
-    -> List ( Types.TypeName, List Types.AttributeValue )
-    -> ( List ( Types.TypeName, List Types.AttributeValue ), EntityMap )
+    -> List ( TypeName, List Types.AttributeValue )
+    -> ( List ( TypeName, List Types.AttributeValue ), EntityMap )
 addEntityRecords entityRecords entityMap accumulated =
     case entityRecords of
         { typeName, attributes } :: rest ->

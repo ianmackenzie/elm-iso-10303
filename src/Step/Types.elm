@@ -4,6 +4,8 @@ module Step.Types exposing (..)
 -}
 
 import Dict exposing (Dict)
+import Step.EnumName as EnumName exposing (EnumName)
+import Step.TypeName as TypeName exposing (TypeName)
 
 
 {-| An attribute value string such as "1", "2.", "'some string'", ".STEEL." or
@@ -11,18 +13,6 @@ import Dict exposing (Dict)
 -}
 type AttributeValue
     = AttributeValue String
-
-
-{-| A capitalized type name like "IFCWALL".
--}
-type TypeName
-    = TypeName String
-
-
-{-| A capitalized enum name like "STEEL", with no leading or trailing periods.
--}
-type EnumName
-    = EnumName String
 
 
 {-| A single STEP entity.

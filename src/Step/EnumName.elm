@@ -1,17 +1,19 @@
 module Step.EnumName exposing (EnumName, fromString, toString)
 
-import Step.Types as Types
+{-| -}
 
 
-type alias EnumName =
-    Types.EnumName
+{-| A capitalized enum name like "STEEL", with no leading or trailing periods.
+-}
+type EnumName
+    = EnumName String
 
 
 fromString : String -> EnumName
 fromString string =
-    Types.EnumName (string |> String.toUpper |> String.replace "." "")
+    EnumName (string |> String.toUpper |> String.replace "." "")
 
 
 toString : EnumName -> String
-toString (Types.EnumName string) =
+toString (EnumName string) =
     string

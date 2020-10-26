@@ -5,10 +5,10 @@ import Parser exposing ((|.), (|=), Parser)
 import Parser.Advanced
 import Regex exposing (Regex)
 import Step.EntityResolution as EntityResolution
-import Step.EnumName as EnumName
+import Step.EnumName as EnumName exposing (EnumName)
 import Step.File exposing (Header)
 import Step.Parse as Parse
-import Step.TypeName as TypeName
+import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types exposing (Attribute, Entity, File, ParsedAttribute, ParsedEntity)
 
 
@@ -221,8 +221,8 @@ entityTokenRegex =
 parseComplexEntity :
     Dict String String
     -> String
-    -> List ( Types.TypeName, List ParsedAttribute )
-    -> Result String (List ( Types.TypeName, List ParsedAttribute ))
+    -> List ( TypeName, List ParsedAttribute )
+    -> Result String (List ( TypeName, List ParsedAttribute ))
 parseComplexEntity strings complexEntityData accumulated =
     let
         matches =
@@ -231,7 +231,7 @@ parseComplexEntity strings complexEntityData accumulated =
     collectSimpleEntities strings matches []
 
 
-collectSimpleEntities : Dict String String -> List Regex.Match -> List ( Types.TypeName, List ParsedAttribute ) -> Result String (List ( Types.TypeName, List ParsedAttribute ))
+collectSimpleEntities : Dict String String -> List Regex.Match -> List ( TypeName, List ParsedAttribute ) -> Result String (List ( TypeName, List ParsedAttribute ))
 collectSimpleEntities strings matches accumulated =
     case matches of
         first :: second :: rest ->

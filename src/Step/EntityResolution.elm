@@ -2,6 +2,8 @@ module Step.EntityResolution exposing (Error(..), resolve)
 
 import Dict exposing (Dict)
 import Step.EntityStack as EntityStack exposing (EntityStack)
+import Step.EnumName as EnumName exposing (EnumName)
+import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types
 
 
@@ -68,7 +70,7 @@ addEntity id parsedEntity entityResolution entityStack =
 
 
 addSimpleEntities :
-    List ( Types.TypeName, List Types.ParsedAttribute )
+    List ( TypeName, List Types.ParsedAttribute )
     -> EntityResolution
     -> EntityStack
     -> List Types.EntityRecord

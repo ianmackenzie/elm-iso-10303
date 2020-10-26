@@ -3,9 +3,9 @@ module Step.Parse exposing (entity, header, whitespace)
 import Char
 import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
-import Step.EnumName as EnumName
+import Step.EnumName as EnumName exposing (EnumName)
 import Step.File exposing (Header)
-import Step.TypeName as TypeName
+import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types exposing (File)
 import String
 
@@ -59,7 +59,7 @@ keyword =
         (Parser.chompIf isUpper |. Parser.chompWhile isUpperOrDigit)
 
 
-typeName : Parser Types.TypeName
+typeName : Parser TypeName
 typeName =
     Parser.succeed TypeName.fromString |= keyword
 
@@ -93,7 +93,7 @@ binary =
         |. Parser.token "\""
 
 
-enum : Parser Types.EnumName
+enum : Parser EnumName
 enum =
     Parser.succeed EnumName.fromString
         |. Parser.token "."
