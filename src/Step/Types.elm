@@ -61,22 +61,3 @@ contain unresolved entity references).
 type ParsedEntity
     = ParsedSimpleEntity TypeName (List ParsedAttribute)
     | ParsedComplexEntity (List ( TypeName, List ParsedAttribute ))
-
-
-type File
-    = File
-        { header :
-            -- Header type definition copied from File.elm to avoid circular reference
-            { description : List String
-            , implementationLevel : String
-            , fileName : String
-            , timeStamp : String
-            , author : List String
-            , organization : List String
-            , preprocessorVersion : String
-            , originatingSystem : String
-            , authorization : String
-            , schemaIdentifiers : List String
-            }
-        , entities : Dict Int Entity
-        }

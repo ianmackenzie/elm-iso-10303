@@ -6,7 +6,7 @@ import Step.EntityResolution as EntityResolution
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.File exposing (Header)
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (File)
+import Step.Types as Types
 import String
 
 

@@ -1,9 +1,14 @@
-module Step.File exposing (File, Header, Entity, Attribute)
+module Step.File exposing
+    ( File(..), Header, Entity, Attribute
+    , header, entities
+    )
 
 {-| The types in this module are shared between the [`Encode`](Step-Encode) and
 [`Decode`](Step-Decode) modules.
 
 @docs File, Header, Entity, Attribute
+
+@docs header, entities
 
 -}
 
@@ -12,8 +17,8 @@ import Step.Types as Types
 
 {-| Represents an entire STEP file composed of a header and a list of entities.
 -}
-type alias File =
-    Types.File
+type File
+    = File Header (List Entity)
 
 
 {-| A `Header` represents the data stored in the header section of a STEP file:
@@ -73,3 +78,13 @@ coordinate value, a GUID string, or a reference to another entity.
 -}
 type alias Attribute =
     Types.Attribute
+
+
+header : File -> Header
+header (File fileHeader _) =
+    fileHeader
+
+
+entities : File -> List Entity
+entities (File _ fileEntities) =
+    fileEntities

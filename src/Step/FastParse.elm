@@ -9,7 +9,7 @@ import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.File exposing (Header)
 import Step.Parse as Parse
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (Attribute, Entity, File, ParsedAttribute, ParsedEntity)
+import Step.Types as Types exposing (Attribute, Entity, ParsedAttribute, ParsedEntity)
 
 
 type alias Preprocessed =

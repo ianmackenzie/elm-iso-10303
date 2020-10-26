@@ -56,9 +56,9 @@ import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
-import Step.File exposing (Attribute, Entity, File, Header)
+import Step.File as File exposing (Attribute, Entity, File(..), Header)
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (Attribute, Entity, File)
+import Step.Types as Types exposing (Attribute, Entity)
 
 
 {-| A `Decoder` describes how to attempt to decode some input of type `i` (an
@@ -230,11 +230,7 @@ file decoder contents =
             (\parsed ->
                 case EntityResolution.resolve parsed.entities of
                     Ok resolvedEntities ->
-                        Ok <|
-                            Types.File
-                                { entities = resolvedEntities
-                                , header = parsed.header
-                                }
+                        Ok (File parsed.header (Dict.values resolvedEntities))
 
                     Err (EntityResolution.NonexistentEntity id) ->
                         Err (NonexistentEntity id)
@@ -260,7 +256,7 @@ file decoder contents =
 -}
 header : FileDecoder Header
 header =
-    Decoder (\(Types.File properties) -> Succeeded properties.header)
+    Decoder (\input -> Succeeded (File.header input))
 
 
 {-| Attempt to find exactly one entity in a file that matches the given decoder.
@@ -269,13 +265,10 @@ will fail.
 -}
 single : EntityDecoder a -> FileDecoder a
 single entityDecoder =
-    Decoder
-        (\(Types.File { entities }) ->
-            singleEntity entityDecoder (Dict.toList entities) Nothing
-        )
+    Decoder (\input -> singleEntity entityDecoder (File.entities input) Nothing)
 
 
-singleEntity : EntityDecoder a -> List ( Int, Entity ) -> Maybe a -> DecodeResult Never a
+singleEntity : EntityDecoder a -> List Entity -> Maybe a -> DecodeResult Never a
 singleEntity decoder entities currentValue =
     case entities of
         [] ->
@@ -286,7 +279,7 @@ singleEntity decoder entities currentValue =
                 Nothing ->
                     Failed "No matching entities found"
 
-        ( id, first ) :: rest ->
+        first :: rest ->
             case decodeResult decoder first of
                 Succeeded value ->
                     case currentValue of
@@ -297,7 +290,7 @@ singleEntity decoder entities currentValue =
                             Failed "More than one matching entity found"
 
                 Failed message ->
-                    Failed ("In entity " ++ String.fromInt id ++ ": " ++ message)
+                    Failed message
 
                 NotMatched _ ->
                     singleEntity decoder rest currentValue
@@ -307,25 +300,22 @@ singleEntity decoder entities currentValue =
 -}
 all : EntityDecoder a -> FileDecoder (List a)
 all entityDecoder =
-    Decoder
-        (\(Types.File { entities }) ->
-            allEntities entityDecoder (Dict.toList entities) []
-        )
+    Decoder (\input -> allEntities entityDecoder (File.entities input) [])
 
 
-allEntities : EntityDecoder a -> List ( Int, Entity ) -> List a -> DecodeResult Never (List a)
+allEntities : EntityDecoder a -> List Entity -> List a -> DecodeResult Never (List a)
 allEntities decoder entities accumulated =
     case entities of
         [] ->
             Succeeded (List.reverse accumulated)
 
-        ( id, first ) :: rest ->
+        first :: rest ->
             case decodeResult decoder first of
                 Succeeded value ->
                     allEntities decoder rest (value :: accumulated)
 
                 Failed message ->
-                    Failed ("In entity " ++ String.fromInt id ++ ": " ++ message)
+                    Failed message
 
                 NotMatched _ ->
                     allEntities decoder rest accumulated
