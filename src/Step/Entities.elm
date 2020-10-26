@@ -24,7 +24,7 @@ buildMap entities =
 addEntity : Entity -> EntityMap -> ( Int, EntityMap )
 addEntity entity entityMap =
     case entity of
-        Types.SimpleEntity { typeName, attributes } ->
+        Types.Entity typeName attributes ->
             let
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap
@@ -46,13 +46,13 @@ addEntity entity entityMap =
 
 
 addEntityRecords :
-    List Types.EntityRecord
+    List ( TypeName, List Attribute )
     -> EntityMap
     -> List ( TypeName, List Types.AttributeValue )
     -> ( List ( TypeName, List Types.AttributeValue ), EntityMap )
 addEntityRecords entityRecords entityMap accumulated =
     case entityRecords of
-        { typeName, attributes } :: rest ->
+        ( typeName, attributes ) :: rest ->
             let
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap

@@ -18,14 +18,8 @@ type AttributeValue
 {-| A single STEP entity.
 -}
 type Entity
-    = SimpleEntity EntityRecord
-    | ComplexEntity (List EntityRecord)
-
-
-type alias EntityRecord =
-    { typeName : TypeName
-    , attributes : List Attribute
-    }
+    = Entity TypeName (List Attribute)
+    | ComplexEntity (List ( TypeName, List Attribute ))
 
 
 {-| An attribute of a STEP entity.

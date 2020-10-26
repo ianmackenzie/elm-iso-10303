@@ -46,7 +46,7 @@ addEntity id parsedEntity entityResolution entityStack =
                             (\( attributes, resolutionWithAttributes ) ->
                                 let
                                     entity =
-                                        Types.SimpleEntity { typeName = typeName, attributes = attributes }
+                                        Types.Entity typeName attributes
 
                                     updatedResolution =
                                         store id entity resolutionWithAttributes
@@ -73,15 +73,15 @@ addSimpleEntities :
     List ( TypeName, List Types.ParsedAttribute )
     -> EntityResolution
     -> EntityStack
-    -> List Types.EntityRecord
-    -> Result Error ( List Types.EntityRecord, EntityResolution )
+    -> List ( TypeName, List Types.Attribute )
+    -> Result Error ( List ( TypeName, List Types.Attribute ), EntityResolution )
 addSimpleEntities parsedSimpleEntities entityResolution entityStack accumulated =
     case parsedSimpleEntities of
         ( typeName, parsedAttributes ) :: rest ->
             case addAttributeList parsedAttributes entityResolution entityStack of
                 Ok ( attributes, resolutionWithAttributes ) ->
                     addSimpleEntities rest resolutionWithAttributes entityStack <|
-                        ({ typeName = typeName, attributes = attributes } :: accumulated)
+                        (( typeName, attributes ) :: accumulated)
 
                 Err error ->
                     Err error

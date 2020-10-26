@@ -58,7 +58,7 @@ import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
 import Step.File exposing (Attribute, Entity, File, Header)
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (Attribute, Entity, EntityRecord, File)
+import Step.Types as Types exposing (Attribute, Entity, File)
 
 
 {-| A `Decoder` describes how to attempt to decode some input of type `i` (an
@@ -345,9 +345,9 @@ entity givenTypeName decoder =
     Decoder
         (\currentEntity ->
             case currentEntity of
-                Types.SimpleEntity entityRecord ->
-                    if entityRecord.typeName == searchTypeName then
-                        case decodeResult decoder entityRecord.attributes of
+                Types.Entity typeName attributes ->
+                    if typeName == searchTypeName then
+                        case decodeResult decoder attributes of
                             Succeeded a ->
                                 Succeeded a
 
@@ -362,7 +362,7 @@ entity givenTypeName decoder =
                             ("Expected entity to have type '"
                                 ++ TypeName.toString searchTypeName
                                 ++ "', got '"
-                                ++ TypeName.toString entityRecord.typeName
+                                ++ TypeName.toString typeName
                                 ++ "'"
                             )
 
@@ -371,7 +371,7 @@ entity givenTypeName decoder =
         )
 
 
-partialEntity : TypeName -> AttributeListDecoder a -> List EntityRecord -> DecodeResult String a
+partialEntity : TypeName -> AttributeListDecoder a -> List ( TypeName, List Attribute ) -> DecodeResult String a
 partialEntity searchTypeName decoder entityRecords =
     case entityRecords of
         [] ->
@@ -381,9 +381,9 @@ partialEntity searchTypeName decoder entityRecords =
                     ++ "'"
                 )
 
-        first :: rest ->
-            if first.typeName == searchTypeName then
-                case decodeResult decoder first.attributes of
+        ( typeName, attributes ) :: rest ->
+            if typeName == searchTypeName then
+                case decodeResult decoder attributes of
                     Succeeded value ->
                         Succeeded value
 
