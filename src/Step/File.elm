@@ -1,5 +1,5 @@
 module Step.File exposing
-    ( File(..), Header, Entity, Attribute
+    ( File(..), Header, Entity(..), Attribute(..)
     , header, entities
     )
 
@@ -12,7 +12,8 @@ module Step.File exposing
 
 -}
 
-import Step.Types as Types
+import Step.EnumValue as EnumValue exposing (EnumValue)
+import Step.TypeName as TypeName exposing (TypeName)
 
 
 {-| Represents an entire STEP file composed of a header and a list of entities.
@@ -69,15 +70,26 @@ building. Entities may be 'simple' (having a type and a list of attributes,
 which can themselves be references to other entities) or 'complex' (effectively
 a list of simple entities combined together).
 -}
-type alias Entity =
-    Types.Entity
+type Entity
+    = Entity TypeName (List Attribute)
+    | ComplexEntity (List ( TypeName, List Attribute ))
 
 
 {-| An `Attribute` represents a single attribute of an `Entity`, such as an X
 coordinate value, a GUID string, or a reference to another entity.
 -}
-type alias Attribute =
-    Types.Attribute
+type Attribute
+    = DerivedAttribute
+    | NullAttribute
+    | BoolAttribute Bool
+    | IntAttribute Int
+    | FloatAttribute Float
+    | StringAttribute String
+    | BinaryAttribute String
+    | EnumAttribute EnumValue
+    | ReferenceTo Entity
+    | TypedAttribute TypeName Attribute
+    | AttributeList (List Attribute)
 
 
 header : File -> Header

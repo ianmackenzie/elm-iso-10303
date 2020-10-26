@@ -3,6 +3,7 @@ module Step.EntityResolution exposing (Error(..), resolve)
 import Dict exposing (Dict)
 import Step.EntityStack as EntityStack exposing (EntityStack)
 import Step.EnumValue as EnumValue exposing (EnumValue)
+import Step.File as File exposing (Attribute, Entity)
 import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types
 
@@ -14,7 +15,7 @@ type Error
 
 type alias EntityResolution =
     { parsedMap : Dict Int Types.ParsedEntity
-    , resolvedMap : Dict Int Types.Entity
+    , resolvedMap : Dict Int Entity
     }
 
 
@@ -25,14 +26,14 @@ init parsedEntityInstances =
     }
 
 
-store : Int -> Types.Entity -> EntityResolution -> EntityResolution
+store : Int -> Entity -> EntityResolution -> EntityResolution
 store id entity entityResolution =
     { entityResolution
         | resolvedMap = Dict.insert id entity entityResolution.resolvedMap
     }
 
 
-addEntity : Int -> Types.ParsedEntity -> EntityResolution -> EntityStack -> Result Error ( Types.Entity, EntityResolution )
+addEntity : Int -> Types.ParsedEntity -> EntityResolution -> EntityStack -> Result Error ( Entity, EntityResolution )
 addEntity id parsedEntity entityResolution entityStack =
     case Dict.get id entityResolution.resolvedMap of
         Just entity ->
@@ -46,7 +47,7 @@ addEntity id parsedEntity entityResolution entityStack =
                             (\( attributes, resolutionWithAttributes ) ->
                                 let
                                     entity =
-                                        Types.Entity typeName attributes
+                                        File.Entity typeName attributes
 
                                     updatedResolution =
                                         store id entity resolutionWithAttributes
@@ -60,7 +61,7 @@ addEntity id parsedEntity entityResolution entityStack =
                             (\( entityRecords, resolutionWithSimpleEntities ) ->
                                 let
                                     entity =
-                                        Types.ComplexEntity entityRecords
+                                        File.ComplexEntity entityRecords
 
                                     updatedResolution =
                                         store id entity resolutionWithSimpleEntities
@@ -73,8 +74,8 @@ addSimpleEntities :
     List ( TypeName, List Types.ParsedAttribute )
     -> EntityResolution
     -> EntityStack
-    -> List ( TypeName, List Types.Attribute )
-    -> Result Error ( List ( TypeName, List Types.Attribute ), EntityResolution )
+    -> List ( TypeName, List Attribute )
+    -> Result Error ( List ( TypeName, List Attribute ), EntityResolution )
 addSimpleEntities parsedSimpleEntities entityResolution entityStack accumulated =
     case parsedSimpleEntities of
         ( typeName, parsedAttributes ) :: rest ->
@@ -90,38 +91,38 @@ addSimpleEntities parsedSimpleEntities entityResolution entityStack accumulated 
             Ok ( List.reverse accumulated, entityResolution )
 
 
-addAttribute : Types.ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( Types.Attribute, EntityResolution )
+addAttribute : Types.ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( Attribute, EntityResolution )
 addAttribute parsedAttribute entityResolution entityStack =
     case parsedAttribute of
         Types.ParsedDerivedAttribute ->
-            Ok ( Types.DerivedAttribute, entityResolution )
+            Ok ( File.DerivedAttribute, entityResolution )
 
         Types.ParsedNullAttribute ->
-            Ok ( Types.NullAttribute, entityResolution )
+            Ok ( File.NullAttribute, entityResolution )
 
         Types.ParsedBoolAttribute value ->
-            Ok ( Types.BoolAttribute value, entityResolution )
+            Ok ( File.BoolAttribute value, entityResolution )
 
         Types.ParsedIntAttribute value ->
-            Ok ( Types.IntAttribute value, entityResolution )
+            Ok ( File.IntAttribute value, entityResolution )
 
         Types.ParsedFloatAttribute value ->
-            Ok ( Types.FloatAttribute value, entityResolution )
+            Ok ( File.FloatAttribute value, entityResolution )
 
         Types.ParsedStringAttribute value ->
-            Ok ( Types.StringAttribute value, entityResolution )
+            Ok ( File.StringAttribute value, entityResolution )
 
         Types.ParsedBinaryAttribute value ->
-            Ok ( Types.BinaryAttribute value, entityResolution )
+            Ok ( File.BinaryAttribute value, entityResolution )
 
         Types.ParsedEnumAttribute name ->
-            Ok ( Types.EnumAttribute name, entityResolution )
+            Ok ( File.EnumAttribute name, entityResolution )
 
         Types.ParsedReference id ->
             case Dict.get id entityResolution.resolvedMap of
                 Just entity ->
                     -- Found an already-resolved entity
-                    Ok ( Types.ReferenceTo entity, entityResolution )
+                    Ok ( File.ReferenceTo entity, entityResolution )
 
                 Nothing ->
                     case Dict.get id entityResolution.parsedMap of
@@ -138,7 +139,7 @@ addAttribute parsedAttribute entityResolution entityStack =
                                         updatedStack
                                         |> Result.map
                                             (\( entity, updatedResolution ) ->
-                                                ( Types.ReferenceTo entity
+                                                ( File.ReferenceTo entity
                                                 , updatedResolution
                                                 )
                                             )
@@ -156,7 +157,7 @@ addAttribute parsedAttribute entityResolution entityStack =
             addAttribute nestedParsedAttribute entityResolution entityStack
                 |> Result.map
                     (\( nestedAttribute, updatedResolution ) ->
-                        ( Types.TypedAttribute name nestedAttribute
+                        ( File.TypedAttribute name nestedAttribute
                         , updatedResolution
                         )
                     )
@@ -165,19 +166,19 @@ addAttribute parsedAttribute entityResolution entityStack =
             addAttributeList parsedAttributeList entityResolution entityStack
                 |> Result.map
                     (\( attributeList, updatedResolution ) ->
-                        ( Types.AttributeList attributeList
+                        ( File.AttributeList attributeList
                         , updatedResolution
                         )
                     )
 
 
-addAttributeList : List Types.ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( List Types.Attribute, EntityResolution )
+addAttributeList : List Types.ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( List Attribute, EntityResolution )
 addAttributeList parsedAttributeList entityResolution entityStack =
     addAttributeListHelp parsedAttributeList [] entityResolution entityStack
         |> Result.map (Tuple.mapFirst List.reverse)
 
 
-addAttributeListHelp : List Types.ParsedAttribute -> List Types.Attribute -> EntityResolution -> EntityStack -> Result Error ( List Types.Attribute, EntityResolution )
+addAttributeListHelp : List Types.ParsedAttribute -> List Attribute -> EntityResolution -> EntityStack -> Result Error ( List Attribute, EntityResolution )
 addAttributeListHelp parsedAttributeList reversedAttributeList entityResolution entityStack =
     case parsedAttributeList of
         [] ->
@@ -222,7 +223,7 @@ addEntities parsedEntityInstances entityResolution =
                     addResult
 
 
-resolve : List ( Int, Types.ParsedEntity ) -> Result Error (Dict Int Types.Entity)
+resolve : List ( Int, Types.ParsedEntity ) -> Result Error (Dict Int Entity)
 resolve parsedEntityInstances =
     let
         entityResolution =

@@ -58,7 +58,7 @@ import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
 import Step.File as File exposing (Attribute, Entity, File(..), Header)
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (Attribute, Entity)
+import Step.Types as Types
 
 
 {-| A `Decoder` describes how to attempt to decode some input of type `i` (an
@@ -334,7 +334,7 @@ entity givenTypeName decoder =
     Decoder
         (\currentEntity ->
             case currentEntity of
-                Types.Entity typeName attributes ->
+                File.Entity typeName attributes ->
                     if typeName == searchTypeName then
                         case decodeResult decoder attributes of
                             Succeeded a ->
@@ -355,7 +355,7 @@ entity givenTypeName decoder =
                                 ++ "'"
                             )
 
-                Types.ComplexEntity entityRecords ->
+                File.ComplexEntity entityRecords ->
                     partialEntity searchTypeName decoder entityRecords
         )
 
@@ -564,7 +564,7 @@ bool =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.BoolAttribute value ->
+                File.BoolAttribute value ->
                     Succeeded value
 
                 _ ->
@@ -579,7 +579,7 @@ int =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.IntAttribute value ->
+                File.IntAttribute value ->
                     Succeeded value
 
                 _ ->
@@ -600,10 +600,10 @@ float =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.FloatAttribute value ->
+                File.FloatAttribute value ->
                     Succeeded value
 
-                Types.NullAttribute ->
+                File.NullAttribute ->
                     -- Some STEP files seem to use $ to indicate NaN even though
                     -- that doesn't seem to be allowed by the spec
                     Succeeded (0 / 0)
@@ -758,7 +758,7 @@ string =
     Decoder
         (\attribute_ ->
             case attribute_ of
-                Types.StringAttribute encodedString ->
+                File.StringAttribute encodedString ->
                     case Parser.run parseString encodedString of
                         Ok decodedString ->
                             Succeeded decodedString
@@ -807,7 +807,7 @@ enum cases =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.EnumAttribute enumValue ->
+                File.EnumAttribute enumValue ->
                     case Dict.get (EnumValue.toString enumValue) lookupDict of
                         Just value ->
                             Succeeded value
@@ -856,7 +856,7 @@ list itemDecoder =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.AttributeList attributes_ ->
+                File.AttributeList attributes_ ->
                     collectDecodedAttributes itemDecoder [] attributes_
 
                 _ ->
@@ -873,7 +873,7 @@ typedAttribute givenTypeName decoder =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.TypedAttribute attributeTypeName underlyingAttribute ->
+                File.TypedAttribute attributeTypeName underlyingAttribute ->
                     if attributeTypeName == expectedTypeName then
                         decodeResult decoder underlyingAttribute
 
@@ -941,7 +941,7 @@ tuple2 decoder =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.AttributeList [ firstAttribute, secondAttribute ] ->
+                File.AttributeList [ firstAttribute, secondAttribute ] ->
                     map2Help Tuple.pair
                         (decodeResult decoder firstAttribute)
                         (decodeResult decoder secondAttribute)
@@ -959,7 +959,7 @@ tuple3 decoder =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.AttributeList [ firstAttribute, secondAttribute, thirdAttribute ] ->
+                File.AttributeList [ firstAttribute, secondAttribute, thirdAttribute ] ->
                     map2Help (<|)
                         (map2Help (\first second third -> ( first, second, third ))
                             (decodeResult decoder firstAttribute)
@@ -980,7 +980,7 @@ referenceTo entityDecoder =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.ReferenceTo referencedEntity ->
+                File.ReferenceTo referencedEntity ->
                     case decodeResult entityDecoder referencedEntity of
                         Succeeded value ->
                             Succeeded value
@@ -1043,7 +1043,7 @@ null value =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.NullAttribute ->
+                File.NullAttribute ->
                     Succeeded value
 
                 _ ->
@@ -1058,7 +1058,7 @@ derived value =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                Types.DerivedAttribute ->
+                File.DerivedAttribute ->
                     Succeeded value
 
                 _ ->
@@ -1078,7 +1078,7 @@ optional decoder =
 
                 Failed message ->
                     case inputAttribute of
-                        Types.NullAttribute ->
+                        File.NullAttribute ->
                             Succeeded Nothing
 
                         _ ->

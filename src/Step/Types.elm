@@ -15,29 +15,6 @@ type AttributeValue
     = AttributeValue String
 
 
-{-| A single STEP entity.
--}
-type Entity
-    = Entity TypeName (List Attribute)
-    | ComplexEntity (List ( TypeName, List Attribute ))
-
-
-{-| An attribute of a STEP entity.
--}
-type Attribute
-    = DerivedAttribute
-    | NullAttribute
-    | BoolAttribute Bool
-    | IntAttribute Int
-    | FloatAttribute Float
-    | StringAttribute String
-    | BinaryAttribute String
-    | EnumAttribute EnumValue
-    | ReferenceTo Entity
-    | TypedAttribute TypeName Attribute
-    | AttributeList (List Attribute)
-
-
 {-| An attribute that has been parsed but not yet resolved (may be an
 unresolved entity reference).
 -}

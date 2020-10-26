@@ -2,9 +2,10 @@ module Step.Entities exposing (compile)
 
 import Dict exposing (Dict)
 import Step.EnumValue as EnumValue exposing (EnumValue)
+import Step.File as File exposing (Attribute, Entity)
 import Step.Format as Format
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (Attribute, Entity)
+import Step.Types as Types
 
 
 type EntityMap
@@ -24,7 +25,7 @@ buildMap entities =
 addEntity : Entity -> EntityMap -> ( Int, EntityMap )
 addEntity entity entityMap =
     case entity of
-        Types.Entity typeName attributes ->
+        File.Entity typeName attributes ->
             let
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap
@@ -34,7 +35,7 @@ addEntity entity entityMap =
             in
             update entity entityString mapWithAttributes
 
-        Types.ComplexEntity entityRecords ->
+        File.ComplexEntity entityRecords ->
             let
                 ( simpleEntityValues, mapWithSimpleEntities ) =
                     addEntityRecords entityRecords entityMap []
@@ -84,45 +85,45 @@ addAttributes attributes entityMap =
 addAttribute : Attribute -> EntityMap -> ( Types.AttributeValue, EntityMap )
 addAttribute attribute entityMap =
     case attribute of
-        Types.DerivedAttribute ->
+        File.DerivedAttribute ->
             ( Format.derivedAttribute, entityMap )
 
-        Types.NullAttribute ->
+        File.NullAttribute ->
             ( Format.nullAttribute, entityMap )
 
-        Types.BoolAttribute bool ->
+        File.BoolAttribute bool ->
             ( Format.boolAttribute bool, entityMap )
 
-        Types.IntAttribute int ->
+        File.IntAttribute int ->
             ( Format.intAttribute int, entityMap )
 
-        Types.FloatAttribute float ->
+        File.FloatAttribute float ->
             ( Format.floatAttribute float, entityMap )
 
-        Types.StringAttribute string ->
+        File.StringAttribute string ->
             ( Format.stringAttribute string, entityMap )
 
-        Types.BinaryAttribute string ->
+        File.BinaryAttribute string ->
             ( Format.binaryAttribute string, entityMap )
 
-        Types.EnumAttribute enumValue ->
+        File.EnumAttribute enumValue ->
             ( Format.enumAttribute enumValue, entityMap )
 
-        Types.ReferenceTo entity ->
+        File.ReferenceTo entity ->
             let
                 ( entityId, updatedMap ) =
                     addEntity entity entityMap
             in
             ( Format.referenceTo entityId, updatedMap )
 
-        Types.TypedAttribute typeName typedAttribute ->
+        File.TypedAttribute typeName typedAttribute ->
             let
                 ( attributeValue, updatedMap ) =
                     addAttribute typedAttribute entityMap
             in
             ( Format.typedAttribute typeName attributeValue, updatedMap )
 
-        Types.AttributeList attributes ->
+        File.AttributeList attributes ->
             let
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap
