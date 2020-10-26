@@ -56,7 +56,7 @@ import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
-import Step.File as File exposing (Attribute, Entity, File(..), Header)
+import Step.File as File exposing (Attribute, Entity, File, Header)
 import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types
 
@@ -256,7 +256,7 @@ file decoder contents =
 -}
 header : FileDecoder Header
 header =
-    Decoder (\input -> Succeeded (File.header input))
+    Decoder (\input -> Succeeded input.header)
 
 
 {-| Attempt to find exactly one entity in a file that matches the given decoder.
@@ -265,7 +265,7 @@ will fail.
 -}
 single : EntityDecoder a -> FileDecoder a
 single entityDecoder =
-    Decoder (\input -> singleEntity entityDecoder (File.entities input) Nothing)
+    Decoder (\input -> singleEntity entityDecoder input.entities Nothing)
 
 
 singleEntity : EntityDecoder a -> List Entity -> Maybe a -> DecodeResult Never a
@@ -300,7 +300,7 @@ singleEntity decoder entities currentValue =
 -}
 all : EntityDecoder a -> FileDecoder (List a)
 all entityDecoder =
-    Decoder (\input -> allEntities entityDecoder (File.entities input) [])
+    Decoder (\input -> allEntities entityDecoder input.entities [])
 
 
 allEntities : EntityDecoder a -> List Entity -> List a -> DecodeResult Never (List a)
