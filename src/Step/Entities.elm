@@ -22,6 +22,11 @@ buildMap entities =
         entities
 
 
+formatEntityRecord : ( TypeName, List String ) -> String
+formatEntityRecord ( typeName, attributeValues ) =
+    TypeName.toString typeName ++ "(" ++ String.join "," attributeValues ++ ")"
+
+
 addEntity : Entity -> EntityMap -> ( Int, EntityMap )
 addEntity entity entityMap =
     case entity of
@@ -31,7 +36,7 @@ addEntity entity entityMap =
                     addAttributes attributes entityMap
 
                 entityString =
-                    Format.simpleEntity ( typeName, attributeValues )
+                    formatEntityRecord ( typeName, attributeValues )
             in
             update entity entityString mapWithAttributes
 
@@ -40,8 +45,11 @@ addEntity entity entityMap =
                 ( simpleEntityValues, mapWithSimpleEntities ) =
                     addEntityRecords entityRecords entityMap []
 
+                simpleEntityStrings =
+                    List.map formatEntityRecord simpleEntityValues
+
                 entityString =
-                    Format.complexEntity simpleEntityValues
+                    "(" ++ String.concat simpleEntityStrings ++ ")"
             in
             update entity entityString mapWithSimpleEntities
 
@@ -49,8 +57,8 @@ addEntity entity entityMap =
 addEntityRecords :
     List ( TypeName, List Attribute )
     -> EntityMap
-    -> List ( TypeName, List Types.AttributeValue )
-    -> ( List ( TypeName, List Types.AttributeValue ), EntityMap )
+    -> List ( TypeName, List String )
+    -> ( List ( TypeName, List String ), EntityMap )
 addEntityRecords entityRecords entityMap accumulated =
     case entityRecords of
         ( typeName, attributes ) :: rest ->
@@ -65,7 +73,7 @@ addEntityRecords entityRecords entityMap accumulated =
             ( List.reverse accumulated, entityMap )
 
 
-addAttributes : List Attribute -> EntityMap -> ( List Types.AttributeValue, EntityMap )
+addAttributes : List Attribute -> EntityMap -> ( List String, EntityMap )
 addAttributes attributes entityMap =
     List.foldl
         (\attribute ( accumulatedAttributeValues, accumulatedMap ) ->
@@ -82,39 +90,39 @@ addAttributes attributes entityMap =
         |> Tuple.mapFirst List.reverse
 
 
-addAttribute : Attribute -> EntityMap -> ( Types.AttributeValue, EntityMap )
+addAttribute : Attribute -> EntityMap -> ( String, EntityMap )
 addAttribute attribute entityMap =
     case attribute of
         File.DerivedValue ->
             ( Format.derivedValue, entityMap )
 
         File.NullAttribute ->
-            ( Format.nullAttribute, entityMap )
+            ( Format.null, entityMap )
 
         File.BoolAttribute bool ->
-            ( Format.boolAttribute bool, entityMap )
+            ( Format.bool bool, entityMap )
 
         File.IntAttribute int ->
-            ( Format.intAttribute int, entityMap )
+            ( Format.int int, entityMap )
 
         File.FloatAttribute float ->
-            ( Format.floatAttribute float, entityMap )
+            ( Format.float float, entityMap )
 
         File.StringAttribute string ->
-            ( Format.stringAttribute string, entityMap )
+            ( Format.string string, entityMap )
 
         File.BinaryAttribute string ->
-            ( Format.binaryAttribute string, entityMap )
+            ( Format.binary string, entityMap )
 
         File.EnumAttribute enumValue ->
-            ( Format.enumAttribute enumValue, entityMap )
+            ( Format.enum enumValue, entityMap )
 
         File.ReferenceTo entity ->
             let
                 ( entityId, updatedMap ) =
                     addEntity entity entityMap
             in
-            ( Format.referenceTo entityId, updatedMap )
+            ( Format.id entityId, updatedMap )
 
         File.TypedAttribute typeName typedAttribute ->
             let
@@ -128,7 +136,7 @@ addAttribute attribute entityMap =
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap
             in
-            ( Format.listAttribute attributeValues, mapWithAttributes )
+            ( Format.list attributeValues, mapWithAttributes )
 
 
 update : Entity -> String -> EntityMap -> ( Int, EntityMap )

@@ -7,13 +7,6 @@ import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.TypeName as TypeName exposing (TypeName)
 
 
-{-| An attribute value string such as "1", "2.", "'some string'", ".STEEL." or
-"#34".
--}
-type AttributeValue
-    = AttributeValue String
-
-
 {-| An attribute that has been parsed but not yet resolved (may be an
 unresolved entity reference).
 -}

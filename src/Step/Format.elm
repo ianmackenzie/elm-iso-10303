@@ -1,22 +1,10 @@
-module Step.Format exposing
-    ( binaryAttribute
-    , boolAttribute
-    , complexEntity
-    , derivedAttribute
-    , enumAttribute
-    , floatAttribute
-    , id
-    , intAttribute
-    , listAttribute
-    , nullAttribute
-    , referenceTo
-    , simpleEntity
-    , stringAttribute
-    , typedAttribute
-    )
+module Step.Format exposing (derivedValue, null, bool, int, float, string, id, enum, binary, list, typedAttribute)
 
-{-| Various string-formatting utilities, many of which wrap their result in
-a type such as AttributeValue to improve type safety.
+{-| Low-level attribute formatting functionality. Usually you will want to use
+the functions in the [`Step.Encode`](Step-Encode) module instead.
+
+@docs derivedValue, null, optional, bool, int, float, string, id, enum, binary, list, typedAttribute
+
 -}
 
 import Bitwise
@@ -26,13 +14,8 @@ import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types
 
 
-attributeValue : String -> Types.AttributeValue
-attributeValue value =
-    Types.AttributeValue value
-
-
-stringAttribute : String -> Types.AttributeValue
-stringAttribute value =
+string : String -> String
+string value =
     let
         encoded =
             value
@@ -40,7 +23,7 @@ stringAttribute value =
                 |> List.map encodedCharacter
                 |> String.concat
     in
-    attributeValue ("'" ++ encoded ++ "'")
+    "'" ++ encoded ++ "'"
 
 
 apostropheCodePoint : Int
@@ -111,101 +94,65 @@ hexCharacterAtIndex index value =
         ""
 
 
-binaryAttribute : String -> Types.AttributeValue
-binaryAttribute value =
-    attributeValue ("\"" ++ value ++ "\"")
+binary : String -> String
+binary value =
+    "\"" ++ value ++ "\""
 
 
-enumAttribute : EnumValue -> Types.AttributeValue
-enumAttribute enumValue =
-    attributeValue ("." ++ EnumValue.toString enumValue ++ ".")
+enum : EnumValue -> String
+enum enumValue =
+    "." ++ EnumValue.toString enumValue ++ "."
 
 
-boolAttribute : Bool -> Types.AttributeValue
-boolAttribute bool =
-    if bool then
-        attributeValue ".T."
+bool : Bool -> String
+bool value =
+    if value then
+        ".T."
 
     else
-        attributeValue ".F."
+        ".F."
 
 
-intAttribute : Int -> Types.AttributeValue
-intAttribute value =
-    attributeValue (String.fromInt value)
+int : Int -> String
+int value =
+    String.fromInt value
 
 
-floatAttribute : Float -> Types.AttributeValue
-floatAttribute value =
+float : Float -> String
+float value =
     let
         floatString =
             String.fromFloat value
     in
-    attributeValue <|
-        if String.contains "." floatString then
-            floatString
+    if String.contains "." floatString then
+        floatString
 
-        else
-            -- No decimal point, so must be an integer-valued float; add a
-            -- trailing decimal point as required by the STEP standard
-            floatString ++ "."
-
-
-referenceTo : Int -> Types.AttributeValue
-referenceTo value =
-    attributeValue (id value)
+    else
+        -- No decimal point, so must be an integer-valued float; add a
+        -- trailing decimal point as required by the STEP standard
+        floatString ++ "."
 
 
-derivedAttribute : Types.AttributeValue
-derivedAttribute =
-    attributeValue "*"
+derivedValue : String
+derivedValue =
+    "*"
 
 
-nullAttribute : Types.AttributeValue
-nullAttribute =
-    attributeValue "$"
+null : String
+null =
+    "$"
 
 
-listAttribute : List Types.AttributeValue -> Types.AttributeValue
-listAttribute attributeValues =
-    let
-        rawAttributeValues =
-            attributeValues
-                |> List.map
-                    (\(Types.AttributeValue rawAttributeValue) ->
-                        rawAttributeValue
-                    )
-    in
-    attributeValue ("(" ++ String.join "," rawAttributeValues ++ ")")
+list : List String -> String
+list attributeValues =
+    "(" ++ String.join "," attributeValues ++ ")"
 
 
-typedAttribute : TypeName -> Types.AttributeValue -> Types.AttributeValue
-typedAttribute typeName (Types.AttributeValue rawAttributeValue) =
-    attributeValue (TypeName.toString typeName ++ "(" ++ rawAttributeValue ++ ")")
+typedAttribute : TypeName -> String -> String
+typedAttribute typeName attributeValue =
+    TypeName.toString typeName ++ "(" ++ attributeValue ++ ")"
 
 
 id : Int -> String
 id value =
     "#" ++ String.fromInt value
-
-
-simpleEntity : ( TypeName, List Types.AttributeValue ) -> String
-simpleEntity ( typeName, attributeValues ) =
-    let
-        rawAttributeValues =
-            attributeValues
-                |> List.map
-                    (\(Types.AttributeValue rawAttributeValue) ->
-                        rawAttributeValue
-                    )
-    in
-    TypeName.toString typeName ++ "(" ++ String.join "," rawAttributeValues ++ ")"
-
-
-complexEntity : List ( TypeName, List Types.AttributeValue ) -> String
-complexEntity simpleEntities =
-    let
-        simpleEntityStrings =
-            List.map simpleEntity simpleEntities
-    in
-    "(" ++ String.concat simpleEntityStrings ++ ")"
