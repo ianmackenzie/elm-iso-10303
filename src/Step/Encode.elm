@@ -3,6 +3,7 @@ module Step.Encode exposing
     , entity, complexEntity
     , derived, null, optional, bool, int, float, string, referenceTo, enum, binary, list, tuple2, tuple3
     , boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs
+    , typedAttribute
     )
 
 {-| This module allows you to encode data in [ISO 10303-21](https://en.wikipedia.org/wiki/ISO_10303-21)
@@ -506,6 +507,9 @@ listAs givenTypeName toAttribute values =
     typedAttribute givenTypeName (list toAttribute values)
 
 
+{-| Construct a generic type-tagged attribute. In most cases it will be simpler
+to use one of the specific functions such as `floatAs` or `enumAs`.
+-}
 typedAttribute : String -> Attribute -> Attribute
 typedAttribute givenTypeName attribute =
     File.TypedAttribute (TypeName.fromString givenTypeName) attribute
