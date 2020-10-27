@@ -2,8 +2,7 @@ module Step.Encode exposing
     ( file
     , entity, complexEntity
     , derived, null, optional, bool, int, float, string, referenceTo, enum, binary, list, tuple2, tuple3
-    , boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs
-    , typedAttribute
+    , boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs, typedAttribute
     )
 
 {-| This module allows you to encode data in [ISO 10303-21](https://en.wikipedia.org/wiki/ISO_10303-21)
@@ -156,7 +155,7 @@ order.
 
 Typed attributes are sometimes needed when dealing with SELECT types.
 
-@docs boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs
+@docs boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs, typedAttribute
 
 -}
 
