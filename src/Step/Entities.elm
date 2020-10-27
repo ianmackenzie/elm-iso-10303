@@ -85,8 +85,8 @@ addAttributes attributes entityMap =
 addAttribute : Attribute -> EntityMap -> ( Types.AttributeValue, EntityMap )
 addAttribute attribute entityMap =
     case attribute of
-        File.DerivedAttribute ->
-            ( Format.derivedAttribute, entityMap )
+        File.DerivedValue ->
+            ( Format.derivedValue, entityMap )
 
         File.NullAttribute ->
             ( Format.nullAttribute, entityMap )

@@ -76,7 +76,7 @@ type Entity
 coordinate value, a GUID string, or a reference to another entity.
 -}
 type Attribute
-    = DerivedAttribute
+    = DerivedValue
     | NullAttribute
     | BoolAttribute Bool
     | IntAttribute Int

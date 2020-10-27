@@ -1,7 +1,7 @@
 module Step.Encode exposing
     ( file
     , entity, complexEntity
-    , derived, null, optional, bool, int, float, string, referenceTo, enum, binary, list, tuple2, tuple3
+    , derivedValue, null, optional, bool, int, float, string, referenceTo, enum, binary, list, tuple2, tuple3
     , boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs, typedAttribute
     )
 
@@ -148,7 +148,7 @@ order.
 
 # Attributes
 
-@docs derived, null, optional, bool, int, float, string, referenceTo, enum, binary, list, tuple2, tuple3
+@docs derivedValue, null, optional, bool, int, float, string, referenceTo, enum, binary, list, tuple2, tuple3
 
 
 ## Typed attributes
@@ -326,9 +326,9 @@ referenceTo entity_ =
 
 {-| The special 'derived value' attribute (`*` in the resulting STEP file).
 -}
-derived : Attribute
-derived =
-    File.DerivedAttribute
+derivedValue : Attribute
+derivedValue =
+    File.DerivedValue
 
 
 {-| The special 'null value' attribute (`$` in the resulting STEP file).

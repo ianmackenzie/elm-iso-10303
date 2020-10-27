@@ -95,7 +95,7 @@ addAttribute : Types.ParsedAttribute -> EntityResolution -> EntityStack -> Resul
 addAttribute parsedAttribute entityResolution entityStack =
     case parsedAttribute of
         Types.ParsedDerivedAttribute ->
-            Ok ( File.DerivedAttribute, entityResolution )
+            Ok ( File.DerivedValue, entityResolution )
 
         Types.ParsedNullAttribute ->
             Ok ( File.NullAttribute, entityResolution )

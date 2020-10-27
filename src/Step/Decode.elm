@@ -3,7 +3,7 @@ module Step.Decode exposing
     , file, header, single, all
     , entity
     , attribute
-    , bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derived
+    , bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derivedValue
     , boolAs, intAs, floatAs, stringAs, enumAs, listAs
     , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy, identity, run
     )
@@ -34,7 +34,7 @@ you decode [JSON](https://package.elm-lang.org/packages/elm/json/latest/Json-Dec
 
 # Decoding attributes
 
-@docs bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derived
+@docs bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derivedValue
 
 
 ## Typed attributes
@@ -1053,12 +1053,12 @@ null value =
 
 {-| Decode the special 'derived value' attribute (`*`) as the given value.
 -}
-derived : a -> AttributeDecoder a
-derived value =
+derivedValue : a -> AttributeDecoder a
+derivedValue value =
     Decoder
         (\inputAttribute ->
             case inputAttribute of
-                File.DerivedAttribute ->
+                File.DerivedValue ->
                     Succeeded value
 
                 _ ->
