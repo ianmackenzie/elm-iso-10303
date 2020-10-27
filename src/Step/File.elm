@@ -1,14 +1,14 @@
-module Step.File exposing (File, Header, Entity(..), Attribute(..))
+module Step.File exposing (File, Header, Entity(..), Attribute(..), TypeName, EnumValue)
 
 {-| The types in this module are shared between the [`Encode`](Step-Encode) and
 [`Decode`](Step-Decode) modules.
 
-@docs File, Header, Entity, Attribute
+@docs File, Header, Entity, Attribute, TypeName, EnumValue
 
 -}
 
-import Step.EnumValue as EnumValue exposing (EnumValue)
-import Step.TypeName as TypeName exposing (TypeName)
+import Step.EnumValue as EnumValue
+import Step.TypeName as TypeName
 
 
 {-| Represents an entire STEP file composed of a header and a list of entities.
@@ -87,3 +87,13 @@ type Attribute
     | ReferenceTo Entity
     | TypedAttribute TypeName Attribute
     | AttributeList (List Attribute)
+
+
+{-| -}
+type alias TypeName =
+    TypeName.TypeName
+
+
+{-| -}
+type alias EnumValue =
+    EnumValue.EnumValue
