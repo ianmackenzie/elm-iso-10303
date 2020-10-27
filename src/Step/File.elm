@@ -68,7 +68,7 @@ which can themselves be references to other entities) or 'complex' (effectively
 a list of simple entities combined together).
 -}
 type Entity
-    = Entity TypeName (List Attribute)
+    = SimpleEntity TypeName (List Attribute)
     | ComplexEntity (List ( TypeName, List Attribute ))
 
 

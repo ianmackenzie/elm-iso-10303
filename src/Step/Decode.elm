@@ -334,7 +334,7 @@ entity givenTypeName decoder =
     Decoder
         (\currentEntity ->
             case currentEntity of
-                File.Entity typeName attributes ->
+                File.SimpleEntity typeName attributes ->
                     if typeName == searchTypeName then
                         case decodeResult decoder attributes of
                             Succeeded a ->

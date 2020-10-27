@@ -292,7 +292,7 @@ automatically-generated IDs, something like:
 -}
 entity : String -> List Attribute -> Entity
 entity givenTypeName givenAttributes =
-    File.Entity (TypeName.fromString givenTypeName) givenAttributes
+    File.SimpleEntity (TypeName.fromString givenTypeName) givenAttributes
 
 
 {-| Construct a single 'complex entity'; for example

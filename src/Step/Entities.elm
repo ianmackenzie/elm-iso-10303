@@ -25,7 +25,7 @@ buildMap entities =
 addEntity : Entity -> EntityMap -> ( Int, EntityMap )
 addEntity entity entityMap =
     case entity of
-        File.Entity typeName attributes ->
+        File.SimpleEntity typeName attributes ->
             let
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap

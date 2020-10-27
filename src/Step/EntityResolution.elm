@@ -47,7 +47,7 @@ addEntity id parsedEntity entityResolution entityStack =
                             (\( attributes, resolutionWithAttributes ) ->
                                 let
                                     entity =
-                                        File.Entity typeName attributes
+                                        File.SimpleEntity typeName attributes
 
                                     updatedResolution =
                                         store id entity resolutionWithAttributes
