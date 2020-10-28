@@ -11,7 +11,6 @@ import Bitwise
 import Char
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types
 
 
 {-| Format a string by wrapping it in single quotation marks. Unicode characters

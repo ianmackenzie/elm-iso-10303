@@ -4,8 +4,8 @@ import Dict exposing (Dict)
 import Step.EntityStack as EntityStack exposing (EntityStack)
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.File as File exposing (Attribute, Entity)
+import Step.Internal exposing (ParsedAttribute(..), ParsedEntity(..))
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types
 
 
 type Error
@@ -14,12 +14,12 @@ type Error
 
 
 type alias EntityResolution =
-    { parsedMap : Dict Int Types.ParsedEntity
+    { parsedMap : Dict Int ParsedEntity
     , resolvedMap : Dict Int Entity
     }
 
 
-init : List ( Int, Types.ParsedEntity ) -> EntityResolution
+init : List ( Int, ParsedEntity ) -> EntityResolution
 init parsedEntityInstances =
     { parsedMap = Dict.fromList parsedEntityInstances
     , resolvedMap = Dict.empty
@@ -33,7 +33,7 @@ store id entity entityResolution =
     }
 
 
-addEntity : Int -> Types.ParsedEntity -> EntityResolution -> EntityStack -> Result Error ( Entity, EntityResolution )
+addEntity : Int -> ParsedEntity -> EntityResolution -> EntityStack -> Result Error ( Entity, EntityResolution )
 addEntity id parsedEntity entityResolution entityStack =
     case Dict.get id entityResolution.resolvedMap of
         Just entity ->
@@ -41,7 +41,7 @@ addEntity id parsedEntity entityResolution entityStack =
 
         Nothing ->
             case parsedEntity of
-                Types.ParsedSimpleEntity typeName parsedAttributes ->
+                ParsedSimpleEntity typeName parsedAttributes ->
                     addAttributeList parsedAttributes entityResolution entityStack
                         |> Result.map
                             (\( attributes, resolutionWithAttributes ) ->
@@ -55,7 +55,7 @@ addEntity id parsedEntity entityResolution entityStack =
                                 ( entity, updatedResolution )
                             )
 
-                Types.ParsedComplexEntity parsedSimpleEntities ->
+                ParsedComplexEntity parsedSimpleEntities ->
                     addSimpleEntities parsedSimpleEntities entityResolution entityStack []
                         |> Result.map
                             (\( entityRecords, resolutionWithSimpleEntities ) ->
@@ -71,7 +71,7 @@ addEntity id parsedEntity entityResolution entityStack =
 
 
 addSimpleEntities :
-    List ( TypeName, List Types.ParsedAttribute )
+    List ( TypeName, List ParsedAttribute )
     -> EntityResolution
     -> EntityStack
     -> List ( TypeName, List Attribute )
@@ -91,34 +91,34 @@ addSimpleEntities parsedSimpleEntities entityResolution entityStack accumulated 
             Ok ( List.reverse accumulated, entityResolution )
 
 
-addAttribute : Types.ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( Attribute, EntityResolution )
+addAttribute : ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( Attribute, EntityResolution )
 addAttribute parsedAttribute entityResolution entityStack =
     case parsedAttribute of
-        Types.ParsedDerivedAttribute ->
+        ParsedDerivedAttribute ->
             Ok ( File.DerivedValue, entityResolution )
 
-        Types.ParsedNullAttribute ->
+        ParsedNullAttribute ->
             Ok ( File.NullAttribute, entityResolution )
 
-        Types.ParsedBoolAttribute value ->
+        ParsedBoolAttribute value ->
             Ok ( File.BoolAttribute value, entityResolution )
 
-        Types.ParsedIntAttribute value ->
+        ParsedIntAttribute value ->
             Ok ( File.IntAttribute value, entityResolution )
 
-        Types.ParsedFloatAttribute value ->
+        ParsedFloatAttribute value ->
             Ok ( File.FloatAttribute value, entityResolution )
 
-        Types.ParsedStringAttribute value ->
+        ParsedStringAttribute value ->
             Ok ( File.StringAttribute value, entityResolution )
 
-        Types.ParsedBinaryAttribute value ->
+        ParsedBinaryAttribute value ->
             Ok ( File.BinaryAttribute value, entityResolution )
 
-        Types.ParsedEnumAttribute name ->
+        ParsedEnumAttribute name ->
             Ok ( File.EnumAttribute name, entityResolution )
 
-        Types.ParsedReference id ->
+        ParsedReference id ->
             case Dict.get id entityResolution.resolvedMap of
                 Just entity ->
                     -- Found an already-resolved entity
@@ -153,7 +153,7 @@ addAttribute parsedAttribute entityResolution entityStack =
                         Nothing ->
                             Err (NonexistentEntity id)
 
-        Types.ParsedTypedAttribute name nestedParsedAttribute ->
+        ParsedTypedAttribute name nestedParsedAttribute ->
             addAttribute nestedParsedAttribute entityResolution entityStack
                 |> Result.map
                     (\( nestedAttribute, updatedResolution ) ->
@@ -162,7 +162,7 @@ addAttribute parsedAttribute entityResolution entityStack =
                         )
                     )
 
-        Types.ParsedAttributeList parsedAttributeList ->
+        ParsedAttributeList parsedAttributeList ->
             addAttributeList parsedAttributeList entityResolution entityStack
                 |> Result.map
                     (\( attributeList, updatedResolution ) ->
@@ -172,13 +172,13 @@ addAttribute parsedAttribute entityResolution entityStack =
                     )
 
 
-addAttributeList : List Types.ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( List Attribute, EntityResolution )
+addAttributeList : List ParsedAttribute -> EntityResolution -> EntityStack -> Result Error ( List Attribute, EntityResolution )
 addAttributeList parsedAttributeList entityResolution entityStack =
     addAttributeListHelp parsedAttributeList [] entityResolution entityStack
         |> Result.map (Tuple.mapFirst List.reverse)
 
 
-addAttributeListHelp : List Types.ParsedAttribute -> List Attribute -> EntityResolution -> EntityStack -> Result Error ( List Attribute, EntityResolution )
+addAttributeListHelp : List ParsedAttribute -> List Attribute -> EntityResolution -> EntityStack -> Result Error ( List Attribute, EntityResolution )
 addAttributeListHelp parsedAttributeList reversedAttributeList entityResolution entityStack =
     case parsedAttributeList of
         [] ->
@@ -200,7 +200,7 @@ addAttributeListHelp parsedAttributeList reversedAttributeList entityResolution 
                     Err error
 
 
-addEntities : List ( Int, Types.ParsedEntity ) -> EntityResolution -> Result Error EntityResolution
+addEntities : List ( Int, ParsedEntity ) -> EntityResolution -> Result Error EntityResolution
 addEntities parsedEntityInstances entityResolution =
     case parsedEntityInstances of
         [] ->
@@ -223,7 +223,7 @@ addEntities parsedEntityInstances entityResolution =
                     addResult
 
 
-resolve : List ( Int, Types.ParsedEntity ) -> Result Error (Dict Int Entity)
+resolve : List ( Int, ParsedEntity ) -> Result Error (Dict Int Entity)
 resolve parsedEntityInstances =
     let
         entityResolution =

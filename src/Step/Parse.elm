@@ -5,8 +5,8 @@ import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.File exposing (Header)
+import Step.Internal exposing (ParsedAttribute(..), ParsedEntity(..))
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types
 import String
 
 
@@ -117,17 +117,17 @@ optionalSign =
         ]
 
 
-signedInt : Int -> Int -> Types.ParsedAttribute
+signedInt : Int -> Int -> ParsedAttribute
 signedInt sign value =
-    Types.ParsedIntAttribute (sign * value)
+    ParsedIntAttribute (sign * value)
 
 
-signedFloat : Int -> Float -> Types.ParsedAttribute
+signedFloat : Int -> Float -> ParsedAttribute
 signedFloat sign value =
-    Types.ParsedFloatAttribute (toFloat sign * value)
+    ParsedFloatAttribute (toFloat sign * value)
 
 
-numericAttribute : Parser Types.ParsedAttribute
+numericAttribute : Parser ParsedAttribute
 numericAttribute =
     optionalSign
         |> Parser.andThen
@@ -142,9 +142,9 @@ numericAttribute =
             )
 
 
-typedAttribute : Parser Types.ParsedAttribute
+typedAttribute : Parser ParsedAttribute
 typedAttribute =
-    Parser.succeed Types.ParsedTypedAttribute
+    Parser.succeed ParsedTypedAttribute
         |= typeName
         |. whitespace
         |. Parser.token "("
@@ -154,33 +154,33 @@ typedAttribute =
         |. Parser.token ")"
 
 
-attribute : Parser Types.ParsedAttribute
+attribute : Parser ParsedAttribute
 attribute =
     Parser.oneOf
-        [ Parser.succeed Types.ParsedDerivedAttribute |. Parser.token "*"
-        , Parser.succeed Types.ParsedNullAttribute |. Parser.token "$"
-        , Parser.succeed (Types.ParsedBoolAttribute True) |. Parser.token ".T."
-        , Parser.succeed (Types.ParsedBoolAttribute False) |. Parser.token ".F."
-        , Parser.succeed Types.ParsedEnumAttribute |= enum
+        [ Parser.succeed ParsedDerivedAttribute |. Parser.token "*"
+        , Parser.succeed ParsedNullAttribute |. Parser.token "$"
+        , Parser.succeed (ParsedBoolAttribute True) |. Parser.token ".T."
+        , Parser.succeed (ParsedBoolAttribute False) |. Parser.token ".F."
+        , Parser.succeed ParsedEnumAttribute |= enum
         , numericAttribute
-        , Parser.succeed Types.ParsedStringAttribute |= string
-        , Parser.succeed Types.ParsedBinaryAttribute |= binary
-        , Parser.succeed Types.ParsedReference |= id
-        , Parser.succeed Types.ParsedAttributeList |= list lazyAttribute
+        , Parser.succeed ParsedStringAttribute |= string
+        , Parser.succeed ParsedBinaryAttribute |= binary
+        , Parser.succeed ParsedReference |= id
+        , Parser.succeed ParsedAttributeList |= list lazyAttribute
         , typedAttribute
         ]
 
 
-lazyAttribute : Parser Types.ParsedAttribute
+lazyAttribute : Parser ParsedAttribute
 lazyAttribute =
     Parser.lazy (\() -> attribute)
 
 
-entity : Parser ( Int, Types.ParsedEntity )
+entity : Parser ( Int, ParsedEntity )
 entity =
     Parser.succeed
         (\id_ typeName_ attributes_ ->
-            ( id_, Types.ParsedSimpleEntity typeName_ attributes_ )
+            ( id_, ParsedSimpleEntity typeName_ attributes_ )
         )
         |= id
         |. Parser.token "="

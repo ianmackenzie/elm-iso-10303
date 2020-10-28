@@ -5,7 +5,6 @@ import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.File as File exposing (Attribute, Entity)
 import Step.Format as Format
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types
 
 
 type EntityMap

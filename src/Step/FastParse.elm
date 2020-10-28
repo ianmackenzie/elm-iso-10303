@@ -7,9 +7,9 @@ import Regex exposing (Regex)
 import Step.EntityResolution as EntityResolution
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.File as File exposing (Attribute, Entity, Header)
+import Step.Internal exposing (ParsedAttribute(..), ParsedEntity(..))
 import Step.Parse as Parse
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (ParsedAttribute, ParsedEntity)
 
 
 type alias Preprocessed =
@@ -188,7 +188,7 @@ parseEntities strings unparsedEntities accumulated =
                         Ok parsedAttributes ->
                             let
                                 parsedSimpleEntity =
-                                    Types.ParsedSimpleEntity (TypeName.fromString rawTypeName)
+                                    ParsedSimpleEntity (TypeName.fromString rawTypeName)
                                         parsedAttributes
                             in
                             parseEntities strings rest (( id, parsedSimpleEntity ) :: accumulated)
@@ -201,7 +201,7 @@ parseEntities strings unparsedEntities accumulated =
                         Ok simpleEntities ->
                             let
                                 parsedComplexEntity =
-                                    Types.ParsedComplexEntity simpleEntities
+                                    ParsedComplexEntity simpleEntities
                             in
                             parseEntities strings rest (( id, parsedComplexEntity ) :: accumulated)
 
@@ -281,7 +281,7 @@ collectAttributes strings matches accumulated =
                     case collectAttributes strings rest [] of
                         Ok ( listEntries, remainingMatches ) ->
                             collectAttributes strings remainingMatches <|
-                                (Types.ParsedAttributeList listEntries :: accumulated)
+                                (ParsedAttributeList listEntries :: accumulated)
 
                         Err message ->
                             Err message
@@ -290,27 +290,27 @@ collectAttributes strings matches accumulated =
                     Ok ( List.reverse accumulated, rest )
 
                 "$" ->
-                    collectAttributes strings rest (Types.ParsedNullAttribute :: accumulated)
+                    collectAttributes strings rest (ParsedNullAttribute :: accumulated)
 
                 "*" ->
-                    collectAttributes strings rest (Types.ParsedDerivedAttribute :: accumulated)
+                    collectAttributes strings rest (ParsedDerivedAttribute :: accumulated)
 
                 ".T." ->
-                    collectAttributes strings rest (Types.ParsedBoolAttribute True :: accumulated)
+                    collectAttributes strings rest (ParsedBoolAttribute True :: accumulated)
 
                 ".F." ->
-                    collectAttributes strings rest (Types.ParsedBoolAttribute False :: accumulated)
+                    collectAttributes strings rest (ParsedBoolAttribute False :: accumulated)
 
                 value ->
                     case String.toFloat value of
                         Just float ->
                             if String.contains "." value then
                                 collectAttributes strings rest <|
-                                    (Types.ParsedFloatAttribute float :: accumulated)
+                                    (ParsedFloatAttribute float :: accumulated)
 
                             else
                                 collectAttributes strings rest <|
-                                    (Types.ParsedIntAttribute (round float) :: accumulated)
+                                    (ParsedIntAttribute (round float) :: accumulated)
 
                         Nothing ->
                             case String.left 1 value of
@@ -318,7 +318,7 @@ collectAttributes strings matches accumulated =
                                     case String.toInt (String.dropLeft 1 value) of
                                         Just id ->
                                             collectAttributes strings rest <|
-                                                (Types.ParsedReference id :: accumulated)
+                                                (ParsedReference id :: accumulated)
 
                                         Nothing ->
                                             Err ("Could not parse ID from '" ++ value ++ "'")
@@ -327,7 +327,7 @@ collectAttributes strings matches accumulated =
                                     case Dict.get value strings of
                                         Just string ->
                                             collectAttributes strings rest <|
-                                                (Types.ParsedStringAttribute string :: accumulated)
+                                                (ParsedStringAttribute string :: accumulated)
 
                                         Nothing ->
                                             Err ("Internal error: could not find string with ID " ++ value)
@@ -339,7 +339,7 @@ collectAttributes strings matches accumulated =
                                                 EnumValue.fromString value
                                         in
                                         collectAttributes strings rest <|
-                                            (Types.ParsedEnumAttribute enumValue :: accumulated)
+                                            (ParsedEnumAttribute enumValue :: accumulated)
 
                                     else
                                         Err ("Expected enum value '" ++ value ++ "' to end with '.'")
@@ -351,7 +351,7 @@ collectAttributes strings matches accumulated =
                                                 String.toUpper (String.slice 1 -1 value)
                                         in
                                         collectAttributes strings rest <|
-                                            (Types.ParsedBinaryAttribute binaryData :: accumulated)
+                                            (ParsedBinaryAttribute binaryData :: accumulated)
 
                                     else
                                         Err ("Expected binary data value '" ++ value ++ "' to end with '\"'")
@@ -364,7 +364,7 @@ collectAttributes strings matches accumulated =
                                                     case collectAttributes strings following [] of
                                                         Ok ( [ rawAttribute ], remainingMatches ) ->
                                                             collectAttributes strings remainingMatches <|
-                                                                (Types.ParsedTypedAttribute (TypeName.fromString value) rawAttribute :: accumulated)
+                                                                (ParsedTypedAttribute (TypeName.fromString value) rawAttribute :: accumulated)
 
                                                         Ok ( _, _ ) ->
                                                             Err ("Expected exactly one attribute value for typed attribute of type '" ++ value ++ "'")

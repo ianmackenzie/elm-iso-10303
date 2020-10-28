@@ -165,7 +165,6 @@ import Step.EnumValue as EnumValue
 import Step.File as File exposing (Attribute, Entity, File, Header)
 import Step.Format as Format
 import Step.TypeName as TypeName
-import Step.Types as Types
 
 
 headerString : Header -> String

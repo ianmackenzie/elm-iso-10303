@@ -1,4 +1,4 @@
-module Step.Types exposing (..)
+module Step.Internal exposing (..)
 
 {-| The internal STEP types used during both encoding and decoding.
 -}

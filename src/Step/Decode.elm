@@ -58,7 +58,6 @@ import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
 import Step.File as File exposing (Attribute, Entity, File, Header)
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types
 
 
 {-| A `Decoder` describes how to attempt to decode some input of type `i` (an
