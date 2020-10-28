@@ -324,14 +324,14 @@ referenceTo entity_ =
     File.ReferenceTo entity_
 
 
-{-| The special 'derived value' attribute (`*` in the resulting STEP file).
+{-| The special 'derived value' attribute.
 -}
 derivedValue : Attribute
 derivedValue =
     File.DerivedValue
 
 
-{-| The special 'null value' attribute (`$` in the resulting STEP file).
+{-| The special 'null value' attribute.
 -}
 null : Attribute
 null =
@@ -352,9 +352,6 @@ optional encoder maybe =
 
 
 {-| Construct a Boolean-valued attribute.
-
-Boolean values are actually encoded as enumeration values `.T.` and `.F.`.
-
 -}
 bool : Bool -> Attribute
 bool value =
@@ -375,16 +372,7 @@ float value =
     File.FloatAttribute value
 
 
-{-| Construct a string-valued attribute. Unicode characters will be properly
-escaped according to the (weird, custom) method specified in the STEP standard;
-for example,
-
-    Encode.string "see § 4.1"
-
-will end up being encoded as
-
-    'see \X\A7 4.1'
-
+{-| Construct a string-valued attribute.
 -}
 string : String -> Attribute
 string value =
