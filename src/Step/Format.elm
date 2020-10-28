@@ -3,7 +3,7 @@ module Step.Format exposing (derivedValue, null, bool, int, float, string, id, e
 {-| Low-level attribute formatting functionality. Usually you will want to use
 the functions in the [`Step.Encode`](Step-Encode) module instead.
 
-@docs derivedValue, null, optional, bool, int, float, string, id, enum, binary, list, typedAttribute
+@docs derivedValue, null, bool, int, float, string, id, enum, binary, list, typedAttribute
 
 -}
 
