@@ -30,3 +30,11 @@ contain unresolved entity references).
 type ParsedEntity
     = ParsedSimpleEntity TypeName (List ParsedAttribute)
     | ParsedComplexEntity (List ( TypeName, List ParsedAttribute ))
+
+
+type File header entity
+    = File
+        { header : header
+        , allEntities : List entity
+        , topLevelEntities : List entity
+        }

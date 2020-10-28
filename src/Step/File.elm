@@ -8,15 +8,14 @@ module Step.File exposing (File, Header, Entity(..), Attribute(..), TypeName, En
 -}
 
 import Step.EnumValue as EnumValue
+import Step.Internal as Internal
 import Step.TypeName as TypeName
 
 
 {-| Represents an entire STEP file composed of a header and a list of entities.
 -}
 type alias File =
-    { header : Header
-    , entities : List Entity
-    }
+    Internal.File Header Entity
 
 
 {-| A `Header` represents the data stored in the header section of a STEP file:

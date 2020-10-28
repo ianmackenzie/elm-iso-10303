@@ -1,6 +1,7 @@
 module Step.EntityResolution exposing (Error(..), resolve)
 
 import Dict exposing (Dict)
+import Set exposing (Set)
 import Step.EntityStack as EntityStack exposing (EntityStack)
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.File as File exposing (Attribute, Entity)
@@ -16,6 +17,7 @@ type Error
 type alias EntityResolution =
     { parsedMap : Dict Int ParsedEntity
     , resolvedMap : Dict Int Entity
+    , referencedIds : Set Int
     }
 
 
@@ -23,6 +25,7 @@ init : List ( Int, ParsedEntity ) -> EntityResolution
 init parsedEntityInstances =
     { parsedMap = Dict.fromList parsedEntityInstances
     , resolvedMap = Dict.empty
+    , referencedIds = Set.empty
     }
 
 
@@ -30,6 +33,13 @@ store : Int -> Entity -> EntityResolution -> EntityResolution
 store id entity entityResolution =
     { entityResolution
         | resolvedMap = Dict.insert id entity entityResolution.resolvedMap
+    }
+
+
+addReference : Int -> EntityResolution -> EntityResolution
+addReference id entityResolution =
+    { entityResolution
+        | referencedIds = Set.insert id entityResolution.referencedIds
     }
 
 
@@ -122,7 +132,7 @@ addAttribute parsedAttribute entityResolution entityStack =
             case Dict.get id entityResolution.resolvedMap of
                 Just entity ->
                     -- Found an already-resolved entity
-                    Ok ( File.ReferenceTo entity, entityResolution )
+                    Ok ( File.ReferenceTo entity, addReference id entityResolution )
 
                 Nothing ->
                     case Dict.get id entityResolution.parsedMap of
@@ -140,7 +150,7 @@ addAttribute parsedAttribute entityResolution entityStack =
                                         |> Result.map
                                             (\( entity, updatedResolution ) ->
                                                 ( File.ReferenceTo entity
-                                                , updatedResolution
+                                                , addReference id updatedResolution
                                                 )
                                             )
 
@@ -223,11 +233,26 @@ addEntities parsedEntityInstances entityResolution =
                     addResult
 
 
-resolve : List ( Int, ParsedEntity ) -> Result Error (Dict Int Entity)
+resolve : List ( Int, ParsedEntity ) -> Result Error { allEntities : List Entity, topLevelEntities : List Entity }
 resolve parsedEntityInstances =
     let
         entityResolution =
             init parsedEntityInstances
     in
     addEntities parsedEntityInstances entityResolution
-        |> Result.map .resolvedMap
+        |> Result.map
+            (\{ resolvedMap, referencedIds } ->
+                Dict.foldr
+                    (\id entity { allEntities, topLevelEntities } ->
+                        { allEntities = entity :: allEntities
+                        , topLevelEntities =
+                            if Set.member id referencedIds then
+                                topLevelEntities
+
+                            else
+                                entity :: topLevelEntities
+                        }
+                    )
+                    { allEntities = [], topLevelEntities = [] }
+                    resolvedMap
+            )

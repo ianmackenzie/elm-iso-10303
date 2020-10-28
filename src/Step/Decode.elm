@@ -1,6 +1,7 @@
 module Step.Decode exposing
     ( Decoder, FileDecoder, EntityDecoder, AttributeListDecoder, AttributeDecoder, Error(..)
     , file, header, single, all
+    , singleTopLevel, allTopLevel
     , entity
     , attribute
     , bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derivedValue
@@ -22,17 +23,23 @@ you decode [JSON](https://package.elm-lang.org/packages/elm/json/latest/Json-Dec
 @docs file, header, single, all
 
 
+## Top-level entities
+
+It may be useful in some cases to only decode _top-level_ entities (entities
+that are not referenced by any other entities). These otherwise work just like
+`single` and `all`.
+
+@docs singleTopLevel, allTopLevel
+
+
 # Decoding an entity
 
 @docs entity
 
 
-# Decoding attribute lists
+# Decoding attributes
 
 @docs attribute
-
-
-# Decoding attributes
 
 @docs bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derivedValue
 
@@ -57,6 +64,7 @@ import Step.EntityResolution as EntityResolution
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
 import Step.File as File exposing (Attribute, Entity, File, Header)
+import Step.Internal as Internal
 import Step.TypeName as TypeName exposing (TypeName)
 
 
@@ -228,8 +236,14 @@ file decoder contents =
         |> Result.andThen
             (\parsed ->
                 case EntityResolution.resolve parsed.entities of
-                    Ok resolvedEntities ->
-                        Ok (File parsed.header (Dict.values resolvedEntities))
+                    Ok resolved ->
+                        Ok
+                            (Internal.File
+                                { header = parsed.header
+                                , allEntities = resolved.allEntities
+                                , topLevelEntities = resolved.topLevelEntities
+                                }
+                            )
 
                     Err (EntityResolution.NonexistentEntity id) ->
                         Err (NonexistentEntity id)
@@ -255,7 +269,10 @@ file decoder contents =
 -}
 header : FileDecoder Header
 header =
-    Decoder (\input -> Succeeded input.header)
+    Decoder
+        (\(Internal.File properties) ->
+            Succeeded properties.header
+        )
 
 
 {-| Attempt to find exactly one entity in a file that matches the given decoder.
@@ -264,7 +281,21 @@ will fail.
 -}
 single : EntityDecoder a -> FileDecoder a
 single entityDecoder =
-    Decoder (\input -> singleEntity entityDecoder input.entities Nothing)
+    Decoder
+        (\(Internal.File properties) ->
+            singleEntity entityDecoder properties.allEntities Nothing
+        )
+
+
+{-| Attempt to find exactly one top-level entity in a file that matches the
+given decoder.
+-}
+singleTopLevel : EntityDecoder a -> FileDecoder a
+singleTopLevel entityDecoder =
+    Decoder
+        (\(Internal.File properties) ->
+            singleEntity entityDecoder properties.allEntities Nothing
+        )
 
 
 singleEntity : EntityDecoder a -> List Entity -> Maybe a -> DecodeResult Never a
@@ -299,7 +330,20 @@ singleEntity decoder entities currentValue =
 -}
 all : EntityDecoder a -> FileDecoder (List a)
 all entityDecoder =
-    Decoder (\input -> allEntities entityDecoder input.entities [])
+    Decoder
+        (\(Internal.File properties) ->
+            allEntities entityDecoder properties.allEntities []
+        )
+
+
+{-| Find all top-level entities in a file matching the given decoder.
+-}
+allTopLevel : EntityDecoder a -> FileDecoder (List a)
+allTopLevel entityDecoder =
+    Decoder
+        (\(Internal.File properties) ->
+            allEntities entityDecoder properties.topLevelEntities []
+        )
 
 
 allEntities : EntityDecoder a -> List Entity -> List a -> DecodeResult Never (List a)
