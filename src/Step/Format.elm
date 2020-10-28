@@ -14,6 +14,10 @@ import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types
 
 
+{-| Format a string by wrapping it in single quotation marks. Unicode characters
+will be properly escaped according to the (weird, custom) method specified in
+the STEP standard; for example, "see § 4.1" will be encoded as `'see \X\A7 4.1'`.
+-}
 string : String -> String
 string value =
     let
@@ -94,16 +98,24 @@ hexCharacterAtIndex index value =
         ""
 
 
+{-| Format a string (currently assumed to be already hex-encoded according to
+the STEP standard) by wrapping it in double quotation marks.
+-}
 binary : String -> String
 binary value =
     "\"" ++ value ++ "\""
 
 
+{-| Format an enum value as a capitalized string with leading and trailing
+periods, for example `.METRE.`.
+-}
 enum : EnumValue -> String
 enum enumValue =
     "." ++ EnumValue.toString enumValue ++ "."
 
 
+{-| Format a boolean value as either `.T.` or `.F.`.
+-}
 bool : Bool -> String
 bool value =
     if value then
@@ -113,11 +125,19 @@ bool value =
         ".F."
 
 
+{-| Format an integer value. (This is really just an alias for Elm's built-in
+`String.fromInt`.)
+-}
 int : Int -> String
 int value =
     String.fromInt value
 
 
+{-| Format a floating-point value. This is almost the same as Elm's built-in
+`String.fromFloat` but (as required by the STEP standard) will ensure that the
+resulting string has a trailing decimal place if one is not otherwise required.
+For example, the value 3 will be formatted as `3.` instead of just `3`.
+-}
 float : Float -> String
 float value =
     let
@@ -133,26 +153,40 @@ float value =
         floatString ++ "."
 
 
+{-| The special 'derived value' string `*`.
+-}
 derivedValue : String
 derivedValue =
     "*"
 
 
+{-| The special 'null value' string `$`.
+-}
 null : String
 null =
     "$"
 
 
+{-| Given a list strings (assumed to be formatted attribute values produced by
+other functions in this module), join them using a comma and enclose them in
+parentheses, for example `(#1,#2,#3)` for a list of entity references.
+-}
 list : List String -> String
 list attributeValues =
     "(" ++ String.join "," attributeValues ++ ")"
 
 
+{-| Format a typed attribute by surrounding an existing attribute (given as a
+string) in parentheses and prepending the given type name, for example
+`SOME_TYPE_NAME(123)` for a typed integer attribute.
+-}
 typedAttribute : TypeName -> String -> String
 typedAttribute typeName attributeValue =
     TypeName.toString typeName ++ "(" ++ attributeValue ++ ")"
 
 
+{-| Format a STEP integer ID as (for example) `#123`.
+-}
 id : Int -> String
 id value =
     "#" ++ String.fromInt value
