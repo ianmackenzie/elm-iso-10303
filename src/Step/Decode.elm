@@ -167,7 +167,8 @@ decodeResult (Decoder function) input =
 
 {-| Run a decoder on some input. You will not usually need to use this function
 directly, but it may be necessary if you use [`Decode.identity`](#identity) to
-access raw `Entity` and `Attribute` values.
+access raw [`Entity`](Step-Types#Entity) or [`Attribute`](Step-Types#Attribute)
+values.
 -}
 run : Decoder i m a -> i -> Result String a
 run decoder input =
@@ -198,7 +199,8 @@ fail description =
 
 
 {-| A special decoder that just returns its input unmodified. This can be useful
-if you want to get a raw `Entity` or `Attribute` value and inspect it.
+if you want to get a raw [`Entity`](Step-Types#Entity) or [`Attribute`](Step-Types#Attribute)
+value and inspect it.
 -}
 identity : Decoder i m i
 identity =
