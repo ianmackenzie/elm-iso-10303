@@ -12,9 +12,9 @@ import File.Select
 import List.Extra
 import Set exposing (Set)
 import Step.Decode as Decode
-import Step.File as Step
 import Step.Format as Format
 import Step.TypeName as TypeName
+import Step.Types as Step
 import Task
 
 

@@ -1,21 +1,27 @@
-module Step.File exposing (File, Header, Entity(..), Attribute(..), TypeName, EnumValue)
+module Step.Types exposing
+    ( Header, Entity(..), Attribute(..)
+    , TypeName, EnumValue
+    )
 
 {-| The types in this module are shared between the [`Encode`](Step-Encode) and
-[`Decode`](Step-Decode) modules.
+[`Decode`](Step-Decode) modules. In many cases you should be able to import this
+module using
 
-@docs File, Header, Entity, Attribute, TypeName, EnumValue
+    import Step.Types as Step
+
+so that you can then refer to `Step.Header`, `Step.Entity`, `Step.TypeName` etc.
+
+@docs Header, Entity, Attribute
+
+The `TypeName` and `EnumValue` types are defined in their own modules but have
+been aliased here for convenience.
+
+@docs TypeName, EnumValue
 
 -}
 
 import Step.EnumValue as EnumValue
-import Step.Internal as Internal
 import Step.TypeName as TypeName
-
-
-{-| Represents an entire STEP file composed of a header and a list of entities.
--}
-type alias File =
-    Internal.File Header Entity
 
 
 {-| A `Header` represents the data stored in the header section of a STEP file:
@@ -65,14 +71,24 @@ file. An entity may be a point, a curve, a part, an assembly, or even an entire
 building. Entities may be 'simple' (having a type and a list of attributes,
 which can themselves be references to other entities) or 'complex' (effectively
 a list of simple entities combined together).
+
+Instead of creating or inspecting `Entity` values directly, you will generally
+create them using [`Step.Encode.entity`](Step-Encode#entity) and extract data
+from them using a [`Step.Decode.entity`](Step-Decode#entity).
+
 -}
 type Entity
-    = SimpleEntity TypeName (List Attribute)
-    | ComplexEntity (List ( TypeName, List Attribute ))
+    = SimpleEntity TypeName.TypeName (List Attribute)
+    | ComplexEntity (List ( TypeName.TypeName, List Attribute ))
 
 
 {-| An `Attribute` represents a single attribute of an `Entity`, such as an X
 coordinate value, a GUID string, or a reference to another entity.
+
+Instead of creating or inspecting `Attribute` values directly, you will
+generally creat them using an [encoder](Step-Encode#attributes) and extract data
+from them using a [decoder](Step-Decode#decoding-attributes).
+
 -}
 type Attribute
     = DerivedValue
@@ -82,9 +98,9 @@ type Attribute
     | FloatAttribute Float
     | StringAttribute String
     | BinaryAttribute String
-    | EnumAttribute EnumValue
+    | EnumAttribute EnumValue.EnumValue
     | ReferenceTo Entity
-    | TypedAttribute TypeName Attribute
+    | TypedAttribute TypeName.TypeName Attribute
     | AttributeList (List Attribute)
 
 

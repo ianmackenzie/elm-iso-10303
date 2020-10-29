@@ -63,9 +63,9 @@ import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
-import Step.File as File exposing (Attribute, Entity, File, Header)
-import Step.Internal as Internal
+import Step.Internal as Internal exposing (File)
 import Step.TypeName as TypeName exposing (TypeName)
+import Step.Types as File exposing (Attribute, Entity, Header)
 
 
 {-| A `Decoder` describes how to attempt to decode some input of type `i` (an
@@ -197,7 +197,7 @@ identity =
 to extract the file header and all `CARTESIAN_POINT` entities from a given file,
 you might write:
 
-    import Step.File
+    import Step.Types as Step
     import Step.Decode as Decode exposing
         ( Decoder
         , FileDecoder
@@ -205,7 +205,7 @@ you might write:
         )
 
     type alias FileData =
-        { header : Step.File.Header
+        { header : Step.Header
         , points : List ( Float, Float, Float )
         }
 

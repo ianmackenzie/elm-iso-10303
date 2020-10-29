@@ -7,7 +7,7 @@
     "exposed-modules": [
         "Step.Encode",
         "Step.Decode",
-        "Step.File",
+        "Step.Types",
         "Step.TypeName",
         "Step.EnumValue",
         "Step.Format"

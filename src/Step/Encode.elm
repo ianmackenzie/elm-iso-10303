@@ -162,9 +162,9 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 import Dict exposing (Dict)
 import Step.Entities as Entities
 import Step.EnumValue as EnumValue
-import Step.File as File exposing (Attribute, Entity, File, Header)
 import Step.Format as Format
 import Step.TypeName as TypeName
+import Step.Types as File exposing (Attribute, Entity, Header)
 
 
 headerString : Header -> String
