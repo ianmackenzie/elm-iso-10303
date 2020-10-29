@@ -8,17 +8,6 @@ import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types exposing (Entity, Header)
 
 
-{-| Represents an entire STEP file composed of a header and a list of entities.
-The only way to extract data from a `File` is by using a [decoder](Step-Decode#Decoder).
--}
-type File
-    = File
-        { header : Header
-        , allEntities : List Entity
-        , topLevelEntities : List Entity
-        }
-
-
 {-| An attribute that has been parsed but not yet resolved (may be an
 unresolved entity reference).
 -}

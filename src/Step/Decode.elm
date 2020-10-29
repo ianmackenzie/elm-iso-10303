@@ -1,5 +1,5 @@
 module Step.Decode exposing
-    ( Decoder, FileDecoder, EntityDecoder, AttributeListDecoder, AttributeDecoder, Error(..)
+    ( Decoder, FileDecoder, File, EntityDecoder, AttributeListDecoder, AttributeDecoder, Error(..)
     , file, header, single, all
     , singleTopLevel, allTopLevel
     , entity
@@ -15,7 +15,7 @@ you decode [JSON](https://package.elm-lang.org/packages/elm/json/latest/Json-Dec
 
 # Decoder types
 
-@docs Decoder, FileDecoder, EntityDecoder, AttributeListDecoder, AttributeDecoder, Error
+@docs Decoder, FileDecoder, File, EntityDecoder, AttributeListDecoder, AttributeDecoder, Error
 
 
 # Decoding a file
@@ -63,7 +63,7 @@ import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
-import Step.Internal as Internal exposing (File)
+import Step.Internal as Internal
 import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as File exposing (Attribute, Entity, Header)
 
@@ -97,6 +97,18 @@ output.
 -}
 type alias FileDecoder a =
     Decoder File Never a
+
+
+{-| Represents an entire STEP file composed of a header and a list of entities.
+The only way to extract data from a `File` is by using a decoder, so you'll
+likely never need to refer to or use this type directly.
+-}
+type File
+    = File
+        { header : Header
+        , allEntities : List Entity
+        , topLevelEntities : List Entity
+        }
 
 
 {-| A `Decoder` that takes a STEP entity as input, chooses whether or not it
@@ -237,13 +249,12 @@ file decoder contents =
             (\parsed ->
                 case EntityResolution.resolve parsed.entities of
                     Ok resolved ->
-                        Ok
-                            (Internal.File
+                        Ok <|
+                            File
                                 { header = parsed.header
                                 , allEntities = resolved.allEntities
                                 , topLevelEntities = resolved.topLevelEntities
                                 }
-                            )
 
                     Err (EntityResolution.NonexistentEntity id) ->
                         Err (NonexistentEntity id)
@@ -270,7 +281,7 @@ file decoder contents =
 header : FileDecoder Header
 header =
     Decoder
-        (\(Internal.File properties) ->
+        (\(File properties) ->
             Succeeded properties.header
         )
 
@@ -282,7 +293,7 @@ will fail.
 single : EntityDecoder a -> FileDecoder a
 single entityDecoder =
     Decoder
-        (\(Internal.File properties) ->
+        (\(File properties) ->
             singleEntity entityDecoder properties.allEntities Nothing
         )
 
@@ -293,7 +304,7 @@ given decoder.
 singleTopLevel : EntityDecoder a -> FileDecoder a
 singleTopLevel entityDecoder =
     Decoder
-        (\(Internal.File properties) ->
+        (\(File properties) ->
             singleEntity entityDecoder properties.allEntities Nothing
         )
 
@@ -331,7 +342,7 @@ singleEntity decoder entities currentValue =
 all : EntityDecoder a -> FileDecoder (List a)
 all entityDecoder =
     Decoder
-        (\(Internal.File properties) ->
+        (\(File properties) ->
             allEntities entityDecoder properties.allEntities []
         )
 
@@ -341,7 +352,7 @@ all entityDecoder =
 allTopLevel : EntityDecoder a -> FileDecoder (List a)
 allTopLevel entityDecoder =
     Decoder
-        (\(Internal.File properties) ->
+        (\(File properties) ->
             allEntities entityDecoder properties.topLevelEntities []
         )
 
