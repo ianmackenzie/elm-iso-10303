@@ -159,6 +159,8 @@ Typed attributes are sometimes needed when dealing with SELECT types.
 
 -}
 
+import Bytes exposing (Bytes)
+import Bytes.Encode
 import Dict exposing (Dict)
 import Step.Entities as Entities
 import Step.EnumValue as EnumValue
@@ -392,10 +394,9 @@ enum value =
     EnumAttribute (EnumValue.fromString value)
 
 
-{-| Construct a binary-valued attribute. The provided string is assumed to
-already be hex encoded as required by the STEP standard.
+{-| Construct a binary-valued attribute.
 -}
-binary : String -> Attribute
+binary : Bytes -> Attribute
 binary value =
     BinaryAttribute value
 
@@ -481,7 +482,7 @@ enumAs givenTypeName value =
 
 {-| Construct a type-tagged binary-valued attribute.
 -}
-binaryAs : String -> String -> Attribute
+binaryAs : String -> Bytes -> Attribute
 binaryAs givenTypeName value =
     typedAttribute givenTypeName (binary value)
 

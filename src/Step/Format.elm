@@ -8,6 +8,8 @@ the functions in the [`Step.Encode`](Step-Encode) module instead.
 -}
 
 import Bitwise
+import Bytes exposing (Bytes)
+import Bytes.Decode
 import Char
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.TypeName as TypeName exposing (TypeName)
@@ -97,12 +99,53 @@ hexCharacterAtIndex index value =
         ""
 
 
-{-| Format a string (currently assumed to be already hex-encoded according to
-the STEP standard) by wrapping it in double quotation marks.
+collectNibbles : ( Int, List Int ) -> Bytes.Decode.Decoder (Bytes.Decode.Step ( Int, List Int ) (List Int))
+collectNibbles ( count, accumulated ) =
+    if count <= 0 then
+        Bytes.Decode.succeed (Bytes.Decode.Done (List.reverse accumulated))
+
+    else
+        Bytes.Decode.unsignedInt8
+            |> Bytes.Decode.map
+                (\byte ->
+                    let
+                        lowNibble =
+                            byte |> modBy 16
+
+                        highNibble =
+                            byte // 16
+                    in
+                    Bytes.Decode.Loop ( count - 1, lowNibble :: highNibble :: accumulated )
+                )
+
+
+toHexCharacter : Int -> Char
+toHexCharacter nibble =
+    Char.fromCode <|
+        if nibble <= 9 then
+            nibble + 48
+
+        else
+            nibble + 55
+
+
+{-| Format a binary `Bytes` value as a hex-encoded string according to the STEP
+standard and wrap it in double quotation marks.
 -}
-binary : String -> String
+binary : Bytes -> String
 binary value =
-    "\"" ++ value ++ "\""
+    let
+        numBytes =
+            Bytes.width value
+
+        nibblesDecoder : Bytes.Decode.Decoder (List Int)
+        nibblesDecoder =
+            Bytes.Decode.loop ( numBytes, [] ) collectNibbles
+
+        nibbles =
+            Bytes.Decode.decode nibblesDecoder value |> Maybe.withDefault []
+    in
+    "\"0" ++ String.fromList (List.map toHexCharacter nibbles) ++ "\""
 
 
 {-| Format an enum value as a capitalized string with leading and trailing

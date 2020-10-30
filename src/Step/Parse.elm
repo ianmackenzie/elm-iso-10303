@@ -1,5 +1,7 @@
-module Step.Parse exposing (entity, header, whitespace)
+module Step.Parse exposing (entity, header, hexStringToBytes, whitespace)
 
+import Bytes exposing (Bytes)
+import Bytes.Encode
 import Char
 import Parser exposing ((|.), (|=), Parser)
 import Step.EntityResolution as EntityResolution
@@ -85,9 +87,60 @@ string =
         |> Parser.map (String.slice 1 -1)
 
 
-binary : Parser String
+hexValue : Char -> Int
+hexValue char =
+    let
+        charCode =
+            Char.toCode char
+    in
+    if charCode >= 48 && charCode <= 57 then
+        charCode - 48
+
+    else if charCode >= 65 && charCode <= 70 then
+        charCode - 55
+
+    else
+        -- Shouldn't happen
+        0
+
+
+byteValues : List Int -> List Int -> List Int
+byteValues accumulated hexValues =
+    case hexValues of
+        first :: second :: rest ->
+            byteValues ((first + 16 * second) :: accumulated) rest
+
+        [ single ] ->
+            single :: accumulated
+
+        [] ->
+            accumulated
+
+
+hexStringToBytes : String -> Bytes
+hexStringToBytes hexString =
+    hexString
+        -- ignore leading 'number of zero padding bits' value since elm/bytes
+        -- only supports byte-aligned binary data
+        |> String.dropLeft 1
+        -- Normalize string to upper case
+        |> String.toUpper
+        -- Convert to list of character hex values
+        |> String.toList
+        |> List.map hexValue
+        -- Combine pairs of (assumed hex) characters into byte values,
+        -- starting from least significant
+        |> List.reverse
+        |> byteValues []
+        -- Encode list of bytes as Bytes value
+        |> List.map Bytes.Encode.unsignedInt8
+        |> Bytes.Encode.sequence
+        |> Bytes.Encode.encode
+
+
+binary : Parser Bytes
 binary =
-    Parser.succeed identity
+    Parser.succeed hexStringToBytes
         |. Parser.token "\""
         |= Parser.getChompedString (Parser.chompWhile ((/=) '"'))
         |. Parser.token "\""

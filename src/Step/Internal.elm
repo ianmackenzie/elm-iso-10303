@@ -3,6 +3,7 @@ module Step.Internal exposing (..)
 {-| The internal STEP types used during both encoding and decoding.
 -}
 
+import Bytes exposing (Bytes)
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types exposing (Entity, Header)
@@ -18,7 +19,7 @@ type ParsedAttribute
     | ParsedIntAttribute Int
     | ParsedFloatAttribute Float
     | ParsedStringAttribute String
-    | ParsedBinaryAttribute String
+    | ParsedBinaryAttribute Bytes
     | ParsedEnumAttribute EnumValue
     | ParsedReference Int
     | ParsedTypedAttribute TypeName ParsedAttribute

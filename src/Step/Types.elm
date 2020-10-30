@@ -20,6 +20,7 @@ been aliased here for convenience.
 
 -}
 
+import Bytes exposing (Bytes)
 import Step.EnumValue as EnumValue
 import Step.TypeName as TypeName
 
@@ -97,7 +98,7 @@ type Attribute
     | IntAttribute Int
     | FloatAttribute Float
     | StringAttribute String
-    | BinaryAttribute String
+    | BinaryAttribute Bytes
     | EnumAttribute EnumValue.EnumValue
     | ReferenceTo Entity
     | TypedAttribute TypeName.TypeName Attribute

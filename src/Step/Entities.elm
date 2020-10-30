@@ -110,8 +110,8 @@ addAttribute attribute entityMap =
         Types.StringAttribute string ->
             ( Format.string string, entityMap )
 
-        Types.BinaryAttribute string ->
-            ( Format.binary string, entityMap )
+        Types.BinaryAttribute bytes ->
+            ( Format.binary bytes, entityMap )
 
         Types.EnumAttribute enumValue ->
             ( Format.enum enumValue, entityMap )

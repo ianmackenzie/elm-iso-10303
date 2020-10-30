@@ -348,7 +348,7 @@ collectAttributes strings matches accumulated =
                                     if String.endsWith "\"" value then
                                         let
                                             binaryData =
-                                                String.toUpper (String.slice 1 -1 value)
+                                                Parse.hexStringToBytes (String.slice 1 -1 value)
                                         in
                                         collectAttributes strings rest <|
                                             (ParsedBinaryAttribute binaryData :: accumulated)
