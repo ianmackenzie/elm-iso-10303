@@ -1,8 +1,8 @@
 module Step.Encode exposing
     ( file
     , entity, complexEntity
-    , derivedValue, null, optional, bool, int, float, string, referenceTo, enum, binary, list, tuple2, tuple3
-    , boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs, typedAttribute
+    , derivedValue, null, optional, bool, int, float, string, referenceTo, enum, bytes, list, tuple2, tuple3
+    , boolAs, intAs, floatAs, stringAs, enumAs, bytesAs, listAs, typedAttribute
     )
 
 {-| This module allows you to encode data in [ISO 10303-21](https://en.wikipedia.org/wiki/ISO_10303-21)
@@ -148,14 +148,14 @@ order.
 
 # Attributes
 
-@docs derivedValue, null, optional, bool, int, float, string, referenceTo, enum, binary, list, tuple2, tuple3
+@docs derivedValue, null, optional, bool, int, float, string, referenceTo, enum, bytes, list, tuple2, tuple3
 
 
 ## Typed attributes
 
 Typed attributes are sometimes needed when dealing with SELECT types.
 
-@docs boolAs, intAs, floatAs, stringAs, enumAs, binaryAs, listAs, typedAttribute
+@docs boolAs, intAs, floatAs, stringAs, enumAs, bytesAs, listAs, typedAttribute
 
 -}
 
@@ -396,9 +396,9 @@ enum value =
 
 {-| Construct a binary-valued attribute.
 -}
-binary : Bytes -> Attribute
-binary value =
-    BinaryAttribute value
+bytes : Bytes -> Attribute
+bytes value =
+    BytesAttribute value
 
 
 {-| Construct an attribute which is itself a list of other attributes. You
@@ -482,9 +482,9 @@ enumAs givenTypeName value =
 
 {-| Construct a type-tagged binary-valued attribute.
 -}
-binaryAs : String -> Bytes -> Attribute
-binaryAs givenTypeName value =
-    typedAttribute givenTypeName (binary value)
+bytesAs : String -> Bytes -> Attribute
+bytesAs givenTypeName value =
+    typedAttribute givenTypeName (bytes value)
 
 
 {-| Construct a type-tagged list attribute.

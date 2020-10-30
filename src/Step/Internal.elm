@@ -19,7 +19,7 @@ type ParsedAttribute
     | ParsedIntAttribute Int
     | ParsedFloatAttribute Float
     | ParsedStringAttribute String
-    | ParsedBinaryAttribute Bytes
+    | ParsedBytesAttribute Bytes
     | ParsedEnumAttribute EnumValue
     | ParsedReference Int
     | ParsedTypedAttribute TypeName ParsedAttribute

@@ -347,11 +347,11 @@ collectAttributes strings matches accumulated =
                                 "\"" ->
                                     if String.endsWith "\"" value then
                                         let
-                                            binaryData =
+                                            bytes =
                                                 Parse.hexStringToBytes (String.slice 1 -1 value)
                                         in
                                         collectAttributes strings rest <|
-                                            (ParsedBinaryAttribute binaryData :: accumulated)
+                                            (ParsedBytesAttribute bytes :: accumulated)
 
                                     else
                                         Err ("Expected binary data value '" ++ value ++ "' to end with '\"'")

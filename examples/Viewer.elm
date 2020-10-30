@@ -141,8 +141,8 @@ viewAttribute attribute =
         Step.StringAttribute value ->
             Element.text ("'" ++ value ++ "'")
 
-        Step.BinaryAttribute value ->
-            Element.text (Format.binary value)
+        Step.BytesAttribute value ->
+            Element.text (Format.bytes value)
 
         Step.EnumAttribute value ->
             Element.text (Format.enum value)

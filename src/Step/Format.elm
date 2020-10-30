@@ -1,9 +1,9 @@
-module Step.Format exposing (derivedValue, null, bool, int, float, string, id, enum, binary, list, typedAttribute)
+module Step.Format exposing (derivedValue, null, bool, int, float, string, id, enum, bytes, list, typedAttribute)
 
 {-| Low-level attribute formatting functionality. Usually you will want to use
 the functions in the [`Step.Encode`](Step-Encode) module instead.
 
-@docs derivedValue, null, bool, int, float, string, id, enum, binary, list, typedAttribute
+@docs derivedValue, null, bool, int, float, string, id, enum, bytes, list, typedAttribute
 
 -}
 
@@ -129,11 +129,11 @@ toHexCharacter nibble =
             nibble + 55
 
 
-{-| Format a binary `Bytes` value as a hex-encoded string according to the STEP
+{-| Format a `Bytes` value as a hex-encoded string according to the STEP
 standard and wrap it in double quotation marks.
 -}
-binary : Bytes -> String
-binary value =
+bytes : Bytes -> String
+bytes value =
     let
         numBytes =
             Bytes.width value

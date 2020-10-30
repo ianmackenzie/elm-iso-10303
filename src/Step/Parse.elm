@@ -138,8 +138,8 @@ hexStringToBytes hexString =
         |> Bytes.Encode.encode
 
 
-binary : Parser Bytes
-binary =
+bytes : Parser Bytes
+bytes =
     Parser.succeed hexStringToBytes
         |. Parser.token "\""
         |= Parser.getChompedString (Parser.chompWhile ((/=) '"'))
@@ -217,7 +217,7 @@ attribute =
         , Parser.succeed ParsedEnumAttribute |= enum
         , numericAttribute
         , Parser.succeed ParsedStringAttribute |= string
-        , Parser.succeed ParsedBinaryAttribute |= binary
+        , Parser.succeed ParsedBytesAttribute |= bytes
         , Parser.succeed ParsedReference |= id
         , Parser.succeed ParsedAttributeList |= list lazyAttribute
         , typedAttribute
