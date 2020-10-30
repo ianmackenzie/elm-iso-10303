@@ -164,7 +164,7 @@ import Step.Entities as Entities
 import Step.EnumValue as EnumValue
 import Step.Format as Format
 import Step.TypeName as TypeName
-import Step.Types as File exposing (Attribute, Entity, Header)
+import Step.Types exposing (Attribute(..), Entity(..), Header)
 
 
 headerString : Header -> String
@@ -290,7 +290,7 @@ automatically-generated IDs, something like:
 -}
 entity : String -> List Attribute -> Entity
 entity givenTypeName givenAttributes =
-    File.SimpleEntity (TypeName.fromString givenTypeName) givenAttributes
+    SimpleEntity (TypeName.fromString givenTypeName) givenAttributes
 
 
 {-| Construct a single 'complex entity'; for example
@@ -312,7 +312,7 @@ will be encoded as
 -}
 complexEntity : List ( String, List Attribute ) -> Entity
 complexEntity simpleEntities =
-    File.ComplexEntity (List.map (Tuple.mapFirst TypeName.fromString) simpleEntities)
+    ComplexEntity (List.map (Tuple.mapFirst TypeName.fromString) simpleEntities)
 
 
 {-| Construct a reference to another STEP entity (will end up being encoded
@@ -320,21 +320,21 @@ using an integer ID in the resulting STEP file, e.g. `#123`).
 -}
 referenceTo : Entity -> Attribute
 referenceTo entity_ =
-    File.ReferenceTo entity_
+    ReferenceTo entity_
 
 
 {-| The special 'derived value' attribute.
 -}
 derivedValue : Attribute
 derivedValue =
-    File.DerivedValue
+    DerivedValue
 
 
 {-| The special 'null value' attribute.
 -}
 null : Attribute
 null =
-    File.NullAttribute
+    NullAttribute
 
 
 {-| Encode a `Maybe` either using the given decoder if it is a `Just value`, or
@@ -354,28 +354,28 @@ optional encoder maybe =
 -}
 bool : Bool -> Attribute
 bool value =
-    File.BoolAttribute value
+    BoolAttribute value
 
 
 {-| Construct an integer-valued attribute.
 -}
 int : Int -> Attribute
 int value =
-    File.IntAttribute value
+    IntAttribute value
 
 
 {-| Construct a real-valued attribute.
 -}
 float : Float -> Attribute
 float value =
-    File.FloatAttribute value
+    FloatAttribute value
 
 
 {-| Construct a string-valued attribute.
 -}
 string : String -> Attribute
 string value =
-    File.StringAttribute value
+    StringAttribute value
 
 
 {-| Construct an attribute that refers to an enumeration value defined in an
@@ -389,7 +389,7 @@ This function will capitalize and add periods if necessary, so both
 -}
 enum : String -> Attribute
 enum value =
-    File.EnumAttribute (EnumValue.fromString value)
+    EnumAttribute (EnumValue.fromString value)
 
 
 {-| Construct a binary-valued attribute. The provided string is assumed to
@@ -397,7 +397,7 @@ already be hex encoded as required by the STEP standard.
 -}
 binary : String -> Attribute
 binary value =
-    File.BinaryAttribute value
+    BinaryAttribute value
 
 
 {-| Construct an attribute which is itself a list of other attributes. You
@@ -427,7 +427,7 @@ built-in `identity` function as the first argument:
 -}
 list : (a -> Attribute) -> List a -> Attribute
 list toAttribute values =
-    File.AttributeList (List.map toAttribute values)
+    AttributeList (List.map toAttribute values)
 
 
 {-| Encode a tuple of two values as a list using the given encoding function.
@@ -498,4 +498,4 @@ to use one of the specific functions such as `floatAs` or `enumAs`.
 -}
 typedAttribute : String -> Attribute -> Attribute
 typedAttribute givenTypeName attribute =
-    File.TypedAttribute (TypeName.fromString givenTypeName) attribute
+    TypedAttribute (TypeName.fromString givenTypeName) attribute
