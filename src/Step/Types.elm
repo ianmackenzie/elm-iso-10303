@@ -75,7 +75,7 @@ a list of simple entities combined together).
 
 Instead of creating or inspecting `Entity` values directly, you will generally
 create them using [`Step.Encode.entity`](Step-Encode#entity) and extract data
-from them using a [`Step.Decode.entity`](Step-Decode#entity).
+from them using [`Step.Decode.entity`](Step-Decode#entity).
 
 -}
 type Entity
