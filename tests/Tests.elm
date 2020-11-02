@@ -1,5 +1,8 @@
 module Tests exposing (suite)
 
+import Bytes exposing (Bytes)
+import Bytes.Decode
+import Bytes.Encode
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Step.Decode
@@ -8,8 +11,8 @@ import Step.Types as Step
 import Test exposing (Test)
 
 
-stringTestFile : String
-stringTestFile =
+testFile : String
+testFile =
     """ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION((''),'2;1');
@@ -22,6 +25,7 @@ DATA;
 #3=X2_STRING('pre \\X2\\03B103B203B3\\X0\\ post');
 #4=X4_STRING('pre \\X4\\0001F6000001F638\\X0\\ post');
 #5=MIXED_STRING('\\X4\\0001F6000001F638\\X0\\\\X\\A7\\X2\\03B1\\X0\\12\\X4\\0001F638\\X0\\3\\X\\A7\\X4\\0001F6380001F600\\X0\\');
+#6=BINARY_DATA("004D2");
 ENDSEC;
 END-ISO-10303-21;
 """
@@ -43,7 +47,7 @@ testString entityType expectedString =
     Test.describe entityType
         [ Test.test "Raw attribute" <|
             \() ->
-                case Step.Decode.file (attributeDecoder Step.Decode.identity) stringTestFile of
+                case Step.Decode.file (attributeDecoder Step.Decode.identity) testFile of
                     Ok (Step.StringAttribute value) ->
                         value |> Expect.equal expectedString
 
@@ -54,7 +58,7 @@ testString entityType expectedString =
                         Expect.fail (Debug.toString error)
         , Test.test "Decoded string" <|
             \() ->
-                case Step.Decode.file (attributeDecoder Step.Decode.string) stringTestFile of
+                case Step.Decode.file (attributeDecoder Step.Decode.string) testFile of
                     Ok value ->
                         value |> Expect.equal expectedString
 
@@ -69,7 +73,7 @@ suite =
         [ Test.describe "String parsing"
             [ Test.test "Header fields" <|
                 \() ->
-                    case Step.Decode.file Step.Decode.header stringTestFile of
+                    case Step.Decode.file Step.Decode.header testFile of
                         Ok header ->
                             header
                                 |> Expect.all
@@ -89,7 +93,25 @@ suite =
                 , testString "MIXED_STRING" "😀😸§α12😸3§😸😀"
                 ]
             ]
-        , Test.test "String encoding" <|
+        , Test.test "Binary decoding" <|
+            \() ->
+                let
+                    bytesDecoder =
+                        Bytes.Decode.unsignedInt16 Bytes.BE
+
+                    fileDecoder =
+                        Step.Decode.single <|
+                            Step.Decode.entity "BINARY_DATA" <|
+                                Step.Decode.attribute 0 <|
+                                    Step.Decode.binaryData bytesDecoder
+                in
+                case Step.Decode.file fileDecoder testFile of
+                    Ok value ->
+                        value |> Expect.equal 1234
+
+                    Err err ->
+                        Expect.fail (Debug.toString err)
+        , Test.test "Encoding" <|
             \() ->
                 let
                     encoded =
@@ -110,7 +132,11 @@ suite =
                             , Step.Encode.entity "X2_STRING" [ Step.Encode.string "pre αβγ post" ]
                             , Step.Encode.entity "X4_STRING" [ Step.Encode.string "pre 😀😸 post" ]
                             , Step.Encode.entity "MIXED_STRING" [ Step.Encode.string "😀😸§α12😸3§😸😀" ]
+                            , Step.Encode.entity "BINARY_DATA"
+                                [ Step.Encode.binaryData
+                                    (Bytes.Encode.unsignedInt16 Bytes.BE 1234)
+                                ]
                             ]
                 in
-                encoded |> Expect.equal stringTestFile
+                encoded |> Expect.equal testFile
         ]
