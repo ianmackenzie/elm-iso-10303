@@ -139,7 +139,7 @@ viewAttribute attribute =
             Element.text (Format.float value)
 
         Step.StringAttribute value ->
-            Element.text ("'" ++ value ++ "'")
+            Element.text (Format.string value)
 
         Step.BytesAttribute value ->
             Element.text (Format.bytes value)
