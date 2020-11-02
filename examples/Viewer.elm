@@ -5,9 +5,11 @@ import Bytes.Encode
 import File exposing (File)
 import File.Select
 import Html exposing (Html)
+import Html.Attributes
 import Html.Events
 import Html.Keyed
 import Html.Lazy
+import Json.Decode
 import List.Extra
 import Set exposing (Set)
 import Step.Decode as Decode
@@ -26,7 +28,7 @@ type DisplayedEntity
 
 
 type alias Model =
-    { displayedEntities : Maybe (Result String (Hidden (List DisplayedEntity)))
+    { displayedEntities : Maybe (Result String (Hidden ( List DisplayedEntity, List Step.Entity )))
     }
 
 
@@ -35,6 +37,7 @@ type Msg
     | FileSelected File
     | FileLoaded String
     | SetDisplayedEntity Int DisplayedEntity
+    | NewSearch String
 
 
 unexpanded : Step.Entity -> DisplayedEntity
@@ -72,7 +75,7 @@ update message model =
                     Just <|
                         case Decode.file (Decode.allTopLevel Decode.identity) contents of
                             Ok entities ->
-                                Ok (hide (List.map unexpanded entities))
+                                Ok (hide ( List.map unexpanded entities, entities ))
 
                             Err (Decode.ParseError text) ->
                                 Err ("STEP file parse error: " ++ text)
@@ -98,15 +101,65 @@ update message model =
 
                 Just (Ok displayedEntities) ->
                     let
-                        currentDisplayedEntities =
+                        ( currentDisplayedEntities, allEntities ) =
                             reveal displayedEntities
 
                         updatedDisplayedEntities =
                             List.Extra.setAt index displayedEntity currentDisplayedEntities
                     in
-                    ( { model | displayedEntities = Just (Ok (hide updatedDisplayedEntities)) }
+                    ( { model | displayedEntities = Just (Ok (hide ( updatedDisplayedEntities, allEntities ))) }
                     , Cmd.none
                     )
+
+        NewSearch term ->
+            case model.displayedEntities of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just (Err _) ->
+                    ( model, Cmd.none )
+
+                Just (Ok hidden) ->
+                    let
+                        ( currentDisplayedEntities, allEntities ) =
+                            reveal hidden
+                    in
+                    if String.isEmpty term then
+                        ( { model | displayedEntities = Just (Ok (hide ( List.map unexpanded allEntities, allEntities ))) }
+                        , Cmd.none
+                        )
+
+                    else
+                        ( { model | displayedEntities = Just (Ok (hide ( List.filterMap (expand (String.toUpper term)) allEntities, allEntities ))) }
+                        , Cmd.none
+                        )
+
+
+expand : String -> Step.Entity -> Maybe DisplayedEntity
+expand searchTerm entity =
+    let
+        expandedChildren =
+            List.filterMap (expand searchTerm) (childEntities entity)
+    in
+    case expandedChildren of
+        [] ->
+            case entity of
+                Step.SimpleEntity typeName attributes ->
+                    if String.contains searchTerm (TypeName.toString typeName) then
+                        Just (DisplayedEntity entity [])
+
+                    else
+                        Nothing
+
+                Step.ComplexEntity entityRecords ->
+                    if List.any (Tuple.first >> TypeName.toString >> String.contains searchTerm) entityRecords then
+                        Just (DisplayedEntity entity [])
+
+                    else
+                        Nothing
+
+        _ ->
+            Just (DisplayedEntity entity expandedChildren)
 
 
 entityRecordString : Step.TypeName -> List Step.Attribute -> String
@@ -244,14 +297,25 @@ viewTopLevelEntity index displayedEntity =
 
 view : Model -> Html Msg
 view model =
+    let
+        handleSearchChange =
+            Html.Events.on "change" <|
+                Json.Decode.map NewSearch <|
+                    Json.Decode.at [ "target", "value" ] Json.Decode.string
+    in
     Html.div []
         [ Html.button [ Html.Events.onClick LoadRequested ] [ Html.text "Load STEP file" ]
+        , Html.input [ Html.Attributes.type_ "text", handleSearchChange ] []
         , case model.displayedEntities of
             Nothing ->
                 Html.text ""
 
-            Just (Ok displayedEntities) ->
-                Html.Keyed.ul [] (List.indexedMap viewTopLevelEntity (reveal displayedEntities))
+            Just (Ok hidden) ->
+                let
+                    ( displayedEntities, _ ) =
+                        reveal hidden
+                in
+                Html.Keyed.ul [] (List.indexedMap viewTopLevelEntity displayedEntities)
 
             Just (Err text) ->
                 Html.text text
