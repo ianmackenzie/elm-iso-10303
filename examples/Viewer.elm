@@ -2,14 +2,12 @@ module Viewer exposing (main)
 
 import Browser
 import Bytes.Encode
-import Element exposing (Element)
-import Element.Background
-import Element.Font
-import Element.Input as Input
-import Element.Keyed
-import Element.Lazy
 import File exposing (File)
 import File.Select
+import Html exposing (Html)
+import Html.Events
+import Html.Keyed
+import Html.Lazy
 import List.Extra
 import Set exposing (Set)
 import Step.Decode as Decode
@@ -17,6 +15,14 @@ import Step.Format as Format
 import Step.TypeName as TypeName
 import Step.Types as Step
 import Task
+
+
+type alias Hidden a =
+    () -> a
+
+
+type DisplayedEntity
+    = DisplayedEntity Step.Entity (List DisplayedEntity)
 
 
 type alias Model =
@@ -31,17 +37,9 @@ type Msg
     | SetDisplayedEntity Int DisplayedEntity
 
 
-type alias Hidden a =
-    () -> a
-
-
-type DisplayedEntity
-    = DisplayedEntity Step.Entity (Maybe DisplayedEntity)
-
-
 unexpanded : Step.Entity -> DisplayedEntity
 unexpanded entity =
-    DisplayedEntity entity Nothing
+    DisplayedEntity entity []
 
 
 hide : a -> Hidden a
@@ -111,136 +109,152 @@ update message model =
                     )
 
 
-viewEntityRecord : ( Step.TypeName, List Step.Attribute ) -> Element Step.Entity
-viewEntityRecord ( typeName, attributes ) =
-    Element.row []
-        [ Element.text (String.toLower (TypeName.toString typeName))
-        , Element.text "("
-        , Element.row [] (List.map viewAttribute attributes |> List.intersperse (Element.text ","))
-        , Element.text ")"
-        ]
+entityRecordString : Step.TypeName -> List Step.Attribute -> String
+entityRecordString typeName attributes =
+    String.toLower (TypeName.toString typeName)
+        ++ "("
+        ++ String.join "," (List.map attributeString attributes)
+        ++ ")"
 
 
-viewAttribute : Step.Attribute -> Element Step.Entity
-viewAttribute attribute =
+entityString : Step.Entity -> String
+entityString entity =
+    case entity of
+        Step.SimpleEntity typeName attributes ->
+            entityRecordString typeName attributes
+
+        Step.ComplexEntity entityRecords ->
+            let
+                entityRecordStrings =
+                    List.map
+                        (\( typeName, attributes ) ->
+                            entityRecordString typeName attributes
+                        )
+                        entityRecords
+            in
+            "(" ++ String.concat entityRecordStrings ++ ")"
+
+
+attributeString : Step.Attribute -> String
+attributeString attribute =
     case attribute of
         Step.DerivedValue ->
-            Element.text Format.derivedValue
+            Format.derivedValue
 
         Step.NullAttribute ->
-            Element.text Format.null
+            Format.null
 
         Step.BoolAttribute value ->
-            Element.text (Format.bool value)
+            Format.bool value
 
         Step.IntAttribute value ->
-            Element.text (Format.int value)
+            Format.int value
 
         Step.FloatAttribute value ->
-            Element.text (Format.float value)
+            Format.float value
 
         Step.StringAttribute value ->
-            Element.text (Format.string value)
+            Format.string value
 
         Step.BinaryDataAttribute value ->
-            Element.text (Format.binaryData (Bytes.Encode.bytes value))
+            Format.binaryData (Bytes.Encode.bytes value)
 
         Step.EnumAttribute value ->
-            Element.text (Format.enum value)
+            Format.enum value
 
-        Step.ReferenceTo entity ->
-            Input.button
-                [ Element.pointer
-                , Element.Font.color (Element.rgb255 0 0 192)
-                ]
-                { onPress = Just entity
-                , label = Element.text "#"
-                }
+        Step.ReferenceTo _ ->
+            "#"
 
         Step.TypedAttribute typeName nestedAttribute ->
-            Element.row []
-                [ Element.text (TypeName.toString typeName ++ "(")
-                , viewAttribute nestedAttribute
-                , Element.text ")"
-                ]
+            Format.typedAttribute typeName (attributeString nestedAttribute)
 
         Step.AttributeList attributes ->
-            Element.row []
-                [ Element.text "("
-                , Element.row []
-                    (List.map viewAttribute attributes |> List.intersperse (Element.text ","))
-                , Element.text ")"
-                ]
+            Format.list (List.map attributeString attributes)
 
 
-toggleChild : Step.Entity -> DisplayedEntity -> DisplayedEntity
-toggleChild child displayedEntity =
+referencedEntities : Step.Attribute -> List Step.Entity
+referencedEntities attribute =
+    case attribute of
+        Step.ReferenceTo entity ->
+            [ entity ]
+
+        Step.AttributeList attributes ->
+            List.concatMap referencedEntities attributes
+
+        _ ->
+            []
+
+
+childEntities : Step.Entity -> List Step.Entity
+childEntities parentEntity =
+    case parentEntity of
+        Step.SimpleEntity _ attributes ->
+            List.concatMap referencedEntities attributes
+
+        Step.ComplexEntity entityRecords ->
+            List.concatMap (Tuple.second >> List.concatMap referencedEntities) entityRecords
+
+
+toggleChildren : DisplayedEntity -> DisplayedEntity
+toggleChildren displayedEntity =
     case displayedEntity of
-        DisplayedEntity parentEntity Nothing ->
-            DisplayedEntity parentEntity (Just (unexpanded child))
+        DisplayedEntity parentEntity [] ->
+            DisplayedEntity parentEntity (List.map unexpanded (childEntities parentEntity))
 
-        DisplayedEntity parentEntity (Just (DisplayedEntity currentChild _)) ->
-            if child == currentChild then
-                DisplayedEntity parentEntity Nothing
-
-            else
-                DisplayedEntity parentEntity (Just (unexpanded child))
+        DisplayedEntity parentEntity _ ->
+            DisplayedEntity parentEntity []
 
 
-viewEntity : DisplayedEntity -> Element DisplayedEntity
-viewEntity ((DisplayedEntity parentEntity currentChild) as displayedEntity) =
-    let
-        parentEntityElement =
-            Element.map (\referencedEntity -> toggleChild referencedEntity displayedEntity) <|
-                case parentEntity of
-                    Step.SimpleEntity typeName attributes ->
-                        viewEntityRecord ( typeName, attributes )
+viewEntityList : List DisplayedEntity -> List (Html (List DisplayedEntity))
+viewEntityList entities =
+    List.indexedMap
+        (\index entity ->
+            viewEntity entity
+                |> Html.map
+                    (\updatedEntity ->
+                        List.Extra.setAt index updatedEntity entities
+                    )
+        )
+        entities
 
-                    Step.ComplexEntity entityRecords ->
-                        Element.row []
-                            [ Element.text "("
-                            , Element.row [] (List.map viewEntityRecord entityRecords)
-                            , Element.text ")"
-                            ]
-    in
-    case currentChild of
-        Nothing ->
-            parentEntityElement
 
-        Just child ->
-            Element.column []
-                [ parentEntityElement
-                , Element.el [ Element.paddingEach { top = 0, bottom = 0, left = 16, right = 0 } ] <|
-                    Element.map (\updatedChild -> DisplayedEntity parentEntity (Just updatedChild))
-                        (viewEntity child)
+viewEntity : DisplayedEntity -> Html DisplayedEntity
+viewEntity ((DisplayedEntity parentEntity currentChildren) as displayedEntity) =
+    case currentChildren of
+        [] ->
+            Html.li [ Html.Events.onClick (toggleChildren displayedEntity) ]
+                [ Html.text (entityString parentEntity) ]
+
+        _ ->
+            Html.li []
+                [ Html.span
+                    [ Html.Events.onClick (toggleChildren displayedEntity) ]
+                    [ Html.text (entityString parentEntity) ]
+                , Html.ul [] (viewEntityList currentChildren)
+                    |> Html.map (DisplayedEntity parentEntity)
                 ]
 
 
-viewTopLevelEntity : Int -> DisplayedEntity -> ( String, Element Msg )
+viewTopLevelEntity : Int -> DisplayedEntity -> ( String, Html Msg )
 viewTopLevelEntity index displayedEntity =
     ( String.fromInt index
-    , viewEntity displayedEntity |> Element.map (SetDisplayedEntity index)
+    , viewEntity displayedEntity |> Html.map (SetDisplayedEntity index)
     )
 
 
-view : Model -> Element Msg
+view : Model -> Html Msg
 view model =
-    Element.column [ Element.Font.size 16, Element.width Element.fill ]
-        [ Element.el [ Element.width Element.fill, Element.padding 4, Element.Background.color (Element.rgb255 192 192 192) ] <|
-            Input.button [ Element.alignLeft ]
-                { onPress = Just LoadRequested
-                , label = Element.text "Load STEP file"
-                }
+    Html.div []
+        [ Html.button [ Html.Events.onClick LoadRequested ] [ Html.text "Load STEP file" ]
         , case model.displayedEntities of
             Nothing ->
-                Element.none
+                Html.text ""
 
             Just (Ok displayedEntities) ->
-                Element.Keyed.column []
-                    (List.indexedMap viewTopLevelEntity (reveal displayedEntities))
+                Html.Keyed.ul [] (List.indexedMap viewTopLevelEntity (reveal displayedEntities))
 
             Just (Err text) ->
-                Element.text text
+                Html.text text
         ]
 
 
@@ -250,5 +264,5 @@ main =
         { init = init
         , update = update
         , subscriptions = always Sub.none
-        , view = view >> Element.layout []
+        , view = view
         }
