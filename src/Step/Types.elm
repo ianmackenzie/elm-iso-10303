@@ -87,8 +87,8 @@ type Entity
 coordinate value, a GUID string, or a reference to another entity.
 
 Instead of creating or inspecting `Attribute` values directly, you will
-generally creat them using an [encoder](Step-Encode#attributes) and extract data
-from them using a [decoder](Step-Decode#decoding-attributes).
+generally create them using an [encoder](Step-Encode#attributes) and extract
+data from them using a [decoder](Step-Decode#decoding-attributes).
 
 -}
 type Attribute
