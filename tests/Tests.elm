@@ -14,7 +14,7 @@ stringTestFile =
 HEADER;
 FILE_DESCRIPTION((''),'2;1');
 FILE_NAME('name','2020-11-01T16:20:00',('Ian \\X4\\0001F600\\X0\\'),(''),'\\X2\\03B1\\X0\\','elm-iso-10303','');
-FILE_SCHEMA(('none'));
+FILE_SCHEMA(());
 ENDSEC;
 DATA;
 #1=SIMPLE_STRING('simple string');
@@ -76,6 +76,7 @@ suite =
                                     [ .fileName >> Expect.equal "name"
                                     , .author >> Expect.equal [ "Ian 😀" ]
                                     , .preprocessorVersion >> Expect.equal "α"
+                                    , .schemaIdentifiers >> Expect.equal []
                                     ]
 
                         Err err ->
@@ -102,7 +103,7 @@ suite =
                             , preprocessorVersion = "α"
                             , originatingSystem = "elm-iso-10303"
                             , authorization = ""
-                            , schemaIdentifiers = [ "none" ]
+                            , schemaIdentifiers = []
                             }
                             [ Step.Encode.entity "SIMPLE_STRING" [ Step.Encode.string "simple string" ]
                             , Step.Encode.entity "X_STRING" [ Step.Encode.string "see § 4.1" ]
