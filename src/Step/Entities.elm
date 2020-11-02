@@ -1,5 +1,6 @@
 module Step.Entities exposing (compile)
 
+import Bytes.Encode
 import Dict exposing (Dict)
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.Format as Format
@@ -110,8 +111,8 @@ addAttribute attribute entityMap =
         Types.StringAttribute string ->
             ( Format.string string, entityMap )
 
-        Types.BytesAttribute bytes ->
-            ( Format.bytes bytes, entityMap )
+        Types.BinaryDataAttribute bytes ->
+            ( Format.binaryData (Bytes.Encode.bytes bytes), entityMap )
 
         Types.EnumAttribute enumValue ->
             ( Format.enum enumValue, entityMap )

@@ -1,8 +1,8 @@
 module Step.Encode exposing
     ( file
     , entity, complexEntity
-    , derivedValue, null, optional, bool, int, float, string, referenceTo, enum, bytes, list, tuple2, tuple3
-    , boolAs, intAs, floatAs, stringAs, enumAs, bytesAs, listAs, typedAttribute
+    , derivedValue, null, optional, bool, int, float, string, referenceTo, enum, binaryData, list, tuple2, tuple3
+    , boolAs, intAs, floatAs, stringAs, enumAs, binaryDataAs, listAs, typedAttribute
     )
 
 {-| This module allows you to encode data in [ISO 10303-21](https://en.wikipedia.org/wiki/ISO_10303-21)
@@ -148,14 +148,14 @@ order.
 
 # Attributes
 
-@docs derivedValue, null, optional, bool, int, float, string, referenceTo, enum, bytes, list, tuple2, tuple3
+@docs derivedValue, null, optional, bool, int, float, string, referenceTo, enum, binaryData, list, tuple2, tuple3
 
 
 ## Typed attributes
 
 Typed attributes are sometimes needed when dealing with SELECT types.
 
-@docs boolAs, intAs, floatAs, stringAs, enumAs, bytesAs, listAs, typedAttribute
+@docs boolAs, intAs, floatAs, stringAs, enumAs, binaryDataAs, listAs, typedAttribute
 
 -}
 
@@ -394,11 +394,16 @@ enum value =
     EnumAttribute (EnumValue.fromString value)
 
 
-{-| Construct a binary-valued attribute.
+{-| Construct an attribute from a blob of binary data given as an [encoder](https://package.elm-lang.org/packages/elm/bytes/latest/Bytes-Encode).
+
+Note that since Elm only supports byte-aligned binary data, there is no way to
+create (for example) a blob of binary data exactly 5 bits in size even though
+that is supported by the STEP standard.
+
 -}
-bytes : Bytes -> Attribute
-bytes value =
-    BytesAttribute value
+binaryData : Bytes.Encode.Encoder -> Attribute
+binaryData bytesEncoder =
+    BinaryDataAttribute (Bytes.Encode.encode bytesEncoder)
 
 
 {-| Construct an attribute which is itself a list of other attributes. You
@@ -482,9 +487,9 @@ enumAs givenTypeName value =
 
 {-| Construct a type-tagged binary-valued attribute.
 -}
-bytesAs : String -> Bytes -> Attribute
-bytesAs givenTypeName value =
-    typedAttribute givenTypeName (bytes value)
+binaryDataAs : String -> Bytes.Encode.Encoder -> Attribute
+binaryDataAs givenTypeName bytesEncoder =
+    typedAttribute givenTypeName (binaryData bytesEncoder)
 
 
 {-| Construct a type-tagged list attribute.

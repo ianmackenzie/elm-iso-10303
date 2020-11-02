@@ -1,18 +1,126 @@
-module Step.Format exposing (derivedValue, null, bool, int, float, string, id, enum, bytes, list, typedAttribute)
+module Step.Format exposing (derivedValue, null, bool, int, float, string, id, enum, binaryData, list, typedAttribute)
 
 {-| Low-level attribute formatting functionality. Usually you will want to use
 the functions in the [`Step.Encode`](Step-Encode) module instead.
 
-@docs derivedValue, null, bool, int, float, string, id, enum, bytes, list, typedAttribute
+@docs derivedValue, null, bool, int, float, string, id, enum, binaryData, list, typedAttribute
 
 -}
 
 import Bitwise
 import Bytes exposing (Bytes)
 import Bytes.Decode
+import Bytes.Encode
 import Char
+import Regex exposing (Regex)
 import Step.EnumValue as EnumValue exposing (EnumValue)
+import Step.Hex as Hex
 import Step.TypeName as TypeName exposing (TypeName)
+
+
+type EscapeContext
+    = NoEscapeContext
+    | EscapeX2
+    | EscapeX4
+
+
+type alias StringFoldState =
+    { encodedChunks : List String
+    , escapeContext : EscapeContext
+    }
+
+
+addAscii : String -> StringFoldState -> StringFoldState
+addAscii value { encodedChunks, escapeContext } =
+    case escapeContext of
+        NoEscapeContext ->
+            { encodedChunks = value :: encodedChunks
+            , escapeContext = NoEscapeContext
+            }
+
+        EscapeX2 ->
+            { encodedChunks = value :: "\\X2\\" :: encodedChunks
+            , escapeContext = NoEscapeContext
+            }
+
+        EscapeX4 ->
+            { encodedChunks = value :: "\\X4\\" :: encodedChunks
+            , escapeContext = NoEscapeContext
+            }
+
+
+addX : Int -> StringFoldState -> StringFoldState
+addX codePoint { encodedChunks, escapeContext } =
+    let
+        newChunk =
+            hexEncode 2 codePoint
+    in
+    case escapeContext of
+        NoEscapeContext ->
+            { encodedChunks = "\\X\\" :: newChunk :: encodedChunks
+            , escapeContext = NoEscapeContext
+            }
+
+        EscapeX2 ->
+            { encodedChunks = "\\X\\" :: newChunk :: "\\X2\\" :: encodedChunks
+            , escapeContext = NoEscapeContext
+            }
+
+        EscapeX4 ->
+            { encodedChunks = "\\X\\" :: newChunk :: "\\X4\\" :: encodedChunks
+            , escapeContext = NoEscapeContext
+            }
+
+
+addX2 : Int -> StringFoldState -> StringFoldState
+addX2 codePoint { encodedChunks, escapeContext } =
+    let
+        newChunk =
+            hexEncode 4 codePoint
+    in
+    case escapeContext of
+        NoEscapeContext ->
+            { encodedChunks = newChunk :: "\\X0\\" :: encodedChunks
+            , escapeContext = EscapeX2
+            }
+
+        EscapeX2 ->
+            { encodedChunks = newChunk :: encodedChunks
+            , escapeContext = EscapeX2
+            }
+
+        EscapeX4 ->
+            { encodedChunks = newChunk :: "\\X0\\\\X4\\" :: encodedChunks
+            , escapeContext = EscapeX2
+            }
+
+
+addX4 : Int -> StringFoldState -> StringFoldState
+addX4 codePoint { encodedChunks, escapeContext } =
+    let
+        newChunk =
+            hexEncode 8 codePoint
+    in
+    case escapeContext of
+        NoEscapeContext ->
+            { encodedChunks = newChunk :: "\\X0\\" :: encodedChunks
+            , escapeContext = EscapeX4
+            }
+
+        EscapeX2 ->
+            { encodedChunks = newChunk :: "\\X0\\\\X2\\" :: encodedChunks
+            , escapeContext = EscapeX4
+            }
+
+        EscapeX4 ->
+            { encodedChunks = newChunk :: encodedChunks
+            , escapeContext = EscapeX4
+            }
+
+
+nonAsciiCharacter : Regex
+nonAsciiCharacter =
+    Regex.fromString "[^ -~]" |> Maybe.withDefault Regex.never
 
 
 {-| Format a string by wrapping it in single quotation marks. Unicode characters
@@ -21,14 +129,53 @@ the STEP standard; for example, "see § 4.1" will be encoded as `'see \X\A7 4.1'
 -}
 string : String -> String
 string value =
-    let
-        encoded =
-            value
-                |> String.toList
-                |> List.map encodedCharacter
-                |> String.concat
-    in
-    "'" ++ encoded ++ "'"
+    if Regex.contains nonAsciiCharacter value then
+        let
+            foldResult =
+                String.foldr
+                    (\character foldState ->
+                        if character == '\'' then
+                            addAscii "''" foldState
+
+                        else if character == '\\' then
+                            addAscii "\\" foldState
+
+                        else
+                            let
+                                codePoint =
+                                    Char.toCode character
+                            in
+                            if codePoint >= 0 && codePoint <= 0x1F then
+                                addX codePoint foldState
+
+                            else if codePoint >= 0x20 && codePoint <= 0x7E then
+                                addAscii (String.fromChar character) foldState
+
+                            else if codePoint >= 0x7F && codePoint <= 0xFF then
+                                addX codePoint foldState
+
+                            else if codePoint >= 0x0100 && codePoint <= 0xFFFF then
+                                addX2 codePoint foldState
+
+                            else if codePoint >= 0x00010000 && codePoint <= 0x0010FFFF then
+                                addX4 codePoint foldState
+
+                            else
+                                -- Shouldn't happen, outside Unicode range
+                                foldState
+                    )
+                    { encodedChunks = []
+                    , escapeContext = NoEscapeContext
+                    }
+                    value
+                    -- Finalize any dangling \X2\ or \X4\ group
+                    |> addAscii ""
+        in
+        "'" ++ String.concat foldResult.encodedChunks ++ "'"
+
+    else
+        -- Optimization for plain ASCII strings
+        "'" ++ value ++ "'"
 
 
 apostropheCodePoint : Int
@@ -39,38 +186,6 @@ apostropheCodePoint =
 backslashCodePoint : Int
 backslashCodePoint =
     Char.toCode '\\'
-
-
-encodedCharacter : Char -> String
-encodedCharacter character =
-    if character == '\'' then
-        "''"
-
-    else if character == '\\' then
-        "\\"
-
-    else
-        let
-            codePoint =
-                Char.toCode character
-        in
-        if codePoint >= 0 && codePoint <= 0x1F then
-            "\\X\\" ++ hexEncode 2 codePoint
-
-        else if codePoint >= 0x20 && codePoint <= 0x7E then
-            String.fromChar character
-
-        else if codePoint >= 0x7F && codePoint <= 0xFF then
-            "\\X\\" ++ hexEncode 2 codePoint
-
-        else if codePoint >= 0x0100 && codePoint <= 0xFFFF then
-            "\\X2\\" ++ hexEncode 4 codePoint ++ "\\X0\\"
-
-        else if codePoint >= 0x00010000 && codePoint <= 0x0010FFFF then
-            "\\X4\\" ++ hexEncode 8 codePoint ++ "\\X0\\"
-
-        else
-            ""
 
 
 hexEncode : Int -> Int -> String
@@ -119,33 +234,33 @@ collectNibbles ( count, accumulated ) =
                 )
 
 
-toHexCharacter : Int -> Char
-toHexCharacter nibble =
-    Char.fromCode <|
-        if nibble <= 9 then
-            nibble + 48
-
-        else
-            nibble + 55
-
-
-{-| Format a `Bytes` value as a hex-encoded string according to the STEP
+{-| Format binary data as a hex-encoded string according to the STEP
 standard and wrap it in double quotation marks.
+
+Note that since Elm only supports byte-aligned binary data, there is no way to
+create (for example) a blob of binary data exactly 5 bits in size even though
+that is supported by the STEP standard. As a result, the encoded string will
+always start with 0 (since that character is otherwise used to indicate a
+number of padding zero bits).
+
 -}
-bytes : Bytes -> String
-bytes value =
+binaryData : Bytes.Encode.Encoder -> String
+binaryData bytesEncoder =
     let
+        bytes =
+            Bytes.Encode.encode bytesEncoder
+
         numBytes =
-            Bytes.width value
+            Bytes.width bytes
 
         nibblesDecoder : Bytes.Decode.Decoder (List Int)
         nibblesDecoder =
             Bytes.Decode.loop ( numBytes, [] ) collectNibbles
 
         nibbles =
-            Bytes.Decode.decode nibblesDecoder value |> Maybe.withDefault []
+            Bytes.Decode.decode nibblesDecoder bytes |> Maybe.withDefault []
     in
-    "\"0" ++ String.fromList (List.map toHexCharacter nibbles) ++ "\""
+    "\"0" ++ String.fromList (List.map Hex.intToChar nibbles) ++ "\""
 
 
 {-| Format an enum value as a capitalized string with leading and trailing

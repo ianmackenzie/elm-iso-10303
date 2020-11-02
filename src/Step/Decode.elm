@@ -4,8 +4,8 @@ module Step.Decode exposing
     , singleTopLevel, allTopLevel
     , entity
     , attribute
-    , bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derivedValue
-    , boolAs, intAs, floatAs, stringAs, enumAs, listAs
+    , bool, int, float, string, enum, referenceTo, binaryData, null, optional, list, tuple2, tuple3, derivedValue
+    , boolAs, intAs, floatAs, stringAs, enumAs, binaryDataAs, listAs
     , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy, identity, run
     )
 
@@ -41,12 +41,12 @@ that are not referenced by any other entities). These otherwise work just like
 
 @docs attribute
 
-@docs bool, int, float, string, enum, referenceTo, null, optional, list, tuple2, tuple3, derivedValue
+@docs bool, int, float, string, enum, referenceTo, binaryData, null, optional, list, tuple2, tuple3, derivedValue
 
 
 ## Typed attributes
 
-@docs boolAs, intAs, floatAs, stringAs, enumAs, listAs
+@docs boolAs, intAs, floatAs, stringAs, enumAs, binaryDataAs, listAs
 
 
 # Working with decoders
@@ -56,6 +56,7 @@ that are not referenced by any other entities). These otherwise work just like
 -}
 
 import Bitwise
+import Bytes.Decode
 import Dict
 import List
 import List.Extra as List
@@ -674,139 +675,6 @@ isBasic character =
     character /= '\'' && character /= '\\'
 
 
-hexDigit : Parser Int
-hexDigit =
-    Parser.oneOf
-        [ Parser.succeed 0 |. Parser.token "0"
-        , Parser.succeed 1 |. Parser.token "1"
-        , Parser.succeed 2 |. Parser.token "2"
-        , Parser.succeed 3 |. Parser.token "3"
-        , Parser.succeed 4 |. Parser.token "4"
-        , Parser.succeed 5 |. Parser.token "5"
-        , Parser.succeed 6 |. Parser.token "6"
-        , Parser.succeed 7 |. Parser.token "7"
-        , Parser.succeed 8 |. Parser.token "8"
-        , Parser.succeed 9 |. Parser.token "9"
-        , Parser.succeed 10 |. Parser.token "A"
-        , Parser.succeed 11 |. Parser.token "B"
-        , Parser.succeed 12 |. Parser.token "C"
-        , Parser.succeed 13 |. Parser.token "D"
-        , Parser.succeed 14 |. Parser.token "E"
-        , Parser.succeed 15 |. Parser.token "F"
-        ]
-
-
-x0 : Int -> Int -> Char
-x0 high low =
-    Char.fromCode (low + Bitwise.shiftLeftBy 4 high)
-
-
-x2 : Int -> Int -> Int -> Int -> Char
-x2 a b c d =
-    Char.fromCode <|
-        d
-            + Bitwise.shiftLeftBy 4 c
-            + Bitwise.shiftLeftBy 8 b
-            + Bitwise.shiftLeftBy 12 a
-
-
-x4 : Int -> Int -> Int -> Int -> Int -> Int -> Char
-x4 a b c d e f =
-    Char.fromCode <|
-        f
-            + Bitwise.shiftLeftBy 4 e
-            + Bitwise.shiftLeftBy 8 d
-            + Bitwise.shiftLeftBy 12 c
-            + Bitwise.shiftLeftBy 16 b
-            + Bitwise.shiftLeftBy 20 a
-
-
-parseX0 : Parser String
-parseX0 =
-    Parser.succeed (\a b -> String.fromChar (x0 a b))
-        |. Parser.token "\\X\\"
-        |= hexDigit
-        |= hexDigit
-
-
-parseX2 : Parser String
-parseX2 =
-    Parser.succeed String.fromList
-        |. Parser.token "\\X2\\"
-        |= Parser.loop []
-            (\accumulated ->
-                Parser.oneOf
-                    [ Parser.succeed
-                        (\a b c d ->
-                            Parser.Loop (x2 a b c d :: accumulated)
-                        )
-                        |= hexDigit
-                        |= hexDigit
-                        |= hexDigit
-                        |= hexDigit
-                    , Parser.succeed
-                        (\() -> Parser.Done (List.reverse accumulated))
-                        |= Parser.token "\\X0\\"
-                    ]
-            )
-
-
-parseX4 : Parser String
-parseX4 =
-    Parser.succeed String.fromList
-        |. Parser.token "\\X4\\"
-        |= Parser.loop []
-            (\accumulated ->
-                Parser.oneOf
-                    [ Parser.succeed
-                        (\a b c d e f ->
-                            Parser.Loop (x4 a b c d e f :: accumulated)
-                        )
-                        |. Parser.token "00"
-                        |= hexDigit
-                        |= hexDigit
-                        |= hexDigit
-                        |= hexDigit
-                        |= hexDigit
-                        |= hexDigit
-                    , Parser.succeed
-                        (\() -> Parser.Done (List.reverse accumulated))
-                        |= Parser.token "\\X0\\"
-                    ]
-            )
-
-
-parseStringChunk : Parser String
-parseStringChunk =
-    Parser.oneOf
-        [ Parser.getChompedString
-            (Parser.chompIf isBasic |. Parser.chompWhile isBasic)
-        , Parser.succeed "'" |. Parser.token "''"
-        , Parser.succeed "\\" |. Parser.token "\\\\"
-        , parseX0
-        , parseX2
-        , parseX4
-        ]
-
-
-parseString : Parser String
-parseString =
-    Parser.succeed String.concat
-        |= Parser.loop []
-            (\accumulated ->
-                Parser.oneOf
-                    [ Parser.succeed
-                        (\chunk -> Parser.Loop (chunk :: accumulated))
-                        |= parseStringChunk
-                    , Parser.lazy
-                        (\() ->
-                            Parser.succeed <|
-                                Parser.Done (List.reverse accumulated)
-                        )
-                    ]
-            )
-
-
 {-| Decode a single attribute as a `String`.
 -}
 string : AttributeDecoder String
@@ -814,19 +682,32 @@ string =
     Decoder
         (\attribute_ ->
             case attribute_ of
-                File.StringAttribute encodedString ->
-                    case Parser.run parseString encodedString of
-                        Ok decodedString ->
-                            Succeeded decodedString
-
-                        Err err ->
-                            Failed
-                                ("Could not parse encoded string '"
-                                    ++ encodedString
-                                )
+                File.StringAttribute value ->
+                    Succeeded value
 
                 _ ->
                     Failed "Expected a string"
+        )
+
+
+{-| Decode a single attribute as a blob of binary data, using the given
+[decoder](https://package.elm-lang.org/packages/elm/bytes/latest/Bytes-Decode).
+-}
+binaryData : Bytes.Decode.Decoder a -> AttributeDecoder a
+binaryData bytesDecoder =
+    Decoder
+        (\attribute_ ->
+            case attribute_ of
+                File.BinaryDataAttribute value ->
+                    case Bytes.Decode.decode bytesDecoder value of
+                        Just decodedValue ->
+                            Succeeded decodedValue
+
+                        Nothing ->
+                            Failed "Could not parse binary data"
+
+                _ ->
+                    Failed "Expected binary data"
         )
 
 
@@ -973,6 +854,21 @@ floatAs givenTypeName =
 stringAs : String -> AttributeDecoder String
 stringAs givenTypeName =
     typedAttribute givenTypeName string
+
+
+{-| Decode binary data wrapped as the given type.
+
+Note that while the STEP format supports binary data with an arbitrary number of
+bits, Elm only supports byte-aligned binary data (where the number of bits is a
+multiple of eight). This means that the `Bytes` value passed to the decoder may
+be zero-padded. For example, if a STEP file contained a binary data attribute
+with the value `011001` (six bits), the Elm `Bytes` value that would actually
+end up being decoded would be `00011001` (eight bits/one byte).
+
+-}
+binaryDataAs : String -> Bytes.Decode.Decoder a -> AttributeDecoder a
+binaryDataAs givenTypeName bytesDecoder =
+    typedAttribute givenTypeName (binaryData bytesDecoder)
 
 
 {-| Decode an enum wrapped as the given type.

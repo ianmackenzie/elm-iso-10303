@@ -122,8 +122,8 @@ addAttribute parsedAttribute entityResolution entityStack =
         ParsedStringAttribute value ->
             Ok ( Types.StringAttribute value, entityResolution )
 
-        ParsedBytesAttribute value ->
-            Ok ( Types.BytesAttribute value, entityResolution )
+        ParsedBinaryDataAttribute value ->
+            Ok ( Types.BinaryDataAttribute value, entityResolution )
 
         ParsedEnumAttribute name ->
             Ok ( Types.EnumAttribute name, entityResolution )

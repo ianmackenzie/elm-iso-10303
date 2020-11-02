@@ -98,7 +98,7 @@ type Attribute
     | IntAttribute Int
     | FloatAttribute Float
     | StringAttribute String
-    | BytesAttribute Bytes
+    | BinaryDataAttribute Bytes
     | EnumAttribute EnumValue.EnumValue
     | ReferenceTo Entity
     | TypedAttribute TypeName.TypeName Attribute
