@@ -1,6 +1,7 @@
 module Viewer exposing (main)
 
 import Browser
+import Bytes.Encode
 import Element exposing (Element)
 import Element.Background
 import Element.Font
@@ -141,8 +142,8 @@ viewAttribute attribute =
         Step.StringAttribute value ->
             Element.text (Format.string value)
 
-        Step.BytesAttribute value ->
-            Element.text (Format.bytes value)
+        Step.BinaryDataAttribute value ->
+            Element.text (Format.binaryData (Bytes.Encode.bytes value))
 
         Step.EnumAttribute value ->
             Element.text (Format.enum value)
