@@ -61,11 +61,9 @@ import Dict
 import List
 import List.Extra as List
 import Parser exposing ((|.), (|=), Parser)
-import Step.EntityId exposing (EntityId)
 import Step.EntityResolution as EntityResolution
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
-import Step.Internal as Internal
 import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as File exposing (Attribute, Entity, Header)
 
@@ -379,10 +377,10 @@ allEntities decoder entities accumulated =
                     allEntities decoder rest accumulated
 
 
-annotateWithEntityId : Maybe EntityId -> String -> String
+annotateWithEntityId : Maybe Int -> String -> String
 annotateWithEntityId maybeId message =
     case maybeId of
-        Just (Internal.EntityId id) ->
+        Just id ->
             "In entity " ++ String.fromInt id ++ ": " ++ message
 
         Nothing ->
@@ -428,7 +426,7 @@ entity givenTypeName decoder =
         )
 
 
-partialEntity : TypeName -> AttributeListDecoder a -> Maybe EntityId -> List ( TypeName, List Attribute ) -> DecodeResult String a
+partialEntity : TypeName -> AttributeListDecoder a -> Maybe Int -> List ( TypeName, List Attribute ) -> DecodeResult String a
 partialEntity searchTypeName decoder currentId entityRecords =
     case entityRecords of
         [] ->
@@ -464,20 +462,24 @@ module) then those will not have assigned IDs and this decoder will fail.
 -}
 entityId : EntityDecoder Int
 entityId =
+    let
+        errorMessage =
+            "Entity has no ID (was it created manually instead of read from a STEP file?)"
+    in
     Decoder
         (\currentEntity ->
             case currentEntity of
-                File.SimpleEntity (Just (Internal.EntityId currentId)) _ _ ->
+                File.SimpleEntity (Just currentId) _ _ ->
                     Succeeded currentId
 
-                File.ComplexEntity (Just (Internal.EntityId currentId)) _ ->
+                File.ComplexEntity (Just currentId) _ ->
                     Succeeded currentId
 
                 File.SimpleEntity Nothing _ _ ->
-                    Failed "Only entities parsed from STEP files have IDs"
+                    Failed errorMessage
 
                 File.ComplexEntity Nothing _ ->
-                    Failed "Only entities parsed from STEP files have IDs"
+                    Failed errorMessage
         )
 
 

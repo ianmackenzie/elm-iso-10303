@@ -7,7 +7,6 @@ import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Step.Decode
 import Step.Encode
-import Step.EntityId
 import Step.Types as Step
 import Test exposing (Test)
 
