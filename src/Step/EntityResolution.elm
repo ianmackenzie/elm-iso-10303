@@ -4,7 +4,8 @@ import Dict exposing (Dict)
 import Set exposing (Set)
 import Step.EntityStack as EntityStack exposing (EntityStack)
 import Step.EnumValue as EnumValue exposing (EnumValue)
-import Step.Internal exposing (ParsedAttribute(..), ParsedEntity(..))
+import Step.Internal as Internal
+import Step.ParsingTypes exposing (ParsedAttribute(..), ParsedEntity(..))
 import Step.TypeName as TypeName exposing (TypeName)
 import Step.Types as Types exposing (Attribute, Entity)
 
@@ -57,7 +58,7 @@ addEntity id parsedEntity entityResolution entityStack =
                             (\( attributes, resolutionWithAttributes ) ->
                                 let
                                     entity =
-                                        Types.SimpleEntity typeName attributes
+                                        Types.SimpleEntity (Just (Internal.EntityId id)) typeName attributes
 
                                     updatedResolution =
                                         store id entity resolutionWithAttributes
@@ -71,7 +72,7 @@ addEntity id parsedEntity entityResolution entityStack =
                             (\( entityRecords, resolutionWithSimpleEntities ) ->
                                 let
                                     entity =
-                                        Types.ComplexEntity entityRecords
+                                        Types.ComplexEntity (Just (Internal.EntityId id)) entityRecords
 
                                     updatedResolution =
                                         store id entity resolutionWithSimpleEntities

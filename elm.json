@@ -10,7 +10,8 @@
         "Step.Types",
         "Step.TypeName",
         "Step.EnumValue",
-        "Step.Format"
+        "Step.Format",
+        "Step.EntityId"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {

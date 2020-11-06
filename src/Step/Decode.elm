@@ -2,7 +2,7 @@ module Step.Decode exposing
     ( Decoder, FileDecoder, File, EntityDecoder, AttributeListDecoder, AttributeDecoder, Error(..)
     , file, header, single, all
     , singleTopLevel, allTopLevel
-    , entity
+    , entity, entityId
     , attribute
     , bool, int, float, string, enum, referenceTo, binaryData, null, optional, list, tuple2, tuple3, derivedValue
     , boolAs, intAs, floatAs, stringAs, enumAs, binaryDataAs, listAs
@@ -34,7 +34,7 @@ that are not referenced by any other entities). These otherwise work just like
 
 # Decoding an entity
 
-@docs entity
+@docs entity, entityId
 
 
 # Decoding attributes
@@ -61,6 +61,7 @@ import Dict
 import List
 import List.Extra as List
 import Parser exposing ((|.), (|=), Parser)
+import Step.EntityId exposing (EntityId)
 import Step.EntityResolution as EntityResolution
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.FastParse as FastParse
@@ -378,6 +379,16 @@ allEntities decoder entities accumulated =
                     allEntities decoder rest accumulated
 
 
+annotateWithEntityId : Maybe EntityId -> String -> String
+annotateWithEntityId maybeId message =
+    case maybeId of
+        Just (Internal.EntityId id) ->
+            "In entity " ++ String.fromInt id ++ ": " ++ message
+
+        Nothing ->
+            message
+
+
 {-| Decode an entity of the given type name, using the given decoder on the
 entity's list of attributes. If this decoder is passed to [`single`](#single) or
 [`all`](#all), any entities that do not have the given type will be skipped.
@@ -391,14 +402,14 @@ entity givenTypeName decoder =
     Decoder
         (\currentEntity ->
             case currentEntity of
-                File.SimpleEntity typeName attributes ->
+                File.SimpleEntity currentId typeName attributes ->
                     if typeName == searchTypeName then
                         case decodeResult decoder attributes of
                             Succeeded a ->
                                 Succeeded a
 
                             Failed message ->
-                                Failed message
+                                Failed (annotateWithEntityId currentId message)
 
                             NotMatched notMatched ->
                                 never notMatched
@@ -412,13 +423,13 @@ entity givenTypeName decoder =
                                 ++ "'"
                             )
 
-                File.ComplexEntity entityRecords ->
-                    partialEntity searchTypeName decoder entityRecords
+                File.ComplexEntity currentId entityRecords ->
+                    partialEntity searchTypeName decoder currentId entityRecords
         )
 
 
-partialEntity : TypeName -> AttributeListDecoder a -> List ( TypeName, List Attribute ) -> DecodeResult String a
-partialEntity searchTypeName decoder entityRecords =
+partialEntity : TypeName -> AttributeListDecoder a -> Maybe EntityId -> List ( TypeName, List Attribute ) -> DecodeResult String a
+partialEntity searchTypeName decoder currentId entityRecords =
     case entityRecords of
         [] ->
             NotMatched
@@ -434,13 +445,40 @@ partialEntity searchTypeName decoder entityRecords =
                         Succeeded value
 
                     Failed message ->
-                        Failed message
+                        Failed (annotateWithEntityId currentId message)
 
                     NotMatched notMatched ->
                         never notMatched
 
             else
-                partialEntity searchTypeName decoder rest
+                partialEntity searchTypeName decoder currentId rest
+
+
+{-| Get the integer ID of a particular entity in a file. This may be useful if
+you have external data which is linked to file entities using their integer ID.
+
+Note that only entities read from actual STEP files have IDs; if you create
+entities yourself (for example, by using the [`Step.Encode`](Step-Encode)
+module) then those will not have assigned IDs and this decoder will fail.
+
+-}
+entityId : EntityDecoder Int
+entityId =
+    Decoder
+        (\currentEntity ->
+            case currentEntity of
+                File.SimpleEntity (Just (Internal.EntityId currentId)) _ _ ->
+                    Succeeded currentId
+
+                File.ComplexEntity (Just (Internal.EntityId currentId)) _ ->
+                    Succeeded currentId
+
+                File.SimpleEntity Nothing _ _ ->
+                    Failed "Only entities parsed from STEP files have IDs"
+
+                File.ComplexEntity Nothing _ ->
+                    Failed "Only entities parsed from STEP files have IDs"
+        )
 
 
 {-| Decode a specific attribute by index (starting from 0) in an attribute list.

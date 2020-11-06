@@ -292,7 +292,7 @@ automatically-generated IDs, something like:
 -}
 entity : String -> List Attribute -> Entity
 entity givenTypeName givenAttributes =
-    SimpleEntity (TypeName.fromString givenTypeName) givenAttributes
+    SimpleEntity Nothing (TypeName.fromString givenTypeName) givenAttributes
 
 
 {-| Construct a single 'complex entity'; for example
@@ -314,7 +314,7 @@ will be encoded as
 -}
 complexEntity : List ( String, List Attribute ) -> Entity
 complexEntity simpleEntities =
-    ComplexEntity (List.map (Tuple.mapFirst TypeName.fromString) simpleEntities)
+    ComplexEntity Nothing (List.map (Tuple.mapFirst TypeName.fromString) simpleEntities)
 
 
 {-| Construct a reference to another STEP entity (will end up being encoded

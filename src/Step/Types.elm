@@ -21,6 +21,7 @@ been aliased here for convenience.
 -}
 
 import Bytes exposing (Bytes)
+import Step.EntityId as EntityId exposing (EntityId)
 import Step.EnumValue as EnumValue
 import Step.TypeName as TypeName
 
@@ -77,10 +78,17 @@ Instead of creating or inspecting `Entity` values directly, you will generally
 create them using [`Step.Encode.entity`](Step-Encode#entity) and extract data
 from them using [`Step.Decode.entity`](Step-Decode#entity).
 
+Note that if you do construct `Entity` values directly, you will have to use
+`Nothing` as the entity ID. This is by design since entity IDs are
+auto-generated when encoding a STEP file, so there is no point in specifying
+them. However, entities read from a file will be given an `EntityId` with the
+ID they had in that file. (Even if those entities are written out to another
+file later, they will have fresh IDs generated.)
+
 -}
 type Entity
-    = SimpleEntity TypeName.TypeName (List Attribute)
-    | ComplexEntity (List ( TypeName.TypeName, List Attribute ))
+    = SimpleEntity (Maybe EntityId) TypeName.TypeName (List Attribute)
+    | ComplexEntity (Maybe EntityId) (List ( TypeName.TypeName, List Attribute ))
 
 
 {-| An `Attribute` represents a single attribute of an `Entity`, such as an X
