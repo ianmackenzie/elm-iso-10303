@@ -152,7 +152,7 @@ suite =
                         Expect.fail ("Decoding failed with non-existent entity " ++ String.fromInt id)
 
                     Err (Step.Decode.CircularReference values) ->
-                        Expect.fail "Decoding failed with a circular referencechain"
+                        Expect.fail "Decoding failed with a circular reference chain"
 
                     Err (Step.Decode.DecodeError message) ->
                         message
