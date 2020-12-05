@@ -452,6 +452,16 @@ partialEntity searchTypeName decoder currentId entityRecords =
                 partialEntity searchTypeName decoder currentId rest
 
 
+getEntityId : Entity -> Maybe Int
+getEntityId givenEntity =
+    case givenEntity of
+        File.SimpleEntity maybeId _ _ ->
+            maybeId
+
+        File.ComplexEntity maybeId _ ->
+            maybeId
+
+
 {-| Get the integer ID of a particular entity in a file. This may be useful if
 you have external data which is linked to file entities using their integer ID.
 
@@ -462,24 +472,14 @@ module) then those will not have assigned IDs and this decoder will fail.
 -}
 entityId : EntityDecoder Int
 entityId =
-    let
-        errorMessage =
-            "Entity has no ID (was it created manually instead of read from a STEP file?)"
-    in
     Decoder
         (\currentEntity ->
-            case currentEntity of
-                File.SimpleEntity (Just currentId) _ _ ->
+            case getEntityId currentEntity of
+                Just currentId ->
                     Succeeded currentId
 
-                File.ComplexEntity (Just currentId) _ ->
-                    Succeeded currentId
-
-                File.SimpleEntity Nothing _ _ ->
-                    Failed errorMessage
-
-                File.ComplexEntity Nothing _ ->
-                    Failed errorMessage
+                Nothing ->
+                    Failed "Entity has no ID (was it created manually instead of read from a STEP file?)"
         )
 
 
