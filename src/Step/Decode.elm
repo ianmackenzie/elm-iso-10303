@@ -307,7 +307,7 @@ singleTopLevel : EntityDecoder a -> FileDecoder a
 singleTopLevel entityDecoder =
     Decoder
         (\(File properties) ->
-            singleEntity entityDecoder properties.allEntities Nothing
+            singleEntity entityDecoder properties.topLevelEntities Nothing
         )
 
 
