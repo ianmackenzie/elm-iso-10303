@@ -33,7 +33,7 @@ END-ISO-10303-21;
 """
 
 
-decodeFirstAttribute : Step.Decode.AttributeListDecoder Step.Attribute
+decodeFirstAttribute : Step.Decode.Decoder (List Step.Attribute) Step.Attribute
 decodeFirstAttribute =
     Step.Decode.attribute 0 Step.Decode.identity
 

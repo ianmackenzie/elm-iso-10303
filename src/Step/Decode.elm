@@ -1,5 +1,5 @@
 module Step.Decode exposing
-    ( Decoder, FileDecoder, File, EntityDecoder, AttributeListDecoder, AttributeDecoder, Error(..)
+    ( Decoder, File, Error(..)
     , file, header, single, all
     , singleTopLevel, allTopLevel
     , entity, entityId
@@ -15,7 +15,7 @@ you decode [JSON](https://package.elm-lang.org/packages/elm/json/latest/Json-Dec
 
 # Decoder types
 
-@docs Decoder, FileDecoder, File, EntityDecoder, AttributeListDecoder, AttributeDecoder, Error
+@docs Decoder, File, Error
 
 
 # Decoding a file
@@ -88,15 +88,8 @@ compiler error messages so it is useful to understand what the type parameters
 mean.
 
 -}
-type Decoder i m a
-    = Decoder (i -> DecodeResult m a)
-
-
-{-| A `Decoder` that takes an entire STEP file as input and produces some
-output.
--}
-type alias FileDecoder a =
-    Decoder File Never a
+type Decoder i a
+    = Decoder (i -> DecodeResult a)
 
 
 {-| Represents an entire STEP file composed of a header and a list of entities.
@@ -109,30 +102,6 @@ type File
         , allEntities : List Entity
         , topLevelEntities : List Entity
         }
-
-
-{-| A `Decoder` that takes a STEP entity as input, chooses whether or not it
-should 'match' that entity (generally based on the entity's type), and then (if
-it matches) decode that entity to produce some output.
--}
-type alias EntityDecoder a =
-    Decoder Entity String a
-
-
-{-| A `Decoder` that takes a list of entity attributes as input and produces
-some output. The only `AttributeListDecoder` is [`attribute`](#attribute), which
-selects a particular attribute from the list by index and then applies a given
-`AttributeDecoder` to that attribute.
--}
-type alias AttributeListDecoder a =
-    Decoder (List Attribute) Never a
-
-
-{-| A `Decoder` that takes a single entity attribute as input and produces some
-output.
--}
-type alias AttributeDecoder a =
-    Decoder Attribute Never a
 
 
 {-| Different kinds of errors that may be encountered when loading a STEP file:
@@ -154,13 +123,13 @@ type Error
     | DecodeError String
 
 
-type DecodeResult m a
+type DecodeResult a
     = Succeeded a
     | Failed String
-    | NotMatched m
+    | UnexpectedType
 
 
-decodeResult : Decoder i m a -> i -> DecodeResult m a
+decodeResult : Decoder i a -> i -> DecodeResult a
 decodeResult (Decoder function) input =
     function input
 
@@ -170,7 +139,7 @@ directly, but it may be necessary if you use [`Decode.identity`](#identity) to
 access raw [`Entity`](Step-Types#Entity) or [`Attribute`](Step-Types#Attribute)
 values.
 -}
-run : Decoder i m a -> i -> Result String a
+run : Decoder i a -> i -> Result String a
 run decoder input =
     case decodeResult decoder input of
         Succeeded value ->
@@ -179,21 +148,21 @@ run decoder input =
         Failed message ->
             Err message
 
-        NotMatched _ ->
-            Err "Not matched"
+        UnexpectedType ->
+            Err "Unexpected type"
 
 
 {-| A special decoder that always succeeds with the given value. Primarily
 useful with [`andThen`](#andThen).
 -}
-succeed : a -> Decoder i m a
+succeed : a -> Decoder i a
 succeed value =
     Decoder (always (Succeeded value))
 
 
 {-| A special decoder that always fails with the given error message.
 -}
-fail : String -> Decoder i m a
+fail : String -> Decoder i a
 fail description =
     Decoder (always (Failed description))
 
@@ -202,7 +171,7 @@ fail description =
 if you want to get a raw [`Entity`](Step-Types#Entity) or [`Attribute`](Step-Types#Attribute)
 value and inspect it.
 -}
-identity : Decoder i m i
+identity : Decoder i i
 identity =
     Decoder Succeeded
 
@@ -243,7 +212,7 @@ you might write:
         Decode.file fileDecoder fileContents
 
 -}
-file : FileDecoder a -> String -> Result Error a
+file : Decoder File a -> String -> Result Error a
 file decoder contents =
     FastParse.parse contents
         |> Result.mapError ParseError
@@ -273,14 +242,14 @@ file decoder contents =
                     Failed message ->
                         Err (DecodeError message)
 
-                    NotMatched notMatched ->
-                        never notMatched
+                    UnexpectedType ->
+                        Err (DecodeError "Internal error: UnexpectedType from file decoder")
             )
 
 
 {-| Extract the [header](Step-File#Header) of a STEP file.
 -}
-header : FileDecoder Header
+header : Decoder File Header
 header =
     Decoder
         (\(File properties) ->
@@ -292,7 +261,7 @@ header =
 If there are no matching entities or more than one matching entity, the decoder
 will fail.
 -}
-single : EntityDecoder a -> FileDecoder a
+single : Decoder Entity a -> Decoder File a
 single entityDecoder =
     Decoder
         (\(File properties) ->
@@ -303,7 +272,7 @@ single entityDecoder =
 {-| Attempt to find exactly one top-level entity in a file that matches the
 given decoder.
 -}
-singleTopLevel : EntityDecoder a -> FileDecoder a
+singleTopLevel : Decoder Entity a -> Decoder File a
 singleTopLevel entityDecoder =
     Decoder
         (\(File properties) ->
@@ -311,7 +280,7 @@ singleTopLevel entityDecoder =
         )
 
 
-singleEntity : EntityDecoder a -> List Entity -> Maybe a -> DecodeResult Never a
+singleEntity : Decoder Entity a -> List Entity -> Maybe a -> DecodeResult a
 singleEntity decoder entities currentValue =
     case entities of
         [] ->
@@ -335,13 +304,13 @@ singleEntity decoder entities currentValue =
                 Failed message ->
                     Failed message
 
-                NotMatched _ ->
+                UnexpectedType ->
                     singleEntity decoder rest currentValue
 
 
 {-| Find all entities in a file matching the given decoder.
 -}
-all : EntityDecoder a -> FileDecoder (List a)
+all : Decoder Entity a -> Decoder File (List a)
 all entityDecoder =
     Decoder
         (\(File properties) ->
@@ -351,7 +320,7 @@ all entityDecoder =
 
 {-| Find all top-level entities in a file matching the given decoder.
 -}
-allTopLevel : EntityDecoder a -> FileDecoder (List a)
+allTopLevel : Decoder Entity a -> Decoder File (List a)
 allTopLevel entityDecoder =
     Decoder
         (\(File properties) ->
@@ -359,7 +328,7 @@ allTopLevel entityDecoder =
         )
 
 
-allEntities : EntityDecoder a -> List Entity -> List a -> DecodeResult Never (List a)
+allEntities : Decoder Entity a -> List Entity -> List a -> DecodeResult (List a)
 allEntities decoder entities accumulated =
     case entities of
         [] ->
@@ -373,7 +342,7 @@ allEntities decoder entities accumulated =
                 Failed message ->
                     Failed message
 
-                NotMatched _ ->
+                UnexpectedType ->
                     allEntities decoder rest accumulated
 
 
@@ -391,7 +360,7 @@ annotateWithEntityId maybeId message =
 entity's list of attributes. If this decoder is passed to [`single`](#single) or
 [`all`](#all), any entities that do not have the given type will be skipped.
 -}
-entity : String -> AttributeListDecoder a -> EntityDecoder a
+entity : String -> Decoder (List Attribute) a -> Decoder Entity a
 entity givenTypeName decoder =
     let
         searchTypeName =
@@ -409,32 +378,22 @@ entity givenTypeName decoder =
                             Failed message ->
                                 Failed (annotateWithEntityId currentId message)
 
-                            NotMatched notMatched ->
-                                never notMatched
+                            UnexpectedType ->
+                                Failed "Internal error: UnexpectedType from attribute list decoder"
 
                     else
-                        NotMatched
-                            ("Expected entity to have type '"
-                                ++ TypeName.toString searchTypeName
-                                ++ "', got '"
-                                ++ TypeName.toString typeName
-                                ++ "'"
-                            )
+                        UnexpectedType
 
                 File.ComplexEntity currentId entityRecords ->
                     partialEntity searchTypeName decoder currentId entityRecords
         )
 
 
-partialEntity : TypeName -> AttributeListDecoder a -> Maybe Int -> List ( TypeName, List Attribute ) -> DecodeResult String a
+partialEntity : TypeName -> Decoder (List Attribute) a -> Maybe Int -> List ( TypeName, List Attribute ) -> DecodeResult a
 partialEntity searchTypeName decoder currentId entityRecords =
     case entityRecords of
         [] ->
-            NotMatched
-                ("Complex entity has no sub-entity of type '"
-                    ++ TypeName.toString searchTypeName
-                    ++ "'"
-                )
+            UnexpectedType
 
         ( typeName, attributes ) :: rest ->
             if typeName == searchTypeName then
@@ -445,8 +404,8 @@ partialEntity searchTypeName decoder currentId entityRecords =
                     Failed message ->
                         Failed (annotateWithEntityId currentId message)
 
-                    NotMatched notMatched ->
-                        never notMatched
+                    UnexpectedType ->
+                        Failed "Internal error: UnexpectedType from attribute list decoder"
 
             else
                 partialEntity searchTypeName decoder currentId rest
@@ -470,7 +429,7 @@ entities yourself (for example, by using the [`Step.Encode`](Step-Encode)
 module) then those will not have assigned IDs and this decoder will fail.
 
 -}
-entityId : EntityDecoder Int
+entityId : Decoder Entity Int
 entityId =
     Decoder
         (\currentEntity ->
@@ -493,7 +452,7 @@ functions, for example:
         , height : Float
         }
 
-    myAttributesDecoder : AttributeListDecoder MyAttributes
+    myAttributesDecoder : Decoder (List Attribute) MyAttributes
     myAttributesDecoder =
         Decode.map3 MyAttributes
             (Decode.attribute 0 Decode.string)
@@ -501,7 +460,7 @@ functions, for example:
             (Decode.attribute 2 Decode.float)
 
 -}
-attribute : Int -> AttributeDecoder a -> AttributeListDecoder a
+attribute : Int -> Decoder Attribute a -> Decoder (List Attribute) a
 attribute index attributeDecoder =
     Decoder
         (\attributeList ->
@@ -514,15 +473,15 @@ attribute index attributeDecoder =
                         Failed message ->
                             Failed ("At attribute index " ++ String.fromInt index ++ ": " ++ message)
 
-                        NotMatched notMatched ->
-                            never notMatched
+                        UnexpectedType ->
+                            Failed "Internal error: UnexpectedType from attribute decoder"
 
                 Nothing ->
                     Failed ("No attribute at index " ++ String.fromInt index)
         )
 
 
-mapHelp : (a -> b) -> DecodeResult m a -> DecodeResult m b
+mapHelp : (a -> b) -> DecodeResult a -> DecodeResult b
 mapHelp function result =
     case result of
         Succeeded value ->
@@ -531,25 +490,25 @@ mapHelp function result =
         Failed message ->
             Failed message
 
-        NotMatched message ->
-            NotMatched message
+        UnexpectedType ->
+            UnexpectedType
 
 
 {-| Map the value produced by a decoder.
 -}
-map : (a -> b) -> Decoder i m a -> Decoder i m b
+map : (a -> b) -> Decoder i a -> Decoder i b
 map mapFunction decoder =
     Decoder (\input -> mapHelp mapFunction (decodeResult decoder input))
 
 
-map2Help : (a -> b -> c) -> DecodeResult m a -> DecodeResult m b -> DecodeResult m c
+map2Help : (a -> b -> c) -> DecodeResult a -> DecodeResult b -> DecodeResult c
 map2Help function resultA resultB =
     case resultA of
         Succeeded value ->
             mapHelp (function value) resultB
 
-        NotMatched message ->
-            NotMatched message
+        UnexpectedType ->
+            UnexpectedType
 
         Failed message ->
             Failed message
@@ -559,9 +518,9 @@ map2Help function resultA resultB =
 -}
 map2 :
     (a -> b -> c)
-    -> Decoder i m a
-    -> Decoder i m b
-    -> Decoder i m c
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
 map2 function (Decoder functionA) (Decoder functionB) =
     Decoder (\input -> map2Help function (functionA input) (functionB input))
 
@@ -570,10 +529,10 @@ map2 function (Decoder functionA) (Decoder functionB) =
 -}
 map3 :
     (a -> b -> c -> d)
-    -> Decoder i m a
-    -> Decoder i m b
-    -> Decoder i m c
-    -> Decoder i m d
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
 map3 function decoderA decoderB decoderC =
     map2 (<|) (map2 function decoderA decoderB) decoderC
 
@@ -582,11 +541,11 @@ map3 function decoderA decoderB decoderC =
 -}
 map4 :
     (a -> b -> c -> d -> e)
-    -> Decoder i m a
-    -> Decoder i m b
-    -> Decoder i m c
-    -> Decoder i m d
-    -> Decoder i m e
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+    -> Decoder i e
 map4 function decoderA decoderB decoderC decoderD =
     map2 (<|) (map3 function decoderA decoderB decoderC) decoderD
 
@@ -595,12 +554,12 @@ map4 function decoderA decoderB decoderC decoderD =
 -}
 map5 :
     (a -> b -> c -> d -> e -> f)
-    -> Decoder i m a
-    -> Decoder i m b
-    -> Decoder i m c
-    -> Decoder i m d
-    -> Decoder i m e
-    -> Decoder i m f
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+    -> Decoder i e
+    -> Decoder i f
 map5 function decoderA decoderB decoderC decoderD decoderE =
     map2 (<|) (map4 function decoderA decoderB decoderC decoderD) decoderE
 
@@ -609,13 +568,13 @@ map5 function decoderA decoderB decoderC decoderD decoderE =
 -}
 map6 :
     (a -> b -> c -> d -> e -> f -> g)
-    -> Decoder i m a
-    -> Decoder i m b
-    -> Decoder i m c
-    -> Decoder i m d
-    -> Decoder i m e
-    -> Decoder i m f
-    -> Decoder i m g
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+    -> Decoder i e
+    -> Decoder i f
+    -> Decoder i g
 map6 function decoderA decoderB decoderC decoderD decoderE decoderF =
     map2 (<|) (map5 function decoderA decoderB decoderC decoderD decoderE) decoderF
 
@@ -624,14 +583,14 @@ map6 function decoderA decoderB decoderC decoderD decoderE decoderF =
 -}
 map7 :
     (a -> b -> c -> d -> e -> f -> g -> h)
-    -> Decoder i m a
-    -> Decoder i m b
-    -> Decoder i m c
-    -> Decoder i m d
-    -> Decoder i m e
-    -> Decoder i m f
-    -> Decoder i m g
-    -> Decoder i m h
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+    -> Decoder i e
+    -> Decoder i f
+    -> Decoder i g
+    -> Decoder i h
 map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG =
     map2 (<|) (map6 function decoderA decoderB decoderC decoderD decoderE decoderF) decoderG
 
@@ -640,15 +599,15 @@ map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG =
 -}
 map8 :
     (a -> b -> c -> d -> e -> f -> g -> h -> j)
-    -> Decoder i m a
-    -> Decoder i m b
-    -> Decoder i m c
-    -> Decoder i m d
-    -> Decoder i m e
-    -> Decoder i m f
-    -> Decoder i m g
-    -> Decoder i m h
-    -> Decoder i m j
+    -> Decoder i a
+    -> Decoder i b
+    -> Decoder i c
+    -> Decoder i d
+    -> Decoder i e
+    -> Decoder i f
+    -> Decoder i g
+    -> Decoder i h
+    -> Decoder i j
 map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG decoderH =
     map2 (<|) (map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG) decoderH
 
@@ -656,7 +615,7 @@ map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG dec
 {-| Decode a single attribute as a `Bool` (from the special STEP enum values
 `.T.` and `.F.`).
 -}
-bool : AttributeDecoder Bool
+bool : Decoder Attribute Bool
 bool =
     Decoder
         (\inputAttribute ->
@@ -671,7 +630,7 @@ bool =
 
 {-| Decode a single attribute as an `Int`.
 -}
-int : AttributeDecoder Int
+int : Decoder Attribute Int
 int =
     Decoder
         (\inputAttribute ->
@@ -692,7 +651,7 @@ function to decode integer values; if you want to decode an integer value as a
     Decode.map toFloat Decode.int
 
 -}
-float : AttributeDecoder Float
+float : Decoder Attribute Float
 float =
     Decoder
         (\inputAttribute ->
@@ -717,7 +676,7 @@ isBasic character =
 
 {-| Decode a single attribute as a `String`.
 -}
-string : AttributeDecoder String
+string : Decoder Attribute String
 string =
     Decoder
         (\attribute_ ->
@@ -733,7 +692,7 @@ string =
 {-| Decode a single attribute as a blob of binary data, using the given
 [decoder](https://package.elm-lang.org/packages/elm/bytes/latest/Bytes-Decode).
 -}
-binaryData : Bytes.Decode.Decoder a -> AttributeDecoder a
+binaryData : Bytes.Decode.Decoder a -> Decoder Attribute a
 binaryData bytesDecoder =
     Decoder
         (\attribute_ ->
@@ -760,7 +719,7 @@ values `RED`, `YELLOW` and `GREEN` you might write:
         | Yellow
         | Green
 
-    lightColorDecoder : AttributeDecoder LightColor
+    lightColorDecoder : Decoder Attribute LightColor
     lightColorDecoder =
         Decode.enum
             [ ( "RED", Red )
@@ -773,7 +732,7 @@ about upper vs. lower case and you can either include or omit the leading and
 trailing periods.)
 
 -}
-enum : List ( String, a ) -> AttributeDecoder a
+enum : List ( String, a ) -> Decoder Attribute a
 enum cases =
     let
         lookupDict =
@@ -801,7 +760,7 @@ enum cases =
         )
 
 
-collectDecodedAttributes : AttributeDecoder a -> List a -> List Attribute -> DecodeResult Never (List a)
+collectDecodedAttributes : Decoder Attribute a -> List a -> List Attribute -> DecodeResult (List a)
 collectDecodedAttributes decoder accumulated remainingAttributes =
     case remainingAttributes of
         [] ->
@@ -821,14 +780,14 @@ collectDecodedAttributes decoder accumulated remainingAttributes =
                 Failed message ->
                     Failed message
 
-                NotMatched notMatched ->
-                    never notMatched
+                UnexpectedType ->
+                    Failed "Internal error: UnexpectedType from attribute decoder"
 
 
 {-| Decode an attribute as a list, passing the decoder to be used for each list
 item.
 -}
-list : AttributeDecoder a -> AttributeDecoder (List a)
+list : Decoder Attribute a -> Decoder Attribute (List a)
 list itemDecoder =
     Decoder
         (\inputAttribute ->
@@ -841,7 +800,7 @@ list itemDecoder =
         )
 
 
-typedAttribute : String -> AttributeDecoder a -> AttributeDecoder a
+typedAttribute : String -> Decoder Attribute a -> Decoder Attribute a
 typedAttribute givenTypeName decoder =
     let
         expectedTypeName =
@@ -870,28 +829,28 @@ typedAttribute givenTypeName decoder =
 
 {-| Decode a `Bool` wrapped as the given type.
 -}
-boolAs : String -> AttributeDecoder Bool
+boolAs : String -> Decoder Attribute Bool
 boolAs givenTypeName =
     typedAttribute givenTypeName bool
 
 
 {-| Decode an `Int` wrapped as the given type.
 -}
-intAs : String -> AttributeDecoder Int
+intAs : String -> Decoder Attribute Int
 intAs givenTypeName =
     typedAttribute givenTypeName int
 
 
 {-| Decode a `Float` wrapped as the given type.
 -}
-floatAs : String -> AttributeDecoder Float
+floatAs : String -> Decoder Attribute Float
 floatAs givenTypeName =
     typedAttribute givenTypeName float
 
 
 {-| Decode a `String` wrapped as the given type.
 -}
-stringAs : String -> AttributeDecoder String
+stringAs : String -> Decoder Attribute String
 stringAs givenTypeName =
     typedAttribute givenTypeName string
 
@@ -906,21 +865,21 @@ with the value `011001` (six bits), the Elm `Bytes` value that would actually
 end up being decoded would be `00011001` (eight bits/one byte).
 
 -}
-binaryDataAs : String -> Bytes.Decode.Decoder a -> AttributeDecoder a
+binaryDataAs : String -> Bytes.Decode.Decoder a -> Decoder Attribute a
 binaryDataAs givenTypeName bytesDecoder =
     typedAttribute givenTypeName (binaryData bytesDecoder)
 
 
 {-| Decode an enum wrapped as the given type.
 -}
-enumAs : String -> List ( String, a ) -> AttributeDecoder a
+enumAs : String -> List ( String, a ) -> Decoder Attribute a
 enumAs givenTypeName cases =
     typedAttribute givenTypeName (enum cases)
 
 
 {-| Decode a list wrapped as the given type.
 -}
-listAs : String -> AttributeDecoder a -> AttributeDecoder (List a)
+listAs : String -> Decoder Attribute a -> Decoder Attribute (List a)
 listAs givenTypeName itemDecoder =
     typedAttribute givenTypeName (list itemDecoder)
 
@@ -928,7 +887,7 @@ listAs givenTypeName itemDecoder =
 {-| Decode a list of exactly two elements, passing the decoder to be used for
 the two elements.
 -}
-tuple2 : AttributeDecoder a -> AttributeDecoder ( a, a )
+tuple2 : Decoder Attribute a -> Decoder Attribute ( a, a )
 tuple2 decoder =
     Decoder
         (\inputAttribute ->
@@ -946,7 +905,7 @@ tuple2 decoder =
 {-| Decode a list of exactly three elements, passing the decoder to be used for
 the three elements.
 -}
-tuple3 : AttributeDecoder a -> AttributeDecoder ( a, a, a )
+tuple3 : Decoder Attribute a -> Decoder Attribute ( a, a, a )
 tuple3 decoder =
     Decoder
         (\inputAttribute ->
@@ -967,7 +926,7 @@ tuple3 decoder =
 {-| Decode an attribute which is a reference to another entity, by providing the
 decoder to use for that entity.
 -}
-referenceTo : EntityDecoder a -> AttributeDecoder a
+referenceTo : Decoder Entity a -> Decoder Attribute a
 referenceTo entityDecoder =
     Decoder
         (\inputAttribute ->
@@ -980,8 +939,8 @@ referenceTo entityDecoder =
                         Failed message ->
                             Failed message
 
-                        NotMatched message ->
-                            Failed message
+                        UnexpectedType ->
+                            Failed (annotateWithEntityId (getEntityId referencedEntity) "Unexpected type")
 
                 _ ->
                     Failed "Expected a referenced entity"
@@ -990,23 +949,14 @@ referenceTo entityDecoder =
 
 {-| Construct an entity decoder that may match one of many entity types.
 -}
-oneOf : List (EntityDecoder a) -> EntityDecoder a
+oneOf : List (Decoder Entity a) -> Decoder Entity a
 oneOf decoders =
-    Decoder (oneOfHelp decoders [])
+    Decoder (oneOfHelp decoders)
 
 
-oneOfHelp : List (EntityDecoder a) -> List String -> Entity -> DecodeResult String a
-oneOfHelp decoders matchErrors input =
+oneOfHelp : List (Decoder Entity a) -> Entity -> DecodeResult a
+oneOfHelp decoders input =
     case decoders of
-        [] ->
-            -- No more decoders to try: fail with an error message that
-            -- aggregates all the individual error messages
-            NotMatched
-                ("No decoders matched (error messages: \""
-                    ++ String.join "\", \"" (List.reverse matchErrors)
-                    ++ "\")"
-                )
-
         first :: rest ->
             -- At least one decoder left to try, so try it
             case decodeResult first input of
@@ -1024,13 +974,17 @@ oneOfHelp decoders matchErrors input =
                 -- Decoder did not match the entity: move on to the next one,
                 -- but save the error message in case *all* decoders do not
                 -- match (see above)
-                NotMatched matchError ->
-                    oneOfHelp rest (matchError :: matchErrors) input
+                UnexpectedType ->
+                    oneOfHelp rest input
+
+        [] ->
+            -- No more decoders to try
+            UnexpectedType
 
 
 {-| Decode the special 'null' attribute (`$`) as the given value.
 -}
-null : a -> AttributeDecoder a
+null : a -> Decoder Attribute a
 null value =
     Decoder
         (\inputAttribute ->
@@ -1045,7 +999,7 @@ null value =
 
 {-| Decode the special 'derived value' attribute (`*`) as the given value.
 -}
-derivedValue : a -> AttributeDecoder a
+derivedValue : a -> Decoder Attribute a
 derivedValue value =
     Decoder
         (\inputAttribute ->
@@ -1060,7 +1014,7 @@ derivedValue value =
 
 {-| Decode an attribute that may be null, returning `Nothing` if it is.
 -}
-optional : AttributeDecoder a -> AttributeDecoder (Maybe a)
+optional : Decoder Attribute a -> Decoder Attribute (Maybe a)
 optional decoder =
     Decoder
         (\inputAttribute ->
@@ -1076,8 +1030,8 @@ optional decoder =
                         _ ->
                             Failed message
 
-                NotMatched notMatched ->
-                    never notMatched
+                UnexpectedType ->
+                    Failed "Internal error: UnexpectedType from attribute decoder"
         )
 
 
@@ -1086,33 +1040,25 @@ decoder to apply next. The only restriction is that this _second_ decoder must
 be of a type that always matches (so not an [`entity`](#entity) decoder), since
 it is the _first_ decoder that decides whether to match the input or not.
 -}
-andThen : (a -> Decoder i Never b) -> Decoder i m a -> Decoder i m b
+andThen : (a -> Decoder i b) -> Decoder i a -> Decoder i b
 andThen function decoder =
     Decoder
         (\input ->
             case decodeResult decoder input of
                 Succeeded intermediateValue ->
-                    case decodeResult (function intermediateValue) input of
-                        Succeeded value ->
-                            Succeeded value
-
-                        Failed message ->
-                            Failed message
-
-                        NotMatched notMatched ->
-                            never notMatched
+                    decodeResult (function intermediateValue) input
 
                 Failed message ->
                     Failed message
 
-                NotMatched notMatched ->
-                    NotMatched notMatched
+                UnexpectedType ->
+                    UnexpectedType
         )
 
 
 {-| Define a decoder lazily such that it is only constructed if needed. This is
 primarily used to break circular reference chains between decoders.
 -}
-lazy : (() -> Decoder i m a) -> Decoder i m a
+lazy : (() -> Decoder i a) -> Decoder i a
 lazy constructor =
     Decoder (\input -> decodeResult (constructor ()) input)
