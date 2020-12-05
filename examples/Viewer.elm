@@ -144,14 +144,14 @@ expand searchTerm entity =
     case expandedChildren of
         [] ->
             case entity of
-                Step.SimpleEntity typeName attributes ->
+                Step.SimpleEntity _ typeName _ ->
                     if String.contains searchTerm (TypeName.toString typeName) then
                         Just (DisplayedEntity entity [])
 
                     else
                         Nothing
 
-                Step.ComplexEntity entityRecords ->
+                Step.ComplexEntity _ entityRecords ->
                     if List.any (Tuple.first >> TypeName.toString >> String.contains searchTerm) entityRecords then
                         Just (DisplayedEntity entity [])
 
@@ -170,13 +170,23 @@ entityRecordString typeName attributes =
         ++ ")"
 
 
+idString : Maybe Int -> String
+idString maybeId =
+    case maybeId of
+        Just id ->
+            "#" ++ String.fromInt id ++ "="
+
+        Nothing ->
+            ""
+
+
 entityString : Step.Entity -> String
 entityString entity =
     case entity of
-        Step.SimpleEntity typeName attributes ->
-            entityRecordString typeName attributes
+        Step.SimpleEntity id typeName attributes ->
+            idString id ++ entityRecordString typeName attributes
 
-        Step.ComplexEntity entityRecords ->
+        Step.ComplexEntity id entityRecords ->
             let
                 entityRecordStrings =
                     List.map
@@ -185,7 +195,7 @@ entityString entity =
                         )
                         entityRecords
             in
-            "(" ++ String.concat entityRecordStrings ++ ")"
+            idString id ++ "(" ++ String.concat entityRecordStrings ++ ")"
 
 
 attributeString : Step.Attribute -> String
@@ -241,10 +251,10 @@ referencedEntities attribute =
 childEntities : Step.Entity -> List Step.Entity
 childEntities parentEntity =
     case parentEntity of
-        Step.SimpleEntity _ attributes ->
+        Step.SimpleEntity _ _ attributes ->
             List.concatMap referencedEntities attributes
 
-        Step.ComplexEntity entityRecords ->
+        Step.ComplexEntity _ entityRecords ->
             List.concatMap (Tuple.second >> List.concatMap referencedEntities) entityRecords
 
 
