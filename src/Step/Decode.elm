@@ -204,7 +204,7 @@ value and inspect it.
 -}
 identity : Decoder i m i
 identity =
-    Decoder (\input -> Succeeded input)
+    Decoder Succeeded
 
 
 {-| Decode a STEP file given as a `String` using the given decoder. For example,
