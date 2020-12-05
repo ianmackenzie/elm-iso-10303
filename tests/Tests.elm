@@ -158,6 +158,34 @@ suite =
                         message
                             |> Expect.equal
                                 "In entity 8: At attribute index 0: In entity 7: At attribute index 0: Expected a string"
+        , Test.test "Unexpected type from nested entity" <|
+            \() ->
+                let
+                    nestedDecoder =
+                        Step.Decode.entity "PARENT" <|
+                            Step.Decode.attribute 0 <|
+                                Step.Decode.referenceTo <|
+                                    Step.Decode.entity "GRANDCHILD" <|
+                                        Step.Decode.attribute 0 <|
+                                            Step.Decode.string
+                in
+                case Step.Decode.file (Step.Decode.single nestedDecoder) testFile of
+                    Ok value ->
+                        Expect.fail "Expected decoding to fail"
+
+                    Err (Step.Decode.ParseError message) ->
+                        Expect.fail message
+
+                    Err (Step.Decode.NonexistentEntity id) ->
+                        Expect.fail ("Decoding failed with non-existent entity " ++ String.fromInt id)
+
+                    Err (Step.Decode.CircularReference values) ->
+                        Expect.fail "Decoding failed with a circular referencechain"
+
+                    Err (Step.Decode.DecodeError message) ->
+                        message
+                            |> Expect.equal
+                                "In entity 8: At attribute index 0: In entity 7: Unexpected type"
         , Test.test "Decode entity ID from nested entity" <|
             \() ->
                 let
