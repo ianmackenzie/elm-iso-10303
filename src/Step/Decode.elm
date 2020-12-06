@@ -685,7 +685,7 @@ string =
 
 
 {-| Decode a single attribute as a blob of binary data, using the given
-[decoder](https://package.elm-lang.org/packages/elm/bytes/latest/Bytes-Decode).
+[binary decoder](https://package.elm-lang.org/packages/elm/bytes/latest/Bytes-Decode).
 -}
 binaryData : Bytes.Decode.Decoder a -> Decoder Attribute a
 binaryData bytesDecoder =
