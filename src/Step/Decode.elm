@@ -71,22 +71,6 @@ import Step.Types as File exposing (Attribute, Entity, Header)
 {-| A `Decoder` describes how to attempt to decode some input of type `i` (an
 entire file, an individual entity, a specific attribute) and produce some output
 of type `a`.
-
-Entity decoders have the additional ability to choose whether to _match_ a
-particular entity. For example, a decoder for `CARTESIAN_POINT` entities would
-_fail_ if it encountered a `CARTESIAN_POINT` in an unexpected format (no XYZ
-coordinates, for example) but would _not match_ a `DIRECTION` entity. This
-distinction is important to avoid silently swallowing errors.
-
-The `m` type parameter indicates whether a decoder has this ability to match or
-not match inputs; it is equal to `String` for entity decoders and `Never`
-otherwise.
-
-You will rarely use the `Decoder` type directly in your own code, instead using
-the specialized types such as `EntityDecoder`, but you will likely see it in
-compiler error messages so it is useful to understand what the type parameters
-mean.
-
 -}
 type Decoder i a
     = Decoder (i -> DecodeResult a)
@@ -181,23 +165,19 @@ to extract the file header and all `CARTESIAN_POINT` entities from a given file,
 you might write:
 
     import Step.Types as Step
-    import Step.Decode as Decode exposing
-        ( Decoder
-        , FileDecoder
-        , EntityDecoder
-        )
+    import Step.Decode as Decode exposing (Decoder)
 
     type alias FileData =
         { header : Step.Header
         , points : List ( Float, Float, Float )
         }
 
-    pointDecoder : EntityDecoder ( Float, Float, Float )
+    pointDecoder : Decoder Step.Entity ( Float, Float, Float )
     pointDecoder =
         Decode.entity "CARTESIAN_POINT" <|
             Decode.attribute 1 (Decode.tuple3 Decode.float)
 
-    fileDecoder : FileDecoder FileData
+    fileDecoder : Decoder Step.File FileData
     fileDecoder =
         Decode.map2 FileData
             Decode.header
@@ -357,8 +337,17 @@ annotateWithEntityId maybeId message =
 
 
 {-| Decode an entity of the given type name, using the given decoder on the
-entity's list of attributes. If this decoder is passed to [`single`](#single) or
-[`all`](#all), any entities that do not have the given type will be skipped.
+entity's list of attributes.
+
+The decoder will skip any entities with a different type name. This means that,
+for example,
+
+    Decode.all <|
+        Decode.entity "SOME_TYPE" <|
+            Decode.attribute 0 attributeDecoder
+
+will attempt to decode all entities of type `SOME_TYPE` and skip the rest.
+
 -}
 entity : String -> Decoder (List Attribute) a -> Decoder Entity a
 entity givenTypeName decoder =
@@ -940,7 +929,9 @@ referenceTo entityDecoder =
         )
 
 
-{-| Construct an entity decoder that may match one of many entity types.
+{-| Construct an entity decoder that may match one of many entity types. The
+first decoder with a matching type will be used. If none of the entity types
+match, then the current entity is skipped.
 -}
 oneOf : List (Decoder Entity a) -> Decoder Entity a
 oneOf decoders =
@@ -1028,10 +1019,8 @@ optional decoder =
         )
 
 
-{-| Run one decoder, and based on the result of the first decoder decide what
-decoder to apply next. The only restriction is that this _second_ decoder must
-be of a type that always matches (so not an [`entity`](#entity) decoder), since
-it is the _first_ decoder that decides whether to match the input or not.
+{-| Run one decoder on some input, and based on the result of the first decoder
+decide what decoder to apply next to the same input.
 -}
 andThen : (a -> Decoder i b) -> Decoder i a -> Decoder i b
 andThen function decoder =
