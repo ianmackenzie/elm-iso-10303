@@ -722,9 +722,7 @@ values `RED`, `YELLOW` and `GREEN` you might write:
             , ( "GREEN", Green )
             ]
 
-(Note that the given strings will be normalized, so you do not have to worry
-about upper vs. lower case and you can either include or omit the leading and
-trailing periods.)
+(Note that the given strings will be normalized, so case does not matter.)
 
 -}
 enum : List ( String, a ) -> Decoder Attribute a
