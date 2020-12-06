@@ -6,7 +6,7 @@ module Step.Decode exposing
     , attribute
     , bool, int, float, string, enum, referenceTo, binaryData, null, optional, list, tuple2, tuple3, derivedValue
     , boolAs, intAs, floatAs, stringAs, enumAs, binaryDataAs, listAs
-    , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy, identity, run
+    , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy, identity
     )
 
 {-| This module lets you decode data from STEP files in a similar way to how
@@ -51,7 +51,7 @@ that are not referenced by any other entities). These otherwise work just like
 
 # Working with decoders
 
-@docs succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy, identity, run
+@docs succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy, identity
 
 -}
 
