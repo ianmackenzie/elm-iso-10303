@@ -421,13 +421,8 @@ getEntityId givenEntity =
             maybeId
 
 
-{-| Get the integer ID of a particular entity in a file. This may be useful if
-you have external data which is linked to file entities using their integer ID.
-
-Note that only entities read from actual STEP files have IDs; if you create
-entities yourself (for example, by using the [`Step.Encode`](Step-Encode)
-module) then those will not have assigned IDs and this decoder will fail.
-
+{-| Get the integer ID of a particular entity in a file. Note that these are not
+guaranteed to be consistent between two different versions of a given STEP file.
 -}
 entityId : Decoder Entity Int
 entityId =
