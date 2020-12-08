@@ -6,7 +6,7 @@ module Step.Decode exposing
     , attribute
     , bool, int, float, string, enum, referenceTo, binaryData, null, optional, list, tuple2, tuple3, derivedValue
     , boolAs, intAs, floatAs, stringAs, enumAs, binaryDataAs, listAs
-    , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy, identity
+    , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, resolve, andThen, flatten, oneOf, lazy, identity
     )
 
 {-| This module lets you decode data from STEP files in a similar way to how
@@ -51,7 +51,7 @@ that are not referenced by any other entities). These otherwise work just like
 
 # Working with decoders
 
-@docs succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, andThen, oneOf, lazy, identity
+@docs succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, resolve, andThen, flatten, oneOf, lazy, identity
 
 -}
 
@@ -596,6 +596,56 @@ map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG dec
     map2 (<|) (map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG) decoderH
 
 
+{-| It is often useful to call functions like `Decode.map2` but pass a mapping
+function that may fail (a function that returns a `Result String a` instead of
+just a value of type `a`). For example, you might try to decode the ratio of two
+numbers, failing if the denominator is zero:
+
+    Decode.map2
+        (\numerator denominator ->
+            if denominator == 0 then
+                Err "Denominator cannot be zero"
+
+            else
+                Ok (numerator / denominator)
+        )
+        (Decode.attribute 0 Decode.float)
+        (Decode.attribute 1 Decode.float)
+
+However, this is now a `Decoder (List Attribute) (Result String Float)` instead
+of just a `Decoder (List Attribute) Float`. Using `resolve` will convert the
+`Ok` case to a successful decode and the `Err` case to a decode error, giving
+you the decoder that you want:
+
+    ratioDecoder : Decoder (List Attribute) Float
+    ratioDecoder =
+        Decode.resolve <|
+            Decode.map2
+                (\numerator denominator ->
+                    if denominator == 0 then
+                        Err "Denominator cannot be zero"
+
+                    else
+                        Ok (numerator / denominator)
+                )
+                (Decode.attribute 0 Decode.float)
+                (Decode.attribute 1 Decode.float)
+
+-}
+resolve : Decoder i (Result String a) -> Decoder i a
+resolve decoder =
+    decoder
+        |> andThen
+            (\result ->
+                case result of
+                    Ok value ->
+                        succeed value
+
+                    Err message ->
+                        fail message
+            )
+
+
 {-| Decode a single attribute as a `Bool` (from the special STEP enum values
 `.T.` and `.F.`).
 -}
@@ -1036,6 +1086,22 @@ andThen function decoder =
                 UnexpectedType ->
                     UnexpectedType
         )
+
+
+{-| You may run into cases where you end up with a decoder that returns another
+decoder, perhaps if you construct a decoder within a call to `Decode.map2` or
+similar. This function will 'flatten' the resulting decoder;
+
+    Decode.flatten
+
+is equivalent to
+
+    Decode.andThen identity
+
+-}
+flatten : Decoder i (Decoder i a) -> Decoder i a
+flatten decoder =
+    decoder |> andThen Basics.identity
 
 
 {-| Define a decoder lazily such that it is only constructed if needed. This is
