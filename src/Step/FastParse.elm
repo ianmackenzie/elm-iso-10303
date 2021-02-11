@@ -218,7 +218,7 @@ decodeString string0 =
 
 addStringToDict : Regex.Match -> Dict String String -> Dict String String
 addStringToDict { match, index } accumulated =
-    if String.startsWith "'" match then
+    if String.slice 0 1 match == "'" then
         Dict.insert (stringKey index) (decodeString (String.slice 1 -1 match)) accumulated
 
     else
