@@ -42,7 +42,7 @@ commentPattern =
 
 stringPattern : String
 stringPattern =
-    -- single apostrophey followed by some combination of non-apostrophes
+    -- single apostrophe followed by some combination of non-apostrophes
     -- or pairs of apostrophes together, followed by a single apostrophe
     "'(''|[^'])*'"
 
