@@ -311,7 +311,7 @@ parseHeader strings input =
                 |. Parser.token "ENDSEC;"
     in
     Parser.run parser input
-        |> Result.mapError Debug.toString
+        |> Result.mapError (always "Failed to parse header")
 
 
 postprocess : Preprocessed -> Result String Parsed
