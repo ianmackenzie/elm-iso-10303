@@ -245,7 +245,7 @@ parseEntities strings unparsedEntities accumulated =
                             Err message
 
                 UnparsedComplexEntity complexEntityData ->
-                    case parseComplexEntity strings complexEntityData [] of
+                    case parseComplexEntity strings complexEntityData of
                         Ok simpleEntities ->
                             let
                                 parsedComplexEntity =
@@ -269,9 +269,8 @@ entityTokenRegex =
 parseComplexEntity :
     Dict String String
     -> String
-    -> List ( TypeName, List ParsedAttribute )
     -> Result String (List ( TypeName, List ParsedAttribute ))
-parseComplexEntity strings complexEntityData accumulated =
+parseComplexEntity strings complexEntityData =
     let
         matches =
             Regex.find entityTokenRegex complexEntityData
