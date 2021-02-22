@@ -1,17 +1,14 @@
-module Step.FastParse exposing (Parsed, Preprocessed, decodeString, parse, postprocess, preprocess)
+module Step.FastParse exposing (Parsed, Preprocessed, parse, postprocess, preprocess)
 
-import Bytes exposing (Bytes)
-import Bytes.Encode
 import Dict exposing (Dict)
-import Parser exposing ((|.), (|=), Parser)
-import Parser.Advanced
+import Parser exposing ((|.), (|=))
 import Regex exposing (Regex)
-import Step.EntityResolution as EntityResolution
-import Step.EnumValue as EnumValue exposing (EnumValue)
-import Step.Hex as Hex
+import Step.Bytes
+import Step.EnumValue as EnumValue
 import Step.ParsingTypes exposing (ParsedAttribute(..), ParsedEntity(..))
+import Step.String
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (Attribute, Entity, Header)
+import Step.Types exposing (Header)
 
 
 type alias Preprocessed =
@@ -87,11 +84,6 @@ entityRegex =
         |> Maybe.withDefault Regex.never
 
 
-stripAll : Regex.Match -> String
-stripAll _ =
-    ""
-
-
 stringKey : Int -> String
 stringKey number =
     "%" ++ String.fromInt number
@@ -129,97 +121,10 @@ unparsedEntityEntry { submatches } =
             Nothing
 
 
-xRegex : Regex
-xRegex =
-    Regex.fromString "\\\\X\\\\[0-9A-F]{2}"
-        |> Maybe.withDefault Regex.never
-
-
-x2Regex : Regex
-x2Regex =
-    Regex.fromString "\\\\X2\\\\[0-9A-F]+\\\\X0\\\\"
-        |> Maybe.withDefault Regex.never
-
-
-x4Regex : Regex
-x4Regex =
-    Regex.fromString "\\\\X4\\\\[0-9A-F]+\\\\X0\\\\"
-        |> Maybe.withDefault Regex.never
-
-
-replaceHexString : Int -> String -> String
-replaceHexString chunkSize hexString =
-    let
-        foldResult =
-            String.foldr
-                (\hexCharacter { unicodeCharacters, index, current, multiplier } ->
-                    let
-                        updated =
-                            current + multiplier * Hex.charToInt hexCharacter
-
-                        nextIndex =
-                            index + 1
-                    in
-                    if nextIndex < chunkSize then
-                        { unicodeCharacters = unicodeCharacters
-                        , index = nextIndex
-                        , current = updated
-                        , multiplier = 16 * multiplier
-                        }
-
-                    else
-                        { unicodeCharacters = Char.fromCode updated :: unicodeCharacters
-                        , index = 0
-                        , current = 0
-                        , multiplier = 1
-                        }
-                )
-                { unicodeCharacters = [], index = 0, current = 0, multiplier = 1 }
-                hexString
-    in
-    String.fromList foldResult.unicodeCharacters
-
-
-replaceX : Regex.Match -> String
-replaceX { match } =
-    replaceHexString 2 (String.dropLeft 3 match)
-
-
-replaceX2 : Regex.Match -> String
-replaceX2 { match } =
-    replaceHexString 4 (String.slice 4 -4 match)
-
-
-replaceX4 : Regex.Match -> String
-replaceX4 { match } =
-    replaceHexString 8 (String.slice 4 -4 match)
-
-
-decodeString : String -> String
-decodeString string0 =
-    let
-        string1 =
-            if String.contains "''" string0 then
-                String.replace "''" "'" string0
-
-            else
-                string0
-    in
-    if String.contains "\\" string1 then
-        string1
-            |> Regex.replace xRegex replaceX
-            |> Regex.replace x2Regex replaceX2
-            |> Regex.replace x4Regex replaceX4
-            |> String.replace "\\\\" "\\"
-
-    else
-        string1
-
-
 addStringToDict : Regex.Match -> Dict String String -> Dict String String
 addStringToDict { match, index } accumulated =
     if String.slice 0 1 match == "'" then
-        Dict.insert (stringKey index) (decodeString (String.slice 1 -1 match)) accumulated
+        Dict.insert (stringKey index) (Step.String.decode (String.slice 1 -1 match)) accumulated
 
     else
         accumulated
@@ -415,40 +320,6 @@ parseAttributes strings attributeData =
             Err message
 
 
-byteValues : List Int -> List Int -> List Int
-byteValues accumulated hexValues =
-    case hexValues of
-        first :: second :: rest ->
-            byteValues ((first + 16 * second) :: accumulated) rest
-
-        [ single ] ->
-            single :: accumulated
-
-        [] ->
-            accumulated
-
-
-hexStringToBytes : String -> Bytes
-hexStringToBytes hexString =
-    hexString
-        -- ignore leading 'number of zero padding bits' value since elm/bytes
-        -- only supports byte-aligned binary data
-        |> String.dropLeft 1
-        -- Normalize string to upper case
-        |> String.toUpper
-        -- Convert to list of character hex values
-        |> String.toList
-        |> List.map Hex.charToInt
-        -- Combine pairs of (assumed hex) characters into byte values,
-        -- starting from least significant
-        |> List.reverse
-        |> byteValues []
-        -- Encode list of bytes as Bytes value
-        |> List.map Bytes.Encode.unsignedInt8
-        |> Bytes.Encode.sequence
-        |> Bytes.Encode.encode
-
-
 collectAttributes : Dict String String -> List Regex.Match -> List ParsedAttribute -> Result String ( List ParsedAttribute, List Regex.Match )
 collectAttributes strings matches accumulated =
     case matches of
@@ -525,7 +396,7 @@ collectAttributes strings matches accumulated =
                                     if String.endsWith "\"" value then
                                         let
                                             bytes =
-                                                hexStringToBytes (String.slice 1 -1 value)
+                                                Step.Bytes.decode (String.slice 1 -1 value)
                                         in
                                         collectAttributes strings rest <|
                                             (ParsedBinaryDataAttribute bytes :: accumulated)
