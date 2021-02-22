@@ -312,7 +312,7 @@ parseAttributes strings attributeData =
         Ok ( parsedAttributes, [] ) ->
             Ok parsedAttributes
 
-        Ok ( parsedAttributes, _ ) ->
+        Ok ( _, _ ) ->
             Err ("Mismatched parenthesies in '" ++ attributeData ++ "'")
 
         Err message ->
