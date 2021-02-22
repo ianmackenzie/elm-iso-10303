@@ -1,4 +1,13 @@
-module Step.Bytes exposing (decode, encode)
+module Step.Bytes exposing (encode, decode)
+
+{-| Low-level functionality for encoding and decoding `Bytes` values as
+specified in the STEP standard. In most case you will want to use
+[`Step.Decode.binaryData`](Step-Decode#binaryData) and [`Step.Encode.binaryData`](Step-Encode#binaryData)
+instead of using this module directly.
+
+@docs encode, decode
+
+-}
 
 import Bytes exposing (Bytes)
 import Bytes.Decode
@@ -19,6 +28,10 @@ byteValues accumulated hexValues =
             accumulated
 
 
+{-| Decode STEP-encoded bytes. The input is assumed _not_ to include the leading
+and trailing double quotation marks used when writing binary data to a STEP
+file.
+-}
 decode : String -> Bytes
 decode hexString =
     hexString
@@ -40,6 +53,19 @@ decode hexString =
         |> Bytes.Encode.encode
 
 
+{-| Encode a `Bytes` value using method specified in the STEP standard (a form
+of Base64 encoding):
+
+    bytes =
+        Bytes.Encode.encode (Bytes.Encode.unsignedInt16 Bytes.BE 1234)
+
+    Step.Bytes.encode bytes
+    --> "004D2"
+
+Note that the leading and trailing double quotation marks (used when writing
+binary data to a STEP file) are _not_ included in the result.
+
+-}
 encode : Bytes -> String
 encode bytes =
     let

@@ -1,4 +1,13 @@
-module Step.String exposing (decode, encode)
+module Step.String exposing (encode, decode)
+
+{-| Low-level functionality for encoding and decoding strings as specified in
+the STEP standard. In most case you will want to use [`Step.Decode.string`](Step-Decode#string)
+and [`Step.Encode.string`](Step-Encode#string) instead of using this module
+directly.
+
+@docs encode, decode
+
+-}
 
 import Bitwise
 import Regex exposing (Regex)
@@ -136,9 +145,15 @@ nonAsciiCharacter =
     Regex.fromString "[^ -~]" |> Maybe.withDefault Regex.never
 
 
-{-| Format a string by wrapping it in single quotation marks. Unicode characters
-will be properly escaped according to the (weird, custom) method specified in
-the STEP standard; for example, "see § 4.1" will be encoded as `'see \X\A7 4.1'`.
+{-| Encode a string using the (weird, custom) method specified in the STEP
+standard:
+
+    Step.String.encode "see § 4.1"
+    --> "see \X\A7 4.1"
+
+Note that the leading and trailing single quotation marks (used when writing
+strings to a STEP file) are _not_ included in the result.
+
 -}
 encode : String -> String
 encode value =
@@ -191,6 +206,8 @@ encode value =
         value
 
 
+{-| Decode a STEP-encoded string.
+-}
 decode : String -> String
 decode encodedString =
     let
