@@ -1,11 +1,94 @@
-module Step.FastParse2 exposing (preprocess)
+module Step.FastParse2 exposing (entities, header)
 
 import Array exposing (Array)
 import Regex exposing (Regex)
+import Step.Pattern as Pattern
+import Step.String
+import Step.Types exposing (Header)
 
 
-preprocess : String -> Array String
-preprocess contents =
+header : String -> Maybe Header
+header contents =
+    let
+        whitespaceOrComment =
+            Pattern.zeroOrMore (Pattern.oneOf [ Pattern.whitespace, Pattern.comment ])
+
+        headerPattern =
+            Pattern.sequence <|
+                List.intersperse whitespaceOrComment <|
+                    [ Pattern.startOfInput
+                    , Pattern.token "ISO-10303-21;"
+                    , Pattern.token "HEADER;"
+                    , Pattern.token "FILE_DESCRIPTION"
+                    , Pattern.token "("
+                    , Pattern.list Pattern.string -- description
+                    , Pattern.token ","
+                    , Pattern.string -- implementation level
+                    , Pattern.token ")"
+                    , Pattern.token ";"
+                    , Pattern.token "FILE_NAME"
+                    , Pattern.token "("
+                    , Pattern.string -- file name
+                    , Pattern.token ","
+                    , Pattern.string -- time stamp
+                    , Pattern.token ","
+                    , Pattern.list Pattern.string -- author
+                    , Pattern.token ","
+                    , Pattern.list Pattern.string -- organization
+                    , Pattern.token ","
+                    , Pattern.string -- preprocessor version
+                    , Pattern.token ","
+                    , Pattern.string -- originating system
+                    , Pattern.token ","
+                    , Pattern.string -- authorization
+                    , Pattern.token ")"
+                    , Pattern.token ";"
+                    , Pattern.token "FILE_SCHEMA"
+                    , Pattern.token "("
+                    , Pattern.list Pattern.string -- schema identifiers
+                    , Pattern.token ")"
+                    , Pattern.token ";"
+                    , Pattern.token "ENDSEC;"
+                    ]
+
+        headerRegex =
+            Pattern.compile headerPattern
+
+        stringRegex =
+            Pattern.compile Pattern.string
+
+        decode rawString =
+            Step.String.decode (String.slice 1 -1 rawString)
+
+        decodeList rawString =
+            Regex.find stringRegex rawString |> List.map (.match >> decode)
+    in
+    case Regex.find headerRegex contents of
+        [ { submatches } ] ->
+            case submatches of
+                [ Just description, Just implementationLevel, Just fileName, Just timeStamp, Just author, Just organization, Just preprocessorVersion, Just originatingSystem, Just authorization, Just schemaIdentifiers ] ->
+                    Just <|
+                        { description = decodeList description
+                        , implementationLevel = decode implementationLevel
+                        , fileName = decode fileName
+                        , timeStamp = decode timeStamp
+                        , author = decodeList author
+                        , organization = decodeList organization
+                        , preprocessorVersion = decode preprocessorVersion
+                        , originatingSystem = decode originatingSystem
+                        , authorization = decode authorization
+                        , schemaIdentifiers = decodeList schemaIdentifiers
+                        }
+
+                _ ->
+                    Nothing
+
+        _ ->
+            Nothing
+
+
+entities : String -> Array String
+entities contents =
     let
         ( pairs, maxId ) =
             collectUnparsedEntities (Regex.find rawEntityRegex contents) [] 0

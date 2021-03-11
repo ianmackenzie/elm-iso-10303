@@ -100,7 +100,7 @@ type DecodeResult a remaining
 
 parse : String -> Result String File
 parse contents =
-    Ok (File (FastParse2.preprocess contents))
+    Ok (File (FastParse2.entities contents))
 
 
 internalError : String -> DecodeResult a r
