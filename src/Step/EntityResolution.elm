@@ -6,7 +6,7 @@ import Step.EntityStack as EntityStack exposing (EntityStack)
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.ParsingTypes exposing (ParsedAttribute(..), ParsedEntity(..))
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (Attribute, Entity)
+import Step.Types as Types exposing (Attribute, Entity, SubEntity)
 
 
 type Error
@@ -84,15 +84,15 @@ addSimpleEntities :
     List ( TypeName, List ParsedAttribute )
     -> EntityResolution
     -> EntityStack
-    -> List ( TypeName, List Attribute )
-    -> Result Error ( List ( TypeName, List Attribute ), EntityResolution )
+    -> List SubEntity
+    -> Result Error ( List SubEntity, EntityResolution )
 addSimpleEntities parsedSimpleEntities entityResolution entityStack accumulated =
     case parsedSimpleEntities of
         ( typeName, parsedAttributes ) :: rest ->
             case addAttributeList parsedAttributes entityResolution entityStack of
                 Ok ( attributes, resolutionWithAttributes ) ->
                     addSimpleEntities rest resolutionWithAttributes entityStack <|
-                        (( typeName, attributes ) :: accumulated)
+                        (Types.SubEntity typeName attributes :: accumulated)
 
                 Err error ->
                     Err error

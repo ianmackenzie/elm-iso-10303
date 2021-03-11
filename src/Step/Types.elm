@@ -1,5 +1,5 @@
 module Step.Types exposing
-    ( Header, Entity(..), Attribute(..)
+    ( Header, Entity(..), SubEntity(..), Attribute(..)
     , TypeName, EnumValue
     )
 
@@ -11,7 +11,7 @@ module using
 
 so that you can then refer to `Step.Header`, `Step.Entity`, `Step.TypeName` etc.
 
-@docs Header, Entity, Attribute
+@docs Header, Entity, SubEntity, Attribute
 
 The `TypeName` and `EnumValue` types are defined in their own modules but have
 been aliased here for convenience.
@@ -87,7 +87,15 @@ generated.)
 -}
 type Entity
     = SimpleEntity (Maybe Int) TypeName.TypeName (List Attribute)
-    | ComplexEntity (Maybe Int) (List ( TypeName.TypeName, List Attribute ))
+    | ComplexEntity (Maybe Int) (List SubEntity)
+
+
+{-| Some entities are 'complex', which means they are composed of a number of
+sub-entities each with its own type and attributes. A `SubEntity` represents
+one such sub-entity.
+-}
+type SubEntity
+    = SubEntity TypeName.TypeName (List Attribute)
 
 
 {-| An `Attribute` represents a single attribute of an `Entity`, such as an X

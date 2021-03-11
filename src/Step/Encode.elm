@@ -1,6 +1,6 @@
 module Step.Encode exposing
     ( file
-    , entity, complexEntity
+    , entity, complexEntity, subEntity
     , derivedValue, null, optional, bool, int, float, string, referenceTo, enum, binaryData, list, tuple2, tuple3
     , boolAs, intAs, floatAs, stringAs, enumAs, binaryDataAs, listAs, typedAttribute
     )
@@ -143,7 +143,7 @@ order.
 
 # Entities
 
-@docs entity, complexEntity
+@docs entity, complexEntity, subEntity
 
 
 # Attributes
@@ -166,7 +166,7 @@ import Step.Entities as Entities
 import Step.EnumValue as EnumValue
 import Step.Format as Format
 import Step.TypeName as TypeName
-import Step.Types exposing (Attribute(..), Entity(..), Header)
+import Step.Types exposing (Attribute(..), Entity(..), Header, SubEntity(..))
 
 
 headerString : Header -> String
@@ -298,13 +298,12 @@ entity givenTypeName givenAttributes =
 {-| Construct a single 'complex entity'; for example
 
     Encode.complexEntity
-        [ ( "A", [ Encode.int 1 ] )
-        , ( "B"
-          , [ Encode.int 2
+        [ Encode.subEntity "A" [ Encode.int 1 ]
+        , Encode.subEntity "B"
+            [ Encode.int 2
             , Encode.string "three"
             ]
-          )
-        , ( "C", [ Encode.enum "FOUR" ] )
+        , Encode.subEntity "C" [ Encode.enum "FOUR" ]
         ]
 
 will be encoded as
@@ -312,9 +311,17 @@ will be encoded as
     #1=(A(1)B(2,'three')C(.FOUR.));
 
 -}
-complexEntity : List ( String, List Attribute ) -> Entity
-complexEntity simpleEntities =
-    ComplexEntity Nothing (List.map (Tuple.mapFirst TypeName.fromString) simpleEntities)
+complexEntity : List SubEntity -> Entity
+complexEntity subEntities =
+    ComplexEntity Nothing subEntities
+
+
+{-| Encode a sub-entity that will become part of a [complex entity](#complexEntity),
+with the given type name and attributes.
+-}
+subEntity : String -> List Attribute -> SubEntity
+subEntity givenTypeName givenAttributes =
+    SubEntity (TypeName.fromString givenTypeName) givenAttributes
 
 
 {-| Construct a reference to another STEP entity (will end up being encoded

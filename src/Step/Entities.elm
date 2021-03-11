@@ -5,7 +5,7 @@ import Dict exposing (Dict)
 import Step.EnumValue as EnumValue exposing (EnumValue)
 import Step.Format as Format
 import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (Attribute, Entity)
+import Step.Types as Types exposing (Attribute, Entity, SubEntity)
 
 
 type EntityMap
@@ -40,10 +40,10 @@ addEntity entity entityMap =
             in
             update entity entityString mapWithAttributes
 
-        Types.ComplexEntity _ entityRecords ->
+        Types.ComplexEntity _ subEntities ->
             let
                 ( simpleEntityValues, mapWithSimpleEntities ) =
-                    addEntityRecords entityRecords entityMap []
+                    addEntityRecords subEntities entityMap []
 
                 simpleEntityStrings =
                     List.map formatEntityRecord simpleEntityValues
@@ -55,13 +55,13 @@ addEntity entity entityMap =
 
 
 addEntityRecords :
-    List ( TypeName, List Attribute )
+    List SubEntity
     -> EntityMap
     -> List ( TypeName, List String )
     -> ( List ( TypeName, List String ), EntityMap )
 addEntityRecords entityRecords entityMap accumulated =
     case entityRecords of
-        ( typeName, attributes ) :: rest ->
+        (Types.SubEntity typeName attributes) :: rest ->
             let
                 ( attributeValues, mapWithAttributes ) =
                     addAttributes attributes entityMap
