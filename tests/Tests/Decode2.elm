@@ -27,15 +27,11 @@ DATA;
 #8=PARENT(#7);
 #9=(SUB1(1)SUB2('foo','bar')SUB3(1.,2.));
 #10=POINT('',(1.,2.,3.));
-#11=VARIOUS_ATTRIBUTES(.T.);
+#11=VARIOUS_ATTRIBUTES(.T., .F., .STEEL., *, $);
 #12=NULL_VALUE($);
 ENDSEC;
 END-ISO-10303-21;
 """
-
-
-
--- , .F., .STEEL., *, $
 
 
 testFile : Step.Decode2.File
@@ -83,11 +79,10 @@ type Material
 
 type alias VariousAttributes =
     { first : Bool
-
-    --, second : Bool
-    --, third : Material
-    --, fourth : Int
-    --, fifth : Int
+    , second : Bool
+    , third : Material
+    , fourth : Int
+    , fifth : Int
     }
 
 
@@ -232,25 +227,23 @@ suite =
             \() ->
                 let
                     decoder =
-                        Step.Decode2.simpleEntity1 "VARIOUS_ATTRIBUTES"
+                        Step.Decode2.simpleEntity5 "VARIOUS_ATTRIBUTES"
                             VariousAttributes
                             (Step.Decode2.keep Step.Decode2.bool)
-
-                    --(Step.Decode2.keep Step.Decode2.bool)
-                    --(Step.Decode2.keep (Step.Decode2.enum [ ( "STEEL", Steel ), ( "ALUMINUM", Aluminum ) ]))
-                    --(Step.Decode2.keep (Step.Decode2.null 1))
-                    --(Step.Decode2.keep (Step.Decode2.derivedValue 2))
+                            (Step.Decode2.keep Step.Decode2.bool)
+                            (Step.Decode2.keep (Step.Decode2.enum [ ( "STEEL", Steel ), ( "ALUMINUM", Aluminum ) ]))
+                            (Step.Decode2.keep (Step.Decode2.derivedValue 1))
+                            (Step.Decode2.keep (Step.Decode2.null 2))
                 in
                 case Step.Decode2.single decoder testFile of
                     Ok variousAttributes ->
                         variousAttributes
                             |> Expect.all
                                 [ .first >> Expect.equal True
-
-                                --, .second >> Expect.equal False
-                                --, .third >> Expect.equal Steel
-                                --, .fourth >> Expect.equal 1
-                                --, .fifth >> Expect.equal 2
+                                , .second >> Expect.equal False
+                                , .third >> Expect.equal Steel
+                                , .fourth >> Expect.equal 1
+                                , .fifth >> Expect.equal 2
                                 ]
 
                     Err message ->
