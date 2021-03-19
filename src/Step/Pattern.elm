@@ -9,6 +9,7 @@ module Step.Pattern exposing
     , comment
     , compile
     , derivedValue
+    , emptyString
     , endOfInput
     , enum
     , float
@@ -116,6 +117,11 @@ bool =
 string : Pattern
 string =
     capture (Pattern "'(?:''|[^'])*'")
+
+
+emptyString : Pattern
+emptyString =
+    capture (Pattern "'\\s*'")
 
 
 binaryData : Pattern
