@@ -2,9 +2,9 @@ module Step.Decode2 exposing
     ( Decoder, File
     , parse, header, single, all, get
     , simpleEntity1, simpleEntity2, simpleEntity3, simpleEntity4, simpleEntity5, simpleEntity6, simpleEntity7, simpleEntity8, simpleEntity9, simpleEntity10, simpleEntity11, simpleEntity12, simpleEntity13, simpleEntity14, simpleEntity15, simpleEntity16
-    , oneOf
     , complexEntity1, complexEntity2, complexEntity3, complexEntity4, complexEntity5, complexEntity6, complexEntity7, complexEntity8, complexEntity9, complexEntity10, complexEntity11, complexEntity12
     , subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6, subEntity7, subEntity8, subEntity9, subEntity10, subEntity11, subEntity12
+    , oneOf
     , keepId, ignoreId
     , keep, ignore
     , bool, int, float, string, emptyString, binaryData, derivedValue, null, optional, enum, list, tuple2, tuple3, referenceTo, referencedId, referenceWithId
@@ -27,11 +27,6 @@ the given number of attributes.
 @docs simpleEntity1, simpleEntity2, simpleEntity3, simpleEntity4, simpleEntity5, simpleEntity6, simpleEntity7, simpleEntity8, simpleEntity9, simpleEntity10, simpleEntity11, simpleEntity12, simpleEntity13, simpleEntity14, simpleEntity15, simpleEntity16
 
 
-## Alternatives
-
-@docs oneOf
-
-
 ## Complex entities
 
 The `complexEntity*` functions all attempt to decode a complex STEP entity with
@@ -45,9 +40,17 @@ entity) with the given number of attributes.
 @docs subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6, subEntity7, subEntity8, subEntity9, subEntity10, subEntity11, subEntity12
 
 
-# Attributes
+## Alternatives
+
+@docs oneOf
+
+
+## Entity ID
 
 @docs keepId, ignoreId
+
+
+# Attributes
 
 @docs keep, ignore
 
