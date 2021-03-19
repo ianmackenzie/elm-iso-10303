@@ -28,6 +28,7 @@ module Step.Pattern exposing
     , string
     , token
     , tuple
+    , typedAttribute
     , whitespace
     , zeroOrMore
     )
@@ -114,6 +115,19 @@ railwayToken pattern =
 anyCharacter : Pattern
 anyCharacter =
     Pattern "."
+
+
+typedAttribute : String -> Pattern -> Pattern
+typedAttribute givenTypeName valuePattern =
+    sequence
+        [ token givenTypeName
+        , whitespace
+        , token "("
+        , whitespace
+        , valuePattern
+        , whitespace
+        , token ")"
+        ]
 
 
 bool : Pattern
