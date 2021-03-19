@@ -193,13 +193,15 @@ simpleEntityPattern typeName attributePatterns =
             Pattern.railway attributeSeparatorPattern attributePatterns
     in
     Pattern.sequence
-        [ Pattern.token typeName
+        [ Pattern.startOfInput
+        , Pattern.token typeName
         , Pattern.whitespace
         , Pattern.token "("
         , Pattern.whitespace
         , attributesPattern
         , Pattern.whitespace
         , Pattern.token ")"
+        , Pattern.endOfInput
         ]
 
 
@@ -1164,6 +1166,7 @@ complexEntityRegex subEntityPatterns =
             , Pattern.railway Pattern.whitespace subEntityPatterns
             , Pattern.whitespace
             , Pattern.token ")"
+            , Pattern.endOfInput
             ]
 
 
