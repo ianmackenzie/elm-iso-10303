@@ -5,14 +5,14 @@ import Bytes.Decode
 import Bytes.Encode
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
-import Step.Decode
+import Step.Decode as Decode
 import Step.Encode
 import Step.Types as Step
 import Test exposing (Test)
 
 
-testFile : String
-testFile =
+encodingTest : String
+encodingTest =
     """ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION((''),'2;1');
@@ -33,34 +33,55 @@ END-ISO-10303-21;
 """
 
 
-decodeFirstAttribute : Step.Decode.Decoder (List Step.Attribute) Step.Attribute
-decodeFirstAttribute =
-    Step.Decode.attribute 0 Step.Decode.identity
+testFileContents : String
+testFileContents =
+    """ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION((''),'2;1');
+FILE_NAME('name','2020-11-01T16:20:00',('Ian \\X4\\0001F600\\X0\\'),(''),'\\X2\\03B1\\X0\\','elm-iso-10303','');
+FILE_SCHEMA(());
+ENDSEC;
+DATA;
+#1=SIMPLE_STRING('simple string');
+#2=X_STRING('see \\X\\A7 4.1');
+#3=X2_STRING('pre \\X2\\03B103B203B3\\X0\\ post');
+#4=X4_STRING('pre \\X4\\0001F6000001F638\\X0\\ post');
+#5=MIXED_STRING('\\X4\\0001F6000001F638\\X0\\\\X\\A7\\X2\\03B1\\X0\\12\\X4\\0001F638\\X0\\3\\X\\A7\\X4\\0001F6380001F600\\X0\\');
+#6=BINARY_DATA("004D2");
+#7=CHILD(1);
+#8=PARENT(#7);
+#9=(SUB1(1)SUB2('foo','bar')SUB3(1.,2.));
+#10=POINT('',(1.,2.,3.));
+#11=VARIOUS_ATTRIBUTES(.T., .F., .STEEL., *, $);
+#12=NULL_VALUE($);
+ENDSEC;
+END-ISO-10303-21;
+"""
+
+
+testFile : Decode.File
+testFile =
+    case Decode.parse testFileContents of
+        Ok parsed ->
+            parsed
+
+        Err message ->
+            Debug.todo message
 
 
 testString : String -> String -> Test
 testString entityType expectedString =
     let
-        attributeDecoder givenDecoder =
-            Step.Decode.single <|
-                Step.Decode.entity entityType <|
-                    Step.Decode.attribute 0 givenDecoder
+        entityDecoder =
+            Decode.simpleEntity1 identity
+                Decode.ignoreId
+                entityType
+                (Decode.keep Decode.string)
     in
     Test.describe entityType
-        [ Test.test "Raw attribute" <|
+        [ Test.test "Decoded string" <|
             \() ->
-                case Step.Decode.file (attributeDecoder Step.Decode.identity) testFile of
-                    Ok (Step.StringAttribute value) ->
-                        value |> Expect.equal expectedString
-
-                    Ok _ ->
-                        Expect.fail "Expected a string attribute"
-
-                    Err error ->
-                        Expect.fail (Debug.toString error)
-        , Test.test "Decoded string" <|
-            \() ->
-                case Step.Decode.file (attributeDecoder Step.Decode.string) testFile of
+                case Decode.single entityDecoder testFile of
                     Ok value ->
                         value |> Expect.equal expectedString
 
@@ -69,25 +90,42 @@ testString entityType expectedString =
         ]
 
 
+type alias ComplexEntityData =
+    { count : Int
+    , foo : String
+    , bar : String
+    , x : Float
+    , y : Float
+    }
+
+
+type Material
+    = Steel
+    | Aluminum
+
+
+type alias VariousAttributes =
+    { first : Bool
+    , second : Bool
+    , third : Material
+    , fourth : Int
+    , fifth : Int
+    }
+
+
 suite : Test
 suite =
     Test.describe "elm-iso-10303"
-        [ Test.describe "String parsing"
-            [ Test.test "Header fields" <|
-                \() ->
-                    case Step.Decode.file Step.Decode.header testFile of
-                        Ok header ->
-                            header
-                                |> Expect.all
-                                    [ .fileName >> Expect.equal "name"
-                                    , .author >> Expect.equal [ "Ian 😀" ]
-                                    , .preprocessorVersion >> Expect.equal "α"
-                                    , .schemaIdentifiers >> Expect.equal []
-                                    ]
-
-                        Err err ->
-                            Expect.fail (Debug.toString err)
-            , Test.describe "Entities"
+        [ Test.test "Header" <|
+            \() ->
+                Decode.header testFile
+                    |> Expect.all
+                        [ .implementationLevel >> Expect.equal "2;1"
+                        , .timeStamp >> Expect.equal "2020-11-01T16:20:00"
+                        , .author >> Expect.equal [ "Ian 😀" ]
+                        ]
+        , Test.describe "String parsing"
+            [ Test.describe "Entities"
                 [ testString "SIMPLE_STRING" "simple string"
                 , testString "X_STRING" "see § 4.1"
                 , testString "X2_STRING" "pre αβγ post"
@@ -101,13 +139,13 @@ suite =
                     bytesDecoder =
                         Bytes.Decode.unsignedInt16 Bytes.BE
 
-                    fileDecoder =
-                        Step.Decode.single <|
-                            Step.Decode.entity "BINARY_DATA" <|
-                                Step.Decode.attribute 0 <|
-                                    Step.Decode.binaryData bytesDecoder
+                    entityDecoder =
+                        Decode.simpleEntity1 identity
+                            Decode.ignoreId
+                            "BINARY_DATA"
+                            (Decode.keep (Decode.binaryData bytesDecoder))
                 in
-                case Step.Decode.file fileDecoder testFile of
+                case Decode.single entityDecoder testFile of
                     Ok value ->
                         value |> Expect.equal 1234
 
@@ -117,14 +155,18 @@ suite =
             \() ->
                 let
                     nestedDecoder =
-                        Step.Decode.entity "PARENT" <|
-                            Step.Decode.attribute 0 <|
-                                Step.Decode.referenceTo <|
-                                    Step.Decode.entity "CHILD" <|
-                                        Step.Decode.attribute 0 <|
-                                            Step.Decode.int
+                        Decode.simpleEntity1 identity
+                            Decode.ignoreId
+                            "PARENT"
+                            (Decode.keep <|
+                                Decode.referenceTo <|
+                                    Decode.simpleEntity1 identity
+                                        Decode.ignoreId
+                                        "CHILD"
+                                        (Decode.keep Decode.int)
+                            )
                 in
-                case Step.Decode.file (Step.Decode.single nestedDecoder) testFile of
+                case Decode.single nestedDecoder testFile of
                     Ok value ->
                         value |> Expect.equal 1
 
@@ -134,77 +176,123 @@ suite =
             \() ->
                 let
                     nestedDecoder =
-                        Step.Decode.entity "PARENT" <|
-                            Step.Decode.attribute 0 <|
-                                Step.Decode.referenceTo <|
-                                    Step.Decode.entity "CHILD" <|
-                                        Step.Decode.attribute 0 <|
-                                            Step.Decode.string
+                        Decode.simpleEntity1 identity
+                            Decode.ignoreId
+                            "PARENT"
+                            (Decode.keep <|
+                                Decode.referenceTo <|
+                                    Decode.simpleEntity1 identity
+                                        Decode.ignoreId
+                                        "CHILD"
+                                        (Decode.keep Decode.string)
+                            )
                 in
-                case Step.Decode.file (Step.Decode.single nestedDecoder) testFile of
-                    Ok value ->
+                case Decode.single nestedDecoder testFile of
+                    Ok _ ->
                         Expect.fail "Expected decoding to fail"
 
-                    Err (Step.Decode.ParseError message) ->
-                        Expect.fail message
-
-                    Err (Step.Decode.NonexistentEntity id) ->
-                        Expect.fail ("Decoding failed with non-existent entity " ++ String.fromInt id)
-
-                    Err (Step.Decode.CircularReference values) ->
-                        Expect.fail "Decoding failed with a circular reference chain"
-
-                    Err (Step.Decode.DecodeError message) ->
-                        message
-                            |> Expect.equal
-                                "In entity 8: At attribute index 0: In entity 7: At attribute index 0: Expected a string"
+                    Err message ->
+                        message |> Expect.equal "In #8->#7: Could not parse attribute as string"
         , Test.test "Unexpected type from nested entity" <|
             \() ->
                 let
                     nestedDecoder =
-                        Step.Decode.entity "PARENT" <|
-                            Step.Decode.attribute 0 <|
-                                Step.Decode.referenceTo <|
-                                    Step.Decode.entity "GRANDCHILD" <|
-                                        Step.Decode.attribute 0 <|
-                                            Step.Decode.string
+                        Decode.simpleEntity1 identity
+                            Decode.ignoreId
+                            "PARENT"
+                            (Decode.keep <|
+                                Decode.referenceTo <|
+                                    Decode.simpleEntity1 identity
+                                        Decode.ignoreId
+                                        "GRANDCHILD"
+                                        (Decode.keep Decode.string)
+                            )
                 in
-                case Step.Decode.file (Step.Decode.single nestedDecoder) testFile of
-                    Ok value ->
+                case Decode.single nestedDecoder testFile of
+                    Ok _ ->
                         Expect.fail "Expected decoding to fail"
 
-                    Err (Step.Decode.ParseError message) ->
-                        Expect.fail message
-
-                    Err (Step.Decode.NonexistentEntity id) ->
-                        Expect.fail ("Decoding failed with non-existent entity " ++ String.fromInt id)
-
-                    Err (Step.Decode.CircularReference values) ->
-                        Expect.fail "Decoding failed with a circular referencechain"
-
-                    Err (Step.Decode.DecodeError message) ->
-                        message
-                            |> Expect.equal
-                                "In entity 8: At attribute index 0: In entity 7: Unexpected type"
-        , Test.test "Decode entity ID from nested entity" <|
+                    Err message ->
+                        message |> Expect.equal "In #8->#7: Entity has unexpected type"
+        , Test.test "Complex entity" <|
             \() ->
                 let
-                    entityDecoder =
-                        Step.Decode.entity "PARENT" <|
-                            Step.Decode.attribute 0 <|
-                                Step.Decode.referenceTo <|
-                                    Step.Decode.map2 Tuple.pair
-                                        Step.Decode.entityId
-                                        (Step.Decode.entity "CHILD" <|
-                                            Step.Decode.attribute 0 Step.Decode.int
-                                        )
+                    decoder : Decode.Decoder Step.Entity ComplexEntityData
+                    decoder =
+                        Decode.complexEntity3 ComplexEntityData
+                            Decode.ignoreId
+                            (Decode.subEntity1 "SUB1"
+                                (Decode.keep Decode.int)
+                            )
+                            (Decode.subEntity2 "SUB2"
+                                (Decode.keep Decode.string)
+                                (Decode.keep Decode.string)
+                            )
+                            (Decode.subEntity2 "SUB3"
+                                (Decode.keep Decode.float)
+                                (Decode.keep Decode.float)
+                            )
                 in
-                case Step.Decode.file (Step.Decode.single entityDecoder) testFile of
-                    Ok pair ->
-                        pair |> Expect.equal ( 7, 1 )
+                case Decode.single decoder testFile of
+                    Ok values ->
+                        values
+                            |> Expect.all
+                                [ .count >> Expect.equal 1
+                                , .foo >> Expect.equal "foo"
+                                , .bar >> Expect.equal "bar"
+                                , .x >> Expect.within (Expect.Absolute 1.0e-12) 1
+                                , .y >> Expect.within (Expect.Absolute 1.0e-12) 2
+                                ]
 
-                    Err err ->
-                        Expect.fail (Debug.toString err)
+                    Err message ->
+                        Expect.fail message
+        , Test.test "Point with empty string" <|
+            \() ->
+                let
+                    decoder =
+                        Decode.simpleEntity2 identity
+                            Decode.ignoreId
+                            "POINT"
+                            (Decode.ignore Decode.emptyString)
+                            (Decode.keep (Decode.tuple3 Decode.float))
+                in
+                case Decode.single decoder testFile of
+                    Ok coordinates ->
+                        coordinates
+                            |> Expect.all
+                                [ \( x, _, _ ) -> x |> Expect.within (Expect.Absolute 1.0e-12) 1
+                                , \( _, y, _ ) -> y |> Expect.within (Expect.Absolute 1.0e-12) 2
+                                , \( _, _, z ) -> z |> Expect.within (Expect.Absolute 1.0e-12) 3
+                                ]
+
+                    Err message ->
+                        Expect.fail message
+        , Test.test "Various attributes" <|
+            \() ->
+                let
+                    decoder =
+                        Decode.simpleEntity5 VariousAttributes
+                            Decode.ignoreId
+                            "VARIOUS_ATTRIBUTES"
+                            (Decode.keep Decode.bool)
+                            (Decode.keep Decode.bool)
+                            (Decode.keep (Decode.enum [ ( "STEEL", Steel ), ( "ALUMINUM", Aluminum ) ]))
+                            (Decode.keep (Decode.derivedValue 1))
+                            (Decode.keep (Decode.null 2))
+                in
+                case Decode.single decoder testFile of
+                    Ok variousAttributes ->
+                        variousAttributes
+                            |> Expect.all
+                                [ .first >> Expect.equal True
+                                , .second >> Expect.equal False
+                                , .third >> Expect.equal Steel
+                                , .fourth >> Expect.equal 1
+                                , .fifth >> Expect.equal 2
+                                ]
+
+                    Err message ->
+                        Expect.fail message
         , Test.test "Encoding" <|
             \() ->
                 let
@@ -236,5 +324,5 @@ suite =
                                 ]
                             ]
                 in
-                encoded |> Expect.equal testFile
+                encoded |> Expect.equal encodingTest
         ]

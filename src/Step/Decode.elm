@@ -1,649 +1,2833 @@
 module Step.Decode exposing
-    ( Decoder, File, Error(..)
-    , file, header, single, all
-    , singleTopLevel, allTopLevel
-    , entity, entityId
-    , attribute
-    , bool, int, float, string, enum, referenceTo, binaryData, null, optional, list, tuple2, tuple3, derivedValue
-    , boolAs, intAs, floatAs, stringAs, enumAs, binaryDataAs, listAs
-    , succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, resolve, andThen, flatten, oneOf, lazy, identity
+    ( Decoder, File
+    , parse, header, single, all, get
+    , simpleEntity1, simpleEntity2, simpleEntity3, simpleEntity4, simpleEntity5, simpleEntity6, simpleEntity7, simpleEntity8, simpleEntity9, simpleEntity10, simpleEntity11, simpleEntity12, simpleEntity13, simpleEntity14, simpleEntity15, simpleEntity16
+    , complexEntity1, complexEntity2, complexEntity3, complexEntity4, complexEntity5, complexEntity6, complexEntity7, complexEntity8, complexEntity9, complexEntity10, complexEntity11, complexEntity12
+    , subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6, subEntity7, subEntity8, subEntity9, subEntity10, subEntity11, subEntity12
+    , oneOf
+    , keepId, ignoreId
+    , keep, ignore
+    , bool, int, float, string, emptyString, binaryData, derivedValue, null, optional, enum, list, tuple2, tuple3, referenceTo, referencedId, referenceWithId
+    , typedAttribute
+    , map, validate, resolve, andThen, succeed, fail, lazy
     )
 
-{-| This module lets you decode data from STEP files in a similar way to how
-you decode [JSON](https://package.elm-lang.org/packages/elm/json/latest/Json-Decode).
+{-|
+
+@docs Decoder, File
+
+@docs parse, header, single, all, get
 
 
-# Decoder types
+# Entities
 
-@docs Decoder, File, Error
+The `simpleEntity*` functions all attempt to decode a simple STEP entity with
+the given number of attributes.
 
-
-# Decoding a file
-
-@docs file, header, single, all
+@docs simpleEntity1, simpleEntity2, simpleEntity3, simpleEntity4, simpleEntity5, simpleEntity6, simpleEntity7, simpleEntity8, simpleEntity9, simpleEntity10, simpleEntity11, simpleEntity12, simpleEntity13, simpleEntity14, simpleEntity15, simpleEntity16
 
 
-## Top-level entities
+## Complex entities
 
-It may be useful in some cases to only decode _top-level_ entities (entities
-that are not referenced by any other entities). These otherwise work just like
-`single` and `all`.
+The `complexEntity*` functions all attempt to decode a complex STEP entity with
+the given number of sub-entities.
 
-@docs singleTopLevel, allTopLevel
+@docs complexEntity1, complexEntity2, complexEntity3, complexEntity4, complexEntity5, complexEntity6, complexEntity7, complexEntity8, complexEntity9, complexEntity10, complexEntity11, complexEntity12
 
+The `subEntity*` functions all attempt to decode a sub-entity (of a complex STEP
+entity) with the given number of attributes.
 
-# Decoding an entity
-
-@docs entity, entityId
-
-
-# Decoding attributes
-
-@docs attribute
-
-@docs bool, int, float, string, enum, referenceTo, binaryData, null, optional, list, tuple2, tuple3, derivedValue
+@docs subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6, subEntity7, subEntity8, subEntity9, subEntity10, subEntity11, subEntity12
 
 
-## Typed attributes
+## Alternatives
 
-@docs boolAs, intAs, floatAs, stringAs, enumAs, binaryDataAs, listAs
+@docs oneOf
+
+
+## Entity ID
+
+@docs keepId, ignoreId
+
+
+# Attributes
+
+@docs keep, ignore
+
+@docs bool, int, float, string, emptyString, binaryData, derivedValue, null, optional, enum, list, tuple2, tuple3, referenceTo, referencedId, referenceWithId
+
+@docs typedAttribute
 
 
 # Working with decoders
 
-@docs succeed, fail, map, map2, map3, map4, map5, map6, map7, map8, resolve, andThen, flatten, oneOf, lazy, identity
+@docs map, validate, resolve, andThen, succeed, fail, lazy
 
 -}
 
-import Bitwise
+import Array exposing (Array)
 import Bytes.Decode
 import Dict
-import List
-import List.Extra as List
-import Parser exposing ((|.), (|=), Parser)
-import Step.EntityResolution as EntityResolution
-import Step.EnumValue as EnumValue exposing (EnumValue)
-import Step.FastParse as FastParse
-import Step.TypeName as TypeName exposing (TypeName)
-import Step.Types as Types exposing (Attribute, Entity, Header, SubEntity)
-
-
-{-| A `Decoder` describes how to attempt to decode some input of type `i` (an
-entire file, an individual entity, a specific attribute) and produce some output
-of type `a`.
--}
-type Decoder i a
-    = Decoder (i -> DecodeResult a)
+import Regex exposing (Regex)
+import Result
+import Step.Bytes
+import Step.Pattern as Pattern exposing (Pattern)
+import Step.Preprocess as Preprocess
+import Step.String
+import Step.Types exposing (Attribute, Entity, Header, SubEntity)
 
 
 {-| Represents an entire STEP file composed of a header and a list of entities.
-The only way to extract data from a `File` is by using a decoder, so you'll
-likely never need to refer to or use this type directly.
+You can [get the header](#header) from a file or extract data from it using
+[entity decoders](#entities).
 -}
 type File
-    = File
-        { header : Header
-        , allEntities : List Entity
-        , topLevelEntities : List Entity
-        }
+    = File Header (Array String)
 
 
-{-| Different kinds of errors that may be encountered when loading a STEP file:
-
-  - `ParseError`: the file could not be parsed as a valid STEP file.
-  - `NonexistentEntity`: one entity in the STEP file refers to another by
-    integer ID, but no entity with that ID exists in the file.
-  - `CircularReference`: There exists a circular chain of entities in the file
-    that refer to each other; the `List Int` is the list of entity IDs in the
-    chain.
-  - `DecodeError`: the file was parsed OK and all entity references were
-    resolved successfully, but an error occurred when running the given decoder.
-
+{-| A `Decoder` describes how to attempt to decode some input of type `i` (an
+entity or an attribute) and produce some output of type `a`.
 -}
-type Error
-    = ParseError String
-    | NonexistentEntity Int
-    | CircularReference (List Int)
-    | DecodeError String
+type Decoder i a
+    = Decoder Pattern (Chomp a)
 
 
-type DecodeResult a
-    = Succeeded a
-    | Failed String
+type alias Chomp a =
+    EntityLine -> Submatches -> DecodeResult a Submatches
+
+
+type alias EntityLine =
+    { file : File
+    , id : Int
+    , string : String
+    }
+
+
+type alias Submatches =
+    List (Maybe String)
+
+
+type alias Error =
+    { entityIds : List Int
+    , message : String
+    }
+
+
+type DecodeResult a remaining
+    = Succeeded a remaining
+    | Failed Error
     | UnexpectedType
 
 
-decodeResult : Decoder i a -> i -> DecodeResult a
-decodeResult (Decoder function) input =
-    function input
-
-
-{-| Run a decoder on some input. You will not usually need to use this function
-directly, but it may be necessary if you use [`Decode.identity`](#identity) to
-access raw [`Entity`](Step-Types#Entity) or [`Attribute`](Step-Types#Attribute)
-values.
--}
-run : Decoder i a -> i -> Result String a
-run decoder input =
-    case decodeResult decoder input of
-        Succeeded value ->
-            Ok value
-
-        Failed message ->
-            Err message
-
-        UnexpectedType ->
-            Err "Unexpected type"
-
-
-{-| A special decoder that always succeeds with the given value. Primarily
-useful with [`andThen`](#andThen).
--}
-succeed : a -> Decoder i a
-succeed value =
-    Decoder (always (Succeeded value))
-
-
-{-| A special decoder that always fails with the given error message.
--}
-fail : String -> Decoder i a
-fail description =
-    Decoder (always (Failed description))
-
-
-{-| A special decoder that just returns its input unmodified. This can be useful
-if you want to get a raw [`Entity`](Step-Types#Entity) or [`Attribute`](Step-Types#Attribute)
-value and inspect it.
--}
-identity : Decoder i i
-identity =
-    Decoder Succeeded
-
-
-{-| Decode a STEP file given as a `String` using the given decoder. For example,
-to extract the file header and all `CARTESIAN_POINT` entities from a given file,
-you might write:
-
-    import Step.Types as Step
-    import Step.Decode as Decode exposing (Decoder)
-
-    type alias FileData =
-        { header : Step.Header
-        , points : List ( Float, Float, Float )
+errorMessage : String -> DecodeResult a remaining
+errorMessage message =
+    Failed
+        { entityIds = []
+        , message = message
         }
 
-    pointDecoder : Decoder Step.Entity ( Float, Float, Float )
-    pointDecoder =
-        Decode.entity "CARTESIAN_POINT" <|
-            Decode.attribute 1 (Decode.tuple3 Decode.float)
 
-    fileDecoder : Decoder Step.File FileData
-    fileDecoder =
-        Decode.map2 FileData
-            Decode.header
-            (Decode.all pointDecoder)
-
-    fileContents : String
-    fileContents =
-        "ISO-10303-21;...END-ISO-10303-21;"
-
-    decoded : Result Decode.Error FileData
-    decoded =
-        Decode.file fileDecoder fileContents
-
+{-| Attempt to parse a given string as a STEP file.
 -}
-file : Decoder File a -> String -> Result Error a
-file decoder contents =
-    FastParse.parse contents
-        |> Result.mapError ParseError
-        |> Result.andThen
-            (\parsed ->
-                case EntityResolution.resolve parsed.entities of
-                    Ok resolved ->
-                        Ok <|
-                            File
-                                { header = parsed.header
-                                , allEntities = resolved.allEntities
-                                , topLevelEntities = resolved.topLevelEntities
-                                }
+parse : String -> Result String File
+parse contents =
+    case Preprocess.split contents of
+        Just ( parsedHeader, entityLines ) ->
+            Ok (File parsedHeader entityLines)
 
-                    Err (EntityResolution.NonexistentEntity id) ->
-                        Err (NonexistentEntity id)
-
-                    Err (EntityResolution.CircularReference chain) ->
-                        Err (CircularReference chain)
-            )
-        |> Result.andThen
-            (\inputFile ->
-                case decodeResult decoder inputFile of
-                    Succeeded value ->
-                        Ok value
-
-                    Failed message ->
-                        Err (DecodeError message)
-
-                    UnexpectedType ->
-                        Err (DecodeError "Internal error: UnexpectedType from file decoder")
-            )
+        Nothing ->
+            Err "Failed to parse STEP file header"
 
 
-{-| Extract the [header](Step-File#Header) of a STEP file.
+internalError : String -> DecodeResult a r
+internalError message =
+    errorMessage ("Internal error in STEP parsing: " ++ message)
+
+
+{-| Get the [header](Step-Types#Header) of a given file.
 -}
-header : Decoder File Header
-header =
-    Decoder
-        (\(File properties) ->
-            Succeeded properties.header
-        )
+header : File -> Header
+header file =
+    let
+        (File fileHeader _) =
+            file
+    in
+    fileHeader
 
 
-{-| Attempt to find exactly one entity in a file that matches the given decoder.
-If there are no matching entities or more than one matching entity, the decoder
-will fail.
+{-| Decode a single entity from a file by ID, using the given decoder. Usually
+you will want to use [`single`](#single) instead.
 -}
-single : Decoder Entity a -> Decoder File a
-single entityDecoder =
-    Decoder
-        (\(File properties) ->
-            singleEntity entityDecoder properties.allEntities Nothing
-        )
+get : Int -> Decoder Entity a -> File -> Result String a
+get id entityDecoder file =
+    let
+        (File _ entities) =
+            file
+    in
+    case Array.get id entities of
+        Nothing ->
+            Err (noEntityWithId id)
 
+        Just "" ->
+            Err (noEntityWithId id)
 
-{-| Attempt to find exactly one top-level entity in a file that matches the
-given decoder.
--}
-singleTopLevel : Decoder Entity a -> Decoder File a
-singleTopLevel entityDecoder =
-    Decoder
-        (\(File properties) ->
-            singleEntity entityDecoder properties.topLevelEntities Nothing
-        )
+        Just line ->
+            let
+                entityLine =
+                    { file = file
+                    , id = id
+                    , string = line
+                    }
+            in
+            case decodeEntity entityDecoder entityLine of
+                Succeeded value () ->
+                    Ok value
 
-
-singleEntity : Decoder Entity a -> List Entity -> Maybe a -> DecodeResult a
-singleEntity decoder entities currentValue =
-    case entities of
-        [] ->
-            case currentValue of
-                Just value ->
-                    Succeeded value
-
-                Nothing ->
-                    Failed "No matching entities found"
-
-        first :: rest ->
-            case decodeResult decoder first of
-                Succeeded value ->
-                    case currentValue of
-                        Nothing ->
-                            singleEntity decoder rest (Just value)
-
-                        Just _ ->
-                            Failed "More than one matching entity found"
-
-                Failed message ->
-                    Failed message
+                Failed error ->
+                    Err (reportError error)
 
                 UnexpectedType ->
-                    singleEntity decoder rest currentValue
+                    Err (reportError (entityHasUnexpectedType id))
 
 
 {-| Find all entities in a file matching the given decoder.
 -}
-all : Decoder Entity a -> Decoder File (List a)
-all entityDecoder =
-    Decoder
-        (\(File properties) ->
-            allEntities entityDecoder properties.allEntities []
-        )
-
-
-{-| Find all top-level entities in a file matching the given decoder.
--}
-allTopLevel : Decoder Entity a -> Decoder File (List a)
-allTopLevel entityDecoder =
-    Decoder
-        (\(File properties) ->
-            allEntities entityDecoder properties.topLevelEntities []
-        )
-
-
-allEntities : Decoder Entity a -> List Entity -> List a -> DecodeResult (List a)
-allEntities decoder entities accumulated =
-    case entities of
-        [] ->
-            Succeeded (List.reverse accumulated)
-
-        first :: rest ->
-            case decodeResult decoder first of
-                Succeeded value ->
-                    allEntities decoder rest (value :: accumulated)
-
-                Failed message ->
-                    Failed message
-
-                UnexpectedType ->
-                    allEntities decoder rest accumulated
-
-
-annotateWithEntityId : Maybe Int -> String -> String
-annotateWithEntityId maybeId message =
-    case maybeId of
-        Just id ->
-            "In entity " ++ String.fromInt id ++ ": " ++ message
-
-        Nothing ->
-            message
-
-
-{-| Decode an entity of the given type name, using the given decoder on the
-entity's list of attributes.
-
-The decoder will skip any entities with a different type name. This means that,
-for example,
-
-    Decode.all <|
-        Decode.entity "SOME_TYPE" <|
-            Decode.attribute 0 attributeDecoder
-
-will attempt to decode all entities of type `SOME_TYPE` and skip the rest.
-
--}
-entity : String -> Decoder (List Attribute) a -> Decoder Entity a
-entity givenTypeName decoder =
+all : Decoder Entity a -> File -> Result String (List a)
+all entityDecoder file =
     let
-        searchTypeName =
-            TypeName.fromString givenTypeName
+        (File _ entities) =
+            file
     in
-    Decoder
-        (\currentEntity ->
-            case currentEntity of
-                Types.SimpleEntity currentId typeName attributes ->
-                    if typeName == searchTypeName then
-                        case decodeResult decoder attributes of
-                            Succeeded a ->
-                                Succeeded a
+    Array.foldl (decodeAllHelp entityDecoder file) ( 0, Ok [] ) entities
+        |> Tuple.second
+        |> Result.map List.reverse
 
-                            Failed message ->
-                                Failed (annotateWithEntityId currentId message)
 
-                            UnexpectedType ->
-                                Failed "Internal error: UnexpectedType from attribute list decoder"
+noEntityWithId : Int -> String
+noEntityWithId id =
+    "No entity with ID " ++ idString id
+
+
+entityHasUnexpectedType : Int -> Error
+entityHasUnexpectedType id =
+    { entityIds = [ id ]
+    , message = "Entity has unexpected type"
+    }
+
+
+{-| Attempt to find exactly one entity in a file that matches the given decoder.
+If there are no matching entities or more than one matching entity, an error
+message will be returned.
+-}
+single : Decoder Entity a -> File -> Result String a
+single entityDecoder file =
+    case all entityDecoder file of
+        Ok [ result ] ->
+            Ok result
+
+        Ok [] ->
+            Err "No matching entities found"
+
+        Ok (_ :: _ :: _) ->
+            Err "More than one matching entity found"
+
+        Err message ->
+            Err message
+
+
+decodeEntity : Decoder Entity a -> EntityLine -> DecodeResult a ()
+decodeEntity (Decoder _ chomp) entityLine =
+    case chomp entityLine [] of
+        Succeeded value [] ->
+            Succeeded value ()
+
+        Succeeded _ (_ :: _) ->
+            wrongNumberOfSubmatches
+
+        Failed { entityIds, message } ->
+            let
+                updatedEntityIds =
+                    if List.head entityIds == Just entityLine.id then
+                        entityIds
 
                     else
-                        UnexpectedType
+                        entityLine.id :: entityIds
+            in
+            Failed
+                { entityIds = updatedEntityIds
+                , message = message
+                }
 
-                Types.ComplexEntity currentId subEntities ->
-                    partialEntity searchTypeName decoder currentId subEntities
-        )
-
-
-partialEntity : TypeName -> Decoder (List Attribute) a -> Maybe Int -> List SubEntity -> DecodeResult a
-partialEntity searchTypeName decoder currentId subEntities =
-    case subEntities of
-        [] ->
+        UnexpectedType ->
             UnexpectedType
 
-        (Types.SubEntity typeName attributes) :: rest ->
-            if typeName == searchTypeName then
-                case decodeResult decoder attributes of
-                    Succeeded value ->
-                        Succeeded value
 
-                    Failed message ->
-                        Failed (annotateWithEntityId currentId message)
+decodeAllHelp : Decoder Entity a -> File -> String -> ( Int, Result String (List a) ) -> ( Int, Result String (List a) )
+decodeAllHelp entityDecoder file entityString foldState =
+    let
+        ( id, currentResult ) =
+            foldState
+    in
+    if entityString == "" then
+        ( id + 1, currentResult )
 
+    else
+        case currentResult of
+            Ok accumulated ->
+                let
+                    entityLine =
+                        { file = file
+                        , id = id
+                        , string = entityString
+                        }
+                in
+                case decodeEntity entityDecoder entityLine of
                     UnexpectedType ->
-                        Failed "Internal error: UnexpectedType from attribute list decoder"
+                        ( id + 1, currentResult )
 
-            else
-                partialEntity searchTypeName decoder currentId rest
+                    Succeeded value () ->
+                        ( id + 1, Ok (value :: accumulated) )
 
+                    Failed error ->
+                        ( id, Err (reportError error) )
 
-getEntityId : Entity -> Maybe Int
-getEntityId givenEntity =
-    case givenEntity of
-        Types.SimpleEntity maybeId _ _ ->
-            maybeId
-
-        Types.ComplexEntity maybeId _ ->
-            maybeId
+            Err _ ->
+                foldState
 
 
-{-| Get the integer ID of a particular entity in a file. Note that these are not
-guaranteed to be consistent between two different versions of a given STEP file.
--}
-entityId : Decoder Entity Int
-entityId =
-    Decoder
-        (\currentEntity ->
-            case getEntityId currentEntity of
-                Just currentId ->
-                    Succeeded currentId
-
-                Nothing ->
-                    Failed "Entity has no ID (was it created manually instead of read from a STEP file?)"
-        )
+idString : Int -> String
+idString id =
+    "#" ++ String.fromInt id
 
 
-{-| Decode a specific attribute by index (starting from 0) in an attribute list.
-To decode data from multiple attributes in a list, you can use one of the `mapN`
-functions, for example:
+reportError : Error -> String
+reportError { entityIds, message } =
+    let
+        entityChain =
+            List.map idString entityIds
+                |> String.join "->"
+    in
+    "In " ++ entityChain ++ ": " ++ message
 
-    type alias MyAttributes =
-        { name : String
-        , age : Int
-        , height : Float
-        }
 
-    myAttributesDecoder : Decoder (List Attribute) MyAttributes
-    myAttributesDecoder =
-        Decode.map3 MyAttributes
-            (Decode.attribute 0 Decode.string)
-            (Decode.attribute 1 Decode.int)
-            (Decode.attribute 2 Decode.float)
+simpleEntityPattern : String -> List Pattern -> Pattern
+simpleEntityPattern typeName attributePatterns =
+    let
+        attributeSeparatorPattern =
+            Pattern.sequence
+                [ Pattern.whitespace
+                , Pattern.token ","
+                , Pattern.whitespace
+                ]
 
--}
-attribute : Int -> Decoder Attribute a -> Decoder (List Attribute) a
-attribute index attributeDecoder =
-    Decoder
-        (\attributeList ->
-            case List.getAt index attributeList of
-                Just entityAttribute ->
-                    case decodeResult attributeDecoder entityAttribute of
-                        Succeeded value ->
-                            Succeeded value
+        attributesPattern =
+            Pattern.railway attributeSeparatorPattern attributePatterns
+    in
+    Pattern.sequence
+        [ Pattern.startOfInput
+        , Pattern.token typeName
+        , Pattern.whitespace
+        , Pattern.token "("
+        , Pattern.whitespace
+        , attributesPattern
+        , Pattern.whitespace
+        , Pattern.token ")"
+        , Pattern.endOfInput
+        ]
 
-                        Failed message ->
-                            Failed ("At attribute index " ++ String.fromInt index ++ ": " ++ message)
+
+simpleEntityRegex : String -> List Pattern -> Regex
+simpleEntityRegex typeName attributePatterns =
+    Pattern.compile (simpleEntityPattern typeName attributePatterns)
+
+
+wrongNumberOfSubmatches : DecodeResult a r
+wrongNumberOfSubmatches =
+    internalError "wrong number of submatches"
+
+
+makeEntityDecoder : Chomp a -> Decoder Entity a
+makeEntityDecoder chomp =
+    Decoder Pattern.startOfInput chomp
+
+
+simpleEntityDecoder : a -> String -> List Pattern -> Chomp (a -> b) -> Decoder Entity b
+simpleEntityDecoder callback typeName attributePatterns chompAttributes =
+    let
+        regex =
+            simpleEntityRegex typeName attributePatterns
+    in
+    makeEntityDecoder <|
+        \entityLine _ ->
+            case Regex.find regex entityLine.string of
+                [] ->
+                    UnexpectedType
+
+                [ { submatches } ] ->
+                    case chompAttributes entityLine submatches of
+                        Succeeded handler remaining ->
+                            Succeeded (handler callback) remaining
+
+                        Failed error ->
+                            Failed error
 
                         UnexpectedType ->
-                            Failed "Internal error: UnexpectedType from attribute decoder"
+                            unexpectedTypeFromAttribute
 
-                Nothing ->
-                    Failed ("No attribute at index " ++ String.fromInt index)
+                _ :: _ :: _ ->
+                    internalError "more than one regex match for a single entity"
+
+
+{-| Get the ID of an entity while decoding.
+-}
+keepId : Decoder Int ((Int -> a) -> a)
+keepId =
+    Decoder Pattern.startOfInput <|
+        \entityLine submatches ->
+            Succeeded ((|>) entityLine.id) submatches
+
+
+{-| Ignore the ID of an entity while decoding.
+-}
+ignoreId : Decoder Int (a -> a)
+ignoreId =
+    Decoder Pattern.startOfInput <|
+        \_ submatches ->
+            Succeeded identity submatches
+
+
+thenChomp : Chomp (b -> c) -> Chomp (a -> b) -> Chomp (a -> c)
+thenChomp chomp2 chomp1 =
+    \entityLine submatches ->
+        case chomp1 entityLine submatches of
+            Succeeded result1 after1 ->
+                case chomp2 entityLine after1 of
+                    Succeeded result2 after2 ->
+                        Succeeded (result1 >> result2) after2
+
+                    Failed error ->
+                        Failed error
+
+                    UnexpectedType ->
+                        UnexpectedType
+
+            Failed error ->
+                Failed error
+
+            UnexpectedType ->
+                UnexpectedType
+
+
+{-| -}
+simpleEntity1 : a -> Decoder Int (a -> b) -> String -> Decoder Attribute (b -> c) -> Decoder Entity c
+simpleEntity1 callback idDecoder typeName firstAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        attributePatterns =
+            [ pattern1 ]
+
+        chomp =
+            chompId |> thenChomp chomp1
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity2 : a -> Decoder Int (a -> b) -> String -> Decoder Attribute (b -> c) -> Decoder Attribute (c -> d) -> Decoder Entity d
+simpleEntity2 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        attributePatterns =
+            [ pattern1, pattern2 ]
+
+        chomp =
+            chompId |> thenChomp chomp1 |> thenChomp chomp2
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity3 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Entity e
+simpleEntity3 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        attributePatterns =
+            [ pattern1, pattern2, pattern3 ]
+
+        chomp =
+            chompId |> thenChomp chomp1 |> thenChomp chomp2 |> thenChomp chomp3
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity4 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Entity f
+simpleEntity4 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            ]
+
+        chomp =
+            chompId |> thenChomp chomp1 |> thenChomp chomp2 |> thenChomp chomp3 |> thenChomp chomp4
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity5 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Entity g
+simpleEntity5 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity6 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Entity h
+simpleEntity6 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity7 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Entity i
+simpleEntity7 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity8 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Entity j
+simpleEntity8 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity9 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Entity k
+simpleEntity9 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity10 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Entity l
+simpleEntity10 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity11 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder Entity m
+simpleEntity11 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity12 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder Attribute (m -> n)
+    -> Decoder Entity n
+simpleEntity12 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity13 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder Attribute (m -> n)
+    -> Decoder Attribute (n -> o)
+    -> Decoder Entity o
+simpleEntity13 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder thirteenthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        (Decoder pattern13 chomp13) =
+            thirteenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            , pattern13
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+                |> thenChomp chomp13
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity14 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder Attribute (m -> n)
+    -> Decoder Attribute (n -> o)
+    -> Decoder Attribute (o -> p)
+    -> Decoder Entity p
+simpleEntity14 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder thirteenthAttributeDecoder fourteenthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        (Decoder pattern13 chomp13) =
+            thirteenthAttributeDecoder
+
+        (Decoder pattern14 chomp14) =
+            fourteenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            , pattern13
+            , pattern14
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+                |> thenChomp chomp13
+                |> thenChomp chomp14
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity15 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder Attribute (m -> n)
+    -> Decoder Attribute (n -> o)
+    -> Decoder Attribute (o -> p)
+    -> Decoder Attribute (p -> q)
+    -> Decoder Entity q
+simpleEntity15 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder thirteenthAttributeDecoder fourteenthAttributeDecoder fifteenthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        (Decoder pattern13 chomp13) =
+            thirteenthAttributeDecoder
+
+        (Decoder pattern14 chomp14) =
+            fourteenthAttributeDecoder
+
+        (Decoder pattern15 chomp15) =
+            fifteenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            , pattern13
+            , pattern14
+            , pattern15
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+                |> thenChomp chomp13
+                |> thenChomp chomp14
+                |> thenChomp chomp15
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+{-| -}
+simpleEntity16 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder Attribute (m -> n)
+    -> Decoder Attribute (n -> o)
+    -> Decoder Attribute (o -> p)
+    -> Decoder Attribute (p -> q)
+    -> Decoder Attribute (q -> r)
+    -> Decoder Entity r
+simpleEntity16 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder thirteenthAttributeDecoder fourteenthAttributeDecoder fifteenthAttributeDecoder sixteenthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        (Decoder pattern13 chomp13) =
+            thirteenthAttributeDecoder
+
+        (Decoder pattern14 chomp14) =
+            fourteenthAttributeDecoder
+
+        (Decoder pattern15 chomp15) =
+            fifteenthAttributeDecoder
+
+        (Decoder pattern16 chomp16) =
+            sixteenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            , pattern13
+            , pattern14
+            , pattern15
+            , pattern16
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+                |> thenChomp chomp13
+                |> thenChomp chomp14
+                |> thenChomp chomp15
+                |> thenChomp chomp16
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+subEntityDecoder : String -> List Pattern -> Chomp (a -> b) -> Decoder SubEntity (a -> b)
+subEntityDecoder typeName attributePatterns chompAttributes =
+    let
+        attributeSeparatorPattern =
+            Pattern.sequence
+                [ Pattern.whitespace
+                , Pattern.token ","
+                , Pattern.whitespace
+                ]
+
+        pattern =
+            Pattern.sequence
+                [ Pattern.capture (Pattern.token typeName)
+                , Pattern.whitespace
+                , Pattern.token "("
+                , Pattern.whitespace
+                , Pattern.railway attributeSeparatorPattern attributePatterns
+                , Pattern.whitespace
+                , Pattern.token ")"
+                ]
+    in
+    Decoder pattern
+        (\entityLine submatches ->
+            case submatches of
+                -- Type name was matched, proceed to chomp attributes
+                (Just _) :: rest ->
+                    case chompAttributes entityLine rest of
+                        Succeeded handler remaining ->
+                            Succeeded handler remaining
+
+                        Failed error ->
+                            Failed error
+
+                        UnexpectedType ->
+                            unexpectedTypeFromAttribute
+
+                -- Type name was not matched
+                Nothing :: _ ->
+                    UnexpectedType
+
+                [] ->
+                    wrongNumberOfSubmatches
         )
 
 
-mapHelp : (a -> b) -> DecodeResult a -> DecodeResult b
-mapHelp function result =
-    case result of
-        Succeeded value ->
-            Succeeded (function value)
-
-        Failed message ->
-            Failed message
-
-        UnexpectedType ->
-            UnexpectedType
+{-| -}
+subEntity0 : String -> Decoder SubEntity (a -> a)
+subEntity0 typeName =
+    subEntityDecoder typeName [] (\_ submatches -> Succeeded identity submatches)
 
 
-{-| Map the value produced by a decoder.
--}
-map : (a -> b) -> Decoder i a -> Decoder i b
-map mapFunction decoder =
-    Decoder (\input -> mapHelp mapFunction (decodeResult decoder input))
+{-| -}
+subEntity1 : String -> Decoder Attribute (a -> b) -> Decoder SubEntity (a -> b)
+subEntity1 typeName firstAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+    in
+    subEntityDecoder typeName [ pattern1 ] chomp1
 
 
-map2Help : (a -> b -> c) -> DecodeResult a -> DecodeResult b -> DecodeResult c
-map2Help function resultA resultB =
-    case resultA of
-        Succeeded value ->
-            mapHelp (function value) resultB
+{-| -}
+subEntity2 : String -> Decoder Attribute (a -> b) -> Decoder Attribute (b -> c) -> Decoder SubEntity (a -> c)
+subEntity2 typeName firstAttributeDecoder secondAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
 
-        UnexpectedType ->
-            UnexpectedType
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
 
-        Failed message ->
-            Failed message
+        attributePatterns =
+            [ pattern1, pattern2 ]
 
-
-{-| Map over two decoders.
--}
-map2 :
-    (a -> b -> c)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-map2 function (Decoder functionA) (Decoder functionB) =
-    Decoder (\input -> map2Help function (functionA input) (functionB input))
+        chompAttributes =
+            chomp1 |> thenChomp chomp2
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
 
 
-{-| Map over three decoders.
--}
-map3 :
-    (a -> b -> c -> d)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-map3 function decoderA decoderB decoderC =
-    map2 (<|) (map2 function decoderA decoderB) decoderC
+{-| -}
+subEntity3 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder SubEntity (a -> d)
+subEntity3 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
 
 
-{-| Map over four decoders.
--}
-map4 :
-    (a -> b -> c -> d -> e)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-    -> Decoder i e
-map4 function decoderA decoderB decoderC decoderD =
-    map2 (<|) (map3 function decoderA decoderB decoderC) decoderD
+{-| -}
+subEntity4 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder SubEntity (a -> e)
+subEntity4 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
 
 
-{-| Map over five decoders.
--}
-map5 :
-    (a -> b -> c -> d -> e -> f)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-    -> Decoder i e
-    -> Decoder i f
-map5 function decoderA decoderB decoderC decoderD decoderE =
-    map2 (<|) (map4 function decoderA decoderB decoderC decoderD) decoderE
+{-| -}
+subEntity5 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder SubEntity (a -> f)
+subEntity5 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
 
 
-{-| Map over six decoders.
--}
-map6 :
-    (a -> b -> c -> d -> e -> f -> g)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-    -> Decoder i e
-    -> Decoder i f
-    -> Decoder i g
-map6 function decoderA decoderB decoderC decoderD decoderE decoderF =
-    map2 (<|) (map5 function decoderA decoderB decoderC decoderD decoderE) decoderF
+{-| -}
+subEntity6 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder SubEntity (a -> g)
+subEntity6 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
 
 
-{-| Map over seven decoders.
--}
-map7 :
-    (a -> b -> c -> d -> e -> f -> g -> h)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-    -> Decoder i e
-    -> Decoder i f
-    -> Decoder i g
-    -> Decoder i h
-map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG =
-    map2 (<|) (map6 function decoderA decoderB decoderC decoderD decoderE decoderF) decoderG
+{-| -}
+subEntity7 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder SubEntity (a -> h)
+subEntity7 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
 
 
-{-| Map over eight decoders.
--}
-map8 :
-    (a -> b -> c -> d -> e -> f -> g -> h -> j)
-    -> Decoder i a
-    -> Decoder i b
-    -> Decoder i c
-    -> Decoder i d
-    -> Decoder i e
-    -> Decoder i f
-    -> Decoder i g
-    -> Decoder i h
-    -> Decoder i j
-map8 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG decoderH =
-    map2 (<|) (map7 function decoderA decoderB decoderC decoderD decoderE decoderF decoderG) decoderH
+{-| -}
+subEntity8 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder SubEntity (a -> i)
+subEntity8 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
 
 
-{-| It is often useful to call functions like `Decode.map2` but pass a mapping
-function that may fail (a function that returns a `Result String a` instead of
-just a value of type `a`). For example, you might try to decode the ratio of two
-numbers, failing if the denominator is zero:
+{-| -}
+subEntity9 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder SubEntity (a -> j)
+subEntity9 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
 
-    Decode.map2
-        (\numerator denominator ->
-            if denominator == 0 then
-                Err "Denominator cannot be zero"
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
 
-            else
-                Ok (numerator / denominator)
-        )
-        (Decode.attribute 0 Decode.float)
-        (Decode.attribute 1 Decode.float)
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
 
-However, this is now a `Decoder (List Attribute) (Result String Float)` instead
-of just a `Decoder (List Attribute) Float`. Using `resolve` will convert the
-`Ok` case to a successful decode and the `Err` case to a decode error, giving
-you the decoder that you want:
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
 
-    ratioDecoder : Decoder (List Attribute) Float
-    ratioDecoder =
-        Decode.resolve <|
-            Decode.map2
-                (\numerator denominator ->
-                    if denominator == 0 then
-                        Err "Denominator cannot be zero"
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
 
-                    else
-                        Ok (numerator / denominator)
-                )
-                (Decode.attribute 0 Decode.float)
-                (Decode.attribute 1 Decode.float)
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
 
--}
-resolve : Decoder i (Result String a) -> Decoder i a
-resolve decoder =
-    decoder
-        |> andThen
-            (\result ->
-                case result of
-                    Ok value ->
-                        succeed value
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
 
-                    Err message ->
-                        fail message
-            )
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
+
+
+{-| -}
+subEntity10 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder SubEntity (a -> k)
+subEntity10 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
+
+
+{-| -}
+subEntity11 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder SubEntity (a -> l)
+subEntity11 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
+
+
+{-| -}
+subEntity12 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder SubEntity (a -> m)
+subEntity12 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
+
+
+complexEntityRegex : List Pattern -> Regex
+complexEntityRegex subEntityPatterns =
+    Pattern.compile <|
+        Pattern.sequence
+            [ Pattern.startOfInput
+            , Pattern.token "("
+            , Pattern.whitespace
+            , Pattern.railway Pattern.whitespace subEntityPatterns
+            , Pattern.whitespace
+            , Pattern.token ")"
+            , Pattern.endOfInput
+            ]
+
+
+complexEntityDecoder : a -> List Pattern -> Chomp (a -> b) -> Decoder Entity b
+complexEntityDecoder callback subEntityPatterns chomp =
+    let
+        regex =
+            complexEntityRegex subEntityPatterns
+    in
+    makeEntityDecoder <|
+        \entityLine _ ->
+            case Regex.find regex entityLine.string of
+                [] ->
+                    UnexpectedType
+
+                [ { submatches } ] ->
+                    case chomp entityLine submatches of
+                        Succeeded handler remaining ->
+                            Succeeded (handler callback) remaining
+
+                        Failed error ->
+                            Failed error
+
+                        UnexpectedType ->
+                            UnexpectedType
+
+                _ :: _ :: _ ->
+                    internalError "more than one regex match for a single entity"
+
+
+{-| -}
+complexEntity1 : a -> Decoder Int (a -> b) -> Decoder SubEntity (b -> c) -> Decoder Entity c
+complexEntity1 callback idDecoder firstSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+    in
+    complexEntityDecoder callback [ pattern1 ] (chompId |> thenChomp chomp1)
+
+
+{-| -}
+complexEntity2 : a -> Decoder Int (a -> b) -> Decoder SubEntity (b -> c) -> Decoder SubEntity (c -> d) -> Decoder Entity d
+complexEntity2 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        chomp =
+            chompId |> thenChomp chomp1 |> thenChomp chomp2
+    in
+    complexEntityDecoder callback [ pattern1, pattern2 ] chomp
+
+
+{-| -}
+complexEntity3 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder Entity e
+complexEntity3 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3 ]
+        chomp
+
+
+{-| -}
+complexEntity4 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder Entity f
+complexEntity4 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4 ]
+        chomp
+
+
+{-| -}
+complexEntity5 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder Entity g
+complexEntity5 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5 ]
+        chomp
+
+
+{-| -}
+complexEntity6 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder Entity h
+complexEntity6 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6 ]
+        chomp
+
+
+{-| -}
+complexEntity7 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder Entity i
+complexEntity7 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7 ]
+        chomp
+
+
+{-| -}
+complexEntity8 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder SubEntity (i -> j)
+    -> Decoder Entity j
+complexEntity8 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder eighthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7, pattern8 ]
+        chomp
+
+
+{-| -}
+complexEntity9 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder SubEntity (i -> j)
+    -> Decoder SubEntity (j -> k)
+    -> Decoder Entity k
+complexEntity9 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder eighthSubEntityDecoder ninthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthSubEntityDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7, pattern8, pattern9 ]
+        chomp
+
+
+{-| -}
+complexEntity10 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder SubEntity (i -> j)
+    -> Decoder SubEntity (j -> k)
+    -> Decoder SubEntity (k -> l)
+    -> Decoder Entity l
+complexEntity10 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder eighthSubEntityDecoder ninthSubEntityDecoder tenthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthSubEntityDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthSubEntityDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7, pattern8, pattern9, pattern10 ]
+        chomp
+
+
+{-| -}
+complexEntity11 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder SubEntity (i -> j)
+    -> Decoder SubEntity (j -> k)
+    -> Decoder SubEntity (k -> l)
+    -> Decoder SubEntity (l -> m)
+    -> Decoder Entity m
+complexEntity11 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder eighthSubEntityDecoder ninthSubEntityDecoder tenthSubEntityDecoder eleventhSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthSubEntityDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthSubEntityDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthSubEntityDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7, pattern8, pattern9, pattern10, pattern11 ]
+        chomp
+
+
+{-| -}
+complexEntity12 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder SubEntity (i -> j)
+    -> Decoder SubEntity (j -> k)
+    -> Decoder SubEntity (k -> l)
+    -> Decoder SubEntity (l -> m)
+    -> Decoder SubEntity (m -> n)
+    -> Decoder Entity n
+complexEntity12 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder eighthSubEntityDecoder ninthSubEntityDecoder tenthSubEntityDecoder eleventhSubEntityDecoder twelfthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthSubEntityDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthSubEntityDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthSubEntityDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhSubEntityDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7, pattern8, pattern9, pattern10, pattern11, pattern12 ]
+        chomp
+
+
+couldNotParseAttributeAs : String -> DecodeResult a Submatches
+couldNotParseAttributeAs dataType =
+    errorMessage ("Could not parse attribute as " ++ dataType)
 
 
 {-| Decode a single attribute as a `Bool` (from the special STEP enum values
@@ -651,30 +2835,76 @@ resolve decoder =
 -}
 bool : Decoder Attribute Bool
 bool =
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.BoolAttribute value ->
-                    Succeeded value
+    Decoder Pattern.bool <|
+        \_ submatches ->
+            case submatches of
+                (Just submatch) :: rest ->
+                    Succeeded (submatch == ".T.") rest
 
-                _ ->
-                    Failed "Expected a bool"
-        )
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "bool"
+
+                [] ->
+                    wrongNumberOfSubmatches
 
 
-{-| Decode a single attribute as an `Int`.
+{-| Decode a single attribute as a `String`.
 -}
-int : Decoder Attribute Int
-int =
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.IntAttribute value ->
-                    Succeeded value
+string : Decoder Attribute String
+string =
+    Decoder Pattern.string <|
+        \_ submatches ->
+            case submatches of
+                (Just submatch) :: rest ->
+                    Succeeded (Step.String.decode (String.slice 1 -1 submatch)) rest
 
-                _ ->
-                    Failed "Expected an int"
-        )
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "string"
+
+                [] ->
+                    wrongNumberOfSubmatches
+
+
+{-| Decode a single attribute as a string which must be empty (whitespace only).
+Useful when used with [`ignore`](#ignore) to check that the string being ignored
+is in fact empty.
+-}
+emptyString : Decoder Attribute ()
+emptyString =
+    Decoder Pattern.emptyString <|
+        \_ submatches ->
+            case submatches of
+                (Just _) :: rest ->
+                    Succeeded () rest
+
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "empty string"
+
+                [] ->
+                    wrongNumberOfSubmatches
+
+
+{-| Decode a single attribute as a blob of binary data, using the given
+[binary decoder](https://package.elm-lang.org/packages/elm/bytes/latest/Bytes-Decode).
+-}
+binaryData : Bytes.Decode.Decoder a -> Decoder Attribute a
+binaryData bytesDecoder =
+    Decoder Pattern.binaryData <|
+        \_ submatches ->
+            case submatches of
+                (Just submatch) :: rest ->
+                    case Bytes.Decode.decode bytesDecoder (Step.Bytes.decode (String.slice 1 -1 submatch)) of
+                        Just result ->
+                            Succeeded result rest
+
+                        Nothing ->
+                            errorMessage "Decoding of binary data failed"
+
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "binary data"
+
+                [] ->
+                    internalError "could not decode binary attribute"
 
 
 {-| Decode a single attribute as a `Float`. Note that unlike JSON, STEP has
@@ -687,60 +2917,268 @@ function to decode integer values; if you want to decode an integer value as a
 -}
 float : Decoder Attribute Float
 float =
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.FloatAttribute value ->
-                    Succeeded value
-
-                Types.NullAttribute ->
-                    -- Some STEP files seem to use $ to indicate NaN even though
-                    -- that doesn't seem to be allowed by the spec
-                    Succeeded (0 / 0)
-
-                _ ->
-                    Failed "Expected a float"
-        )
-
-
-isBasic : Char -> Bool
-isBasic character =
-    character /= '\'' && character /= '\\'
-
-
-{-| Decode a single attribute as a `String`.
--}
-string : Decoder Attribute String
-string =
-    Decoder
-        (\attribute_ ->
-            case attribute_ of
-                Types.StringAttribute value ->
-                    Succeeded value
-
-                _ ->
-                    Failed "Expected a string"
-        )
-
-
-{-| Decode a single attribute as a blob of binary data, using the given
-[binary decoder](https://package.elm-lang.org/packages/elm/bytes/latest/Bytes-Decode).
--}
-binaryData : Bytes.Decode.Decoder a -> Decoder Attribute a
-binaryData bytesDecoder =
-    Decoder
-        (\attribute_ ->
-            case attribute_ of
-                Types.BinaryDataAttribute value ->
-                    case Bytes.Decode.decode bytesDecoder value of
-                        Just decodedValue ->
-                            Succeeded decodedValue
+    Decoder Pattern.float <|
+        \_ submatches ->
+            case submatches of
+                (Just floatString) :: rest ->
+                    case String.toFloat floatString of
+                        Just floatValue ->
+                            Succeeded floatValue rest
 
                         Nothing ->
-                            Failed "Could not parse binary data"
+                            internalError ("could not parse '" ++ floatString ++ "' as a real number")
 
-                _ ->
-                    Failed "Expected binary data"
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "float"
+
+                [] ->
+                    wrongNumberOfSubmatches
+
+
+{-| Decode a single attribute as an `Int`.
+-}
+int : Decoder Attribute Int
+int =
+    Decoder Pattern.int <|
+        \_ submatches ->
+            case submatches of
+                (Just intString) :: rest ->
+                    case String.toInt intString of
+                        Just intValue ->
+                            Succeeded intValue rest
+
+                        Nothing ->
+                            internalError ("could not parse '" ++ intString ++ "' as an integer")
+
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "integer"
+
+                [] ->
+                    wrongNumberOfSubmatches
+
+
+unexpectedTypeFromAttribute : DecodeResult a r
+unexpectedTypeFromAttribute =
+    internalError "attribute decoder returned UnexpectedType"
+
+
+{-| Keep a particular attribute value to pass to the callback function for the
+entity being decoded.
+-}
+keep : Decoder Attribute a -> Decoder Attribute ((a -> b) -> b)
+keep attributeDecoder =
+    let
+        (Decoder pattern chompAttribute) =
+            attributeDecoder
+    in
+    Decoder pattern
+        (\entityLine submatches ->
+            case chompAttribute entityLine submatches of
+                Succeeded value remaining ->
+                    Succeeded ((|>) value) remaining
+
+                Failed error ->
+                    Failed error
+
+                UnexpectedType ->
+                    unexpectedTypeFromAttribute
+        )
+
+
+{-| Ignore a particular attribute so that it does not get passed to the callback
+function for the entity being decoded.
+-}
+ignore : Decoder Attribute a -> Decoder Attribute (b -> b)
+ignore attributeDecoder =
+    let
+        (Decoder pattern _) =
+            attributeDecoder
+    in
+    Decoder (Pattern.capture pattern) <|
+        \_ submatches ->
+            case submatches of
+                (Just _) :: remaining ->
+                    Succeeded identity remaining
+
+                Nothing :: _ ->
+                    errorMessage "Could not parse ignored attribute"
+
+                [] ->
+                    wrongNumberOfSubmatches
+
+
+{-| Decode an attribute as a list, passing the decoder to be used for each list
+item.
+-}
+list : Decoder Attribute a -> Decoder Attribute (List a)
+list itemDecoder =
+    let
+        (Decoder itemPattern chompItem) =
+            itemDecoder
+
+        searchPattern =
+            Pattern.sequence
+                [ Pattern.whitespace
+                , itemPattern
+                , Pattern.whitespace
+                , Pattern.oneOf [ Pattern.token ",", Pattern.endOfInput ]
+                ]
+
+        searchRegex =
+            Pattern.compile searchPattern
+    in
+    Decoder (Pattern.list itemPattern) <|
+        \entityLine submatches ->
+            case submatches of
+                (Just listString) :: rest ->
+                    listHelp chompItem entityLine (Regex.find searchRegex (String.slice 1 -1 listString)) [] rest
+
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "list"
+
+                [] ->
+                    wrongNumberOfSubmatches
+
+
+listHelp : Chomp a -> EntityLine -> List Regex.Match -> List a -> List (Maybe String) -> DecodeResult (List a) Submatches
+listHelp chompItem entityLine matches accumulated remainingSubmatches =
+    case matches of
+        { submatches } :: rest ->
+            case chompItem entityLine submatches of
+                Succeeded item [] ->
+                    listHelp chompItem entityLine rest (item :: accumulated) remainingSubmatches
+
+                Succeeded _ (_ :: _) ->
+                    wrongNumberOfSubmatches
+
+                Failed error ->
+                    Failed error
+
+                UnexpectedType ->
+                    unexpectedTypeFromAttribute
+
+        [] ->
+            Succeeded (List.reverse accumulated) remainingSubmatches
+
+
+{-| Decode a list of exactly two elements, passing the decoder to be used for
+the two elements.
+-}
+tuple2 : Decoder Attribute a -> Decoder Attribute ( a, a )
+tuple2 itemDecoder =
+    list itemDecoder
+        |> validate
+            (\items ->
+                case items of
+                    [ first, second ] ->
+                        Ok ( first, second )
+
+                    _ ->
+                        Err ("Expected 2 items in list, found " ++ String.fromInt (List.length items))
+            )
+
+
+{-| Decode a list of exactly three elements, passing the decoder to be used for
+the two elements.
+-}
+tuple3 : Decoder Attribute a -> Decoder Attribute ( a, a, a )
+tuple3 itemDecoder =
+    list itemDecoder
+        |> validate
+            (\items ->
+                case items of
+                    [ first, second, third ] ->
+                        Ok ( first, second, third )
+
+                    _ ->
+                        Err ("Expected 3 items in list, found " ++ String.fromInt (List.length items))
+            )
+
+
+{-| Decode just the ID from an entity reference attribute. This may be useful
+for deferred decoding/processing.
+-}
+referencedId : Decoder Attribute Int
+referencedId =
+    Decoder Pattern.referencedId
+        (\_ submatches ->
+            case submatches of
+                (Just submatch) :: rest ->
+                    case String.toInt (String.dropLeft 1 submatch) of
+                        Just id ->
+                            Succeeded id rest
+
+                        Nothing ->
+                            internalError ("failed to parse referenced ID '" ++ submatch ++ "'")
+
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "entity reference"
+
+                [] ->
+                    wrongNumberOfSubmatches
+        )
+
+
+dropId : Int -> a -> a
+dropId _ value =
+    value
+
+
+{-| Decode an attribute which is a reference to another entity, by providing the
+decoder to use for that entity.
+-}
+referenceTo : Decoder Entity a -> Decoder Attribute a
+referenceTo entityDecoder =
+    referenceWithId dropId entityDecoder
+
+
+{-| Decode an attribute which is a reference to another entity, and additionally
+get the ID of that entity. You will need to pass a function that combines the
+ID and decoded value into whatever you want; for example if you pass
+`Tuple.pair` then you will get an `( Int, a )` value back.
+-}
+referenceWithId : (Int -> a -> b) -> Decoder Entity a -> Decoder Attribute b
+referenceWithId combine entityDecoder =
+    Decoder Pattern.referencedId
+        (\entityLine submatches ->
+            case submatches of
+                (Just submatch) :: rest ->
+                    case String.toInt (String.dropLeft 1 submatch) of
+                        Just childId ->
+                            let
+                                (File _ entities) =
+                                    entityLine.file
+                            in
+                            case Array.get childId entities of
+                                Just childEntityString ->
+                                    let
+                                        childEntityLine =
+                                            { file = entityLine.file
+                                            , id = childId
+                                            , string = childEntityString
+                                            }
+                                    in
+                                    case decodeEntity entityDecoder childEntityLine of
+                                        Succeeded value () ->
+                                            Succeeded (combine childId value) rest
+
+                                        UnexpectedType ->
+                                            Failed (entityHasUnexpectedType childId)
+
+                                        Failed error ->
+                                            Failed error
+
+                                Nothing ->
+                                    errorMessage (noEntityWithId childId)
+
+                        Nothing ->
+                            internalError ("failed to parse referenced ID '" ++ submatch ++ "'")
+
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "entity reference"
+
+                [] ->
+                    wrongNumberOfSubmatches
         )
 
 
@@ -767,282 +3205,214 @@ values `RED`, `YELLOW` and `GREEN` you might write:
 enum : List ( String, a ) -> Decoder Attribute a
 enum cases =
     let
+        normalized =
+            List.map (Tuple.mapFirst String.toUpper) cases
+
         lookupDict =
-            cases
-                |> List.map (Tuple.mapFirst (EnumValue.fromString >> EnumValue.toString))
-                |> Dict.fromList
+            Dict.fromList normalized
     in
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.EnumAttribute enumValue ->
-                    case Dict.get (EnumValue.toString enumValue) lookupDict of
+    Decoder Pattern.enum
+        (\_ submatches ->
+            case submatches of
+                (Just enumString) :: remaining ->
+                    case Dict.get (String.slice 1 -1 enumString) lookupDict of
                         Just value ->
-                            Succeeded value
+                            Succeeded value remaining
 
                         Nothing ->
-                            Failed
-                                ("Unrecognized enum value '"
-                                    ++ EnumValue.toString enumValue
-                                    ++ "'"
-                                )
+                            errorMessage ("unexpected enum value '" ++ enumString ++ "'")
 
-                _ ->
-                    Failed "Expected an enum"
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "enum"
+
+                [] ->
+                    wrongNumberOfSubmatches
         )
 
 
-collectDecodedAttributes : Decoder Attribute a -> List a -> List Attribute -> DecodeResult (List a)
-collectDecodedAttributes decoder accumulated remainingAttributes =
-    case remainingAttributes of
-        [] ->
-            -- No more attributes to decode, so succeed with all the results we
-            -- have collected so far
-            Succeeded (List.reverse accumulated)
+{-| Decode a 'typed attribute'; for example if someone's age was stored as an
+integer, then it might be encoded directly as an integer like `38` or as a typed
+integer like `AGE(38)` or `YEARS(38)` or similar.
+-}
+typedAttribute : String -> Decoder Attribute a -> Decoder Attribute a
+typedAttribute typeName (Decoder pattern chomp) =
+    Decoder (Pattern.typedAttribute typeName pattern) chomp
 
-        first :: rest ->
-            case decodeResult decoder first of
-                -- Decoding succeeded on this attribute: continue with the
-                -- rest
-                Succeeded result ->
-                    collectDecodedAttributes decoder (result :: accumulated) rest
 
-                -- Decoding failed on this attribute: immediately abort
-                -- with the returned error message
-                Failed message ->
-                    Failed message
+{-| Map the value produced by a decoder.
+-}
+map : (a -> b) -> Decoder i a -> Decoder i b
+map function decoder =
+    let
+        (Decoder pattern chomp) =
+            decoder
+    in
+    Decoder pattern
+        (\entityLine submatches ->
+            case chomp entityLine submatches of
+                Succeeded value remaining ->
+                    Succeeded (function value) remaining
+
+                Failed error ->
+                    Failed error
 
                 UnexpectedType ->
-                    Failed "Internal error: UnexpectedType from attribute decoder"
-
-
-{-| Decode an attribute as a list, passing the decoder to be used for each list
-item.
--}
-list : Decoder Attribute a -> Decoder Attribute (List a)
-list itemDecoder =
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.AttributeList attributes_ ->
-                    collectDecodedAttributes itemDecoder [] attributes_
-
-                _ ->
-                    Failed "Expected a list"
+                    UnexpectedType
         )
 
 
-typedAttribute : String -> Decoder Attribute a -> Decoder Attribute a
-typedAttribute givenTypeName decoder =
-    let
-        expectedTypeName =
-            TypeName.fromString givenTypeName
-    in
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.TypedAttribute attributeTypeName underlyingAttribute ->
-                    if attributeTypeName == expectedTypeName then
-                        decodeResult decoder underlyingAttribute
+{-| Based on the result of one entity decoder, produce a second decoder to run
+on the same entity.
 
-                    else
-                        Failed
-                            ("Expected a typed attribute of type '"
-                                ++ TypeName.toString expectedTypeName
-                                ++ "', got '"
-                                ++ TypeName.toString attributeTypeName
-                                ++ "'"
-                            )
-
-                _ ->
-                    Failed "Expected a typed attribute"
-        )
-
-
-{-| Decode a `Bool` wrapped as the given type.
--}
-boolAs : String -> Decoder Attribute Bool
-boolAs givenTypeName =
-    typedAttribute givenTypeName bool
-
-
-{-| Decode an `Int` wrapped as the given type.
--}
-intAs : String -> Decoder Attribute Int
-intAs givenTypeName =
-    typedAttribute givenTypeName int
-
-
-{-| Decode a `Float` wrapped as the given type.
--}
-floatAs : String -> Decoder Attribute Float
-floatAs givenTypeName =
-    typedAttribute givenTypeName float
-
-
-{-| Decode a `String` wrapped as the given type.
--}
-stringAs : String -> Decoder Attribute String
-stringAs givenTypeName =
-    typedAttribute givenTypeName string
-
-
-{-| Decode binary data wrapped as the given type.
-
-Note that while the STEP format supports binary data with an arbitrary number of
-bits, Elm only supports byte-aligned binary data (where the number of bits is a
-multiple of eight). This means that the `Bytes` value passed to the decoder may
-be zero-padded. For example, if a STEP file contained a binary data attribute
-with the value `011001` (six bits), the Elm `Bytes` value that would actually
-end up being decoded would be `00011001` (eight bits/one byte).
+_**WARNING**_: This is sometimes necessary but can be a major performance issue!
+Wherever possible, ensure decoders are created _once_ instead of on the fly
+inside an `andThen` callback. For example, in some cases you may be able to
+create a few static decoders and then have logic inside and `andThen` simply
+choose which of those to use.
 
 -}
-binaryDataAs : String -> Bytes.Decode.Decoder a -> Decoder Attribute a
-binaryDataAs givenTypeName bytesDecoder =
-    typedAttribute givenTypeName (binaryData bytesDecoder)
+andThen : (a -> Decoder Entity b) -> Decoder Entity a -> Decoder Entity b
+andThen function firstDecoder =
+    makeEntityDecoder <|
+        \entityLine _ ->
+            case decodeEntity firstDecoder entityLine of
+                Succeeded firstValue () ->
+                    let
+                        secondDecoder =
+                            function firstValue
+                    in
+                    case decodeEntity secondDecoder entityLine of
+                        Succeeded secondValue () ->
+                            Succeeded secondValue []
 
-
-{-| Decode an enum wrapped as the given type.
--}
-enumAs : String -> List ( String, a ) -> Decoder Attribute a
-enumAs givenTypeName cases =
-    typedAttribute givenTypeName (enum cases)
-
-
-{-| Decode a list wrapped as the given type.
--}
-listAs : String -> Decoder Attribute a -> Decoder Attribute (List a)
-listAs givenTypeName itemDecoder =
-    typedAttribute givenTypeName (list itemDecoder)
-
-
-{-| Decode a list of exactly two elements, passing the decoder to be used for
-the two elements.
--}
-tuple2 : Decoder Attribute a -> Decoder Attribute ( a, a )
-tuple2 decoder =
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.AttributeList [ firstAttribute, secondAttribute ] ->
-                    map2Help Tuple.pair
-                        (decodeResult decoder firstAttribute)
-                        (decodeResult decoder secondAttribute)
-
-                _ ->
-                    Failed "Expected a list of two items"
-        )
-
-
-{-| Decode a list of exactly three elements, passing the decoder to be used for
-the three elements.
--}
-tuple3 : Decoder Attribute a -> Decoder Attribute ( a, a, a )
-tuple3 decoder =
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.AttributeList [ firstAttribute, secondAttribute, thirdAttribute ] ->
-                    map2Help (<|)
-                        (map2Help (\first second third -> ( first, second, third ))
-                            (decodeResult decoder firstAttribute)
-                            (decodeResult decoder secondAttribute)
-                        )
-                        (decodeResult decoder thirdAttribute)
-
-                _ ->
-                    Failed "Expected a list of three items"
-        )
-
-
-{-| Decode an attribute which is a reference to another entity, by providing the
-decoder to use for that entity.
--}
-referenceTo : Decoder Entity a -> Decoder Attribute a
-referenceTo entityDecoder =
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.ReferenceTo referencedEntity ->
-                    case decodeResult entityDecoder referencedEntity of
-                        Succeeded value ->
-                            Succeeded value
-
-                        Failed message ->
-                            Failed message
+                        Failed error ->
+                            Failed error
 
                         UnexpectedType ->
-                            Failed (annotateWithEntityId (getEntityId referencedEntity) "Unexpected type")
+                            UnexpectedType
 
-                _ ->
-                    Failed "Expected a referenced entity"
+                Failed error ->
+                    Failed error
+
+                UnexpectedType ->
+                    UnexpectedType
+
+
+{-| A trivial decoder that always succeeds with the given value. May be useful
+in combination with `andThen`, but consider using `validate` instead.
+-}
+succeed : a -> Decoder Entity a
+succeed value =
+    makeEntityDecoder (\_ _ -> Succeeded value [])
+
+
+{-| A trivial decoder that always failes with the given error message. May be
+useful in combination with `andThen`, but consider using `validate` instead.
+-}
+fail : String -> Decoder Entity a
+fail message =
+    makeEntityDecoder (\_ _ -> errorMessage message)
+
+
+{-| Post-process the result of a decoder, either succeeding with a new value
+(possibly of a different type) or failing with an error message. This is a
+restricted form of `andThen` that does not have the same performance concerns,
+so use `validate` instead of `andThen` wherever possible.
+-}
+validate : (a -> Result String b) -> Decoder i a -> Decoder i b
+validate function decoder =
+    let
+        (Decoder pattern chomp) =
+            decoder
+    in
+    Decoder pattern
+        (\entityLine submatches ->
+            case chomp entityLine submatches of
+                Succeeded value remaining ->
+                    case function value of
+                        Ok result ->
+                            Succeeded result remaining
+
+                        Err message ->
+                            errorMessage message
+
+                Failed error ->
+                    Failed error
+
+                UnexpectedType ->
+                    UnexpectedType
         )
 
 
-{-| Construct an entity decoder that may match one of many entity types. The
-first decoder with a matching type will be used. If none of the entity types
-match, then the current entity is skipped.
+{-| If a decoder produces a `Result String a` instead of simply a value of type
+`a` (for example if the callback function can fail) then this can 'resolve' that
+back into a regular decoder. It is equivalent to (and implemented as)
+`validate identity`.
+-}
+resolve : Decoder i (Result String a) -> Decoder i a
+resolve decoder =
+    validate identity decoder
+
+
+{-| Construct an entity decoder that tries several other entity decoders in
+sequence.
 -}
 oneOf : List (Decoder Entity a) -> Decoder Entity a
-oneOf decoders =
-    Decoder (oneOfHelp decoders)
+oneOf entityDecoders =
+    makeEntityDecoder (chompOneOf entityDecoders)
 
 
-oneOfHelp : List (Decoder Entity a) -> Entity -> DecodeResult a
-oneOfHelp decoders input =
-    case decoders of
+chompOneOf : List (Decoder Entity a) -> EntityLine -> Submatches -> DecodeResult a Submatches
+chompOneOf entityDecoders entityLine _ =
+    case entityDecoders of
         first :: rest ->
-            -- At least one decoder left to try, so try it
-            case decodeResult first input of
-                -- Decoding succeeded: return the result
-                Succeeded result ->
-                    Succeeded result
+            case decodeEntity first entityLine of
+                Succeeded value () ->
+                    Succeeded value []
 
-                -- Decoder matched the entity (based on type name) but then
-                -- failed decoding; in this case consider that the decoder has
-                -- 'committed' to decoding and so report the error instead of
-                -- ignoring it and moving to the next decoder
-                Failed message ->
-                    Failed message
-
-                -- Decoder did not match the entity: move on to the next one,
-                -- but save the error message in case *all* decoders do not
-                -- match (see above)
                 UnexpectedType ->
-                    oneOfHelp rest input
+                    chompOneOf rest entityLine []
+
+                Failed error ->
+                    Failed error
 
         [] ->
-            -- No more decoders to try
             UnexpectedType
 
 
 {-| Decode the special 'null' attribute (`$`) as the given value.
 -}
 null : a -> Decoder Attribute a
-null value =
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.NullAttribute ->
-                    Succeeded value
+null result =
+    Decoder Pattern.null
+        (\_ submatches ->
+            case submatches of
+                (Just _) :: rest ->
+                    Succeeded result rest
 
-                _ ->
-                    Failed "Expecting null attribute ($)"
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "null ($)"
+
+                [] ->
+                    wrongNumberOfSubmatches
         )
 
 
 {-| Decode the special 'derived value' attribute (`*`) as the given value.
 -}
 derivedValue : a -> Decoder Attribute a
-derivedValue value =
-    Decoder
-        (\inputAttribute ->
-            case inputAttribute of
-                Types.DerivedValue ->
-                    Succeeded value
+derivedValue result =
+    Decoder Pattern.derivedValue
+        (\_ submatches ->
+            case submatches of
+                (Just _) :: rest ->
+                    Succeeded result rest
 
-                _ ->
-                    Failed "Expecting 'derived value' attribute (*)"
+                Nothing :: _ ->
+                    couldNotParseAttributeAs "derived value (*)"
+
+                [] ->
+                    wrongNumberOfSubmatches
         )
 
 
@@ -1050,63 +3420,49 @@ derivedValue value =
 -}
 optional : Decoder Attribute a -> Decoder Attribute (Maybe a)
 optional decoder =
-    Decoder
-        (\inputAttribute ->
-            case decodeResult decoder inputAttribute of
-                Succeeded value ->
-                    Succeeded (Just value)
+    let
+        (Decoder attributePattern chompItem) =
+            decoder
+    in
+    Decoder (Pattern.optional attributePattern)
+        (\entityLine submatches ->
+            case submatches of
+                (Just _) :: _ :: rest ->
+                    Succeeded Nothing rest
 
-                Failed message ->
-                    case inputAttribute of
-                        Types.NullAttribute ->
-                            Succeeded Nothing
+                Nothing :: rest ->
+                    case chompItem entityLine rest of
+                        Succeeded value remaining ->
+                            Succeeded (Just value) remaining
 
-                        _ ->
-                            Failed message
+                        Failed error ->
+                            Failed error
 
-                UnexpectedType ->
-                    Failed "Internal error: UnexpectedType from attribute decoder"
+                        UnexpectedType ->
+                            unexpectedTypeFromAttribute
+
+                [ _ ] ->
+                    wrongNumberOfSubmatches
+
+                [] ->
+                    wrongNumberOfSubmatches
         )
-
-
-{-| Run one decoder on some input, and based on the result of the first decoder
-decide what decoder to apply next to the same input.
--}
-andThen : (a -> Decoder i b) -> Decoder i a -> Decoder i b
-andThen function decoder =
-    Decoder
-        (\input ->
-            case decodeResult decoder input of
-                Succeeded intermediateValue ->
-                    decodeResult (function intermediateValue) input
-
-                Failed message ->
-                    Failed message
-
-                UnexpectedType ->
-                    UnexpectedType
-        )
-
-
-{-| You may run into cases where you end up with a decoder that returns another
-decoder, perhaps if you construct a decoder within a call to `Decode.map2` or
-similar. This function will 'flatten' the resulting decoder;
-
-    Decode.flatten
-
-is equivalent to
-
-    Decode.andThen identity
-
--}
-flatten : Decoder i (Decoder i a) -> Decoder i a
-flatten decoder =
-    decoder |> andThen Basics.identity
 
 
 {-| Define a decoder lazily such that it is only constructed if needed. This is
 primarily used to break circular reference chains between decoders.
+
+For efficiency reasons, you should make sure that the provided callback function
+simply returns an already-existing decoder value; it should _not_ construct
+one on the fly.
+
 -}
-lazy : (() -> Decoder i a) -> Decoder i a
+lazy : (() -> Decoder Entity a) -> Decoder Entity a
 lazy constructor =
-    Decoder (\input -> decodeResult (constructor ()) input)
+    makeEntityDecoder <|
+        \entityLine submatches ->
+            let
+                (Decoder _ actualChomp) =
+                    constructor ()
+            in
+            actualChomp entityLine submatches
