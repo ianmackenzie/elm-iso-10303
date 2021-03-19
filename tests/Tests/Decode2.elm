@@ -48,8 +48,10 @@ testString : String -> String -> Test
 testString entityType expectedString =
     let
         entityDecoder =
-            Step.Decode2.simpleEntity1 entityType identity <|
-                Step.Decode2.keep Step.Decode2.string
+            Step.Decode2.simpleEntity1 identity
+                Step.Decode2.ignoreId
+                entityType
+                (Step.Decode2.keep Step.Decode2.string)
     in
     Test.describe entityType
         [ Test.test "Decoded string" <|
@@ -113,9 +115,9 @@ suite =
                         Bytes.Decode.unsignedInt16 Bytes.BE
 
                     entityDecoder =
-                        Step.Decode2.simpleEntity1
+                        Step.Decode2.simpleEntity1 identity
+                            Step.Decode2.ignoreId
                             "BINARY_DATA"
-                            identity
                             (Step.Decode2.keep (Step.Decode2.binaryData bytesDecoder))
                 in
                 case Step.Decode2.single entityDecoder testFile of
@@ -128,11 +130,16 @@ suite =
             \() ->
                 let
                     nestedDecoder =
-                        Step.Decode2.simpleEntity1 "PARENT" identity <|
-                            Step.Decode2.keep <|
+                        Step.Decode2.simpleEntity1 identity
+                            Step.Decode2.ignoreId
+                            "PARENT"
+                            (Step.Decode2.keep <|
                                 Step.Decode2.referenceTo <|
-                                    Step.Decode2.simpleEntity1 "CHILD" identity <|
-                                        Step.Decode2.keep Step.Decode2.int
+                                    Step.Decode2.simpleEntity1 identity
+                                        Step.Decode2.ignoreId
+                                        "CHILD"
+                                        (Step.Decode2.keep Step.Decode2.int)
+                            )
                 in
                 case Step.Decode2.single nestedDecoder testFile of
                     Ok value ->
@@ -144,40 +151,51 @@ suite =
             \() ->
                 let
                     nestedDecoder =
-                        Step.Decode2.simpleEntity1 "PARENT" identity <|
-                            Step.Decode2.keep <|
+                        Step.Decode2.simpleEntity1 identity
+                            Step.Decode2.ignoreId
+                            "PARENT"
+                            (Step.Decode2.keep <|
                                 Step.Decode2.referenceTo <|
-                                    Step.Decode2.simpleEntity1 "CHILD" identity <|
-                                        Step.Decode2.keep Step.Decode2.string
+                                    Step.Decode2.simpleEntity1 identity
+                                        Step.Decode2.ignoreId
+                                        "CHILD"
+                                        (Step.Decode2.keep Step.Decode2.string)
+                            )
                 in
                 case Step.Decode2.single nestedDecoder testFile of
                     Ok _ ->
                         Expect.fail "Expected decoding to fail"
 
                     Err message ->
-                        message |> Expect.equal "Could not parse attribute as string"
+                        message |> Expect.equal "In #8->#7: Could not parse attribute as string"
         , Test.test "Unexpected type from nested entity" <|
             \() ->
                 let
                     nestedDecoder =
-                        Step.Decode2.simpleEntity1 "PARENT" identity <|
-                            Step.Decode2.keep <|
+                        Step.Decode2.simpleEntity1 identity
+                            Step.Decode2.ignoreId
+                            "PARENT"
+                            (Step.Decode2.keep <|
                                 Step.Decode2.referenceTo <|
-                                    Step.Decode2.simpleEntity1 "GRANDCHILD" identity <|
-                                        Step.Decode2.keep Step.Decode2.string
+                                    Step.Decode2.simpleEntity1 identity
+                                        Step.Decode2.ignoreId
+                                        "GRANDCHILD"
+                                        (Step.Decode2.keep Step.Decode2.string)
+                            )
                 in
                 case Step.Decode2.single nestedDecoder testFile of
                     Ok _ ->
                         Expect.fail "Expected decoding to fail"
 
                     Err message ->
-                        message |> Expect.equal "Referenced entity 'CHILD(1)' has unexpected type"
+                        message |> Expect.equal "In #8->#7: Entity has unexpected type"
         , Test.test "Complex entity" <|
             \() ->
                 let
                     decoder : Step.Decode2.Decoder Step.Entity ComplexEntityData
                     decoder =
                         Step.Decode2.complexEntity3 ComplexEntityData
+                            Step.Decode2.ignoreId
                             (Step.Decode2.subEntity1 "SUB1"
                                 (Step.Decode2.keep Step.Decode2.int)
                             )
@@ -207,8 +225,9 @@ suite =
             \() ->
                 let
                     decoder =
-                        Step.Decode2.simpleEntity2 "POINT"
-                            identity
+                        Step.Decode2.simpleEntity2 identity
+                            Step.Decode2.ignoreId
+                            "POINT"
                             (Step.Decode2.ignore Step.Decode2.emptyString)
                             (Step.Decode2.keep (Step.Decode2.tuple3 Step.Decode2.float))
                 in
@@ -227,8 +246,9 @@ suite =
             \() ->
                 let
                     decoder =
-                        Step.Decode2.simpleEntity5 "VARIOUS_ATTRIBUTES"
-                            VariousAttributes
+                        Step.Decode2.simpleEntity5 VariousAttributes
+                            Step.Decode2.ignoreId
+                            "VARIOUS_ATTRIBUTES"
                             (Step.Decode2.keep Step.Decode2.bool)
                             (Step.Decode2.keep Step.Decode2.bool)
                             (Step.Decode2.keep (Step.Decode2.enum [ ( "STEEL", Steel ), ( "ALUMINUM", Aluminum ) ]))
