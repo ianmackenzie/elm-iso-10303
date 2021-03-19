@@ -7,8 +7,8 @@ module Step.Decode2 exposing
     , subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6
     , keep, ignore
     , bool, int, float, string, emptyString, binaryData, derivedValue, null, optional, enum, list, tuple2, tuple3, referenceTo, referencedId
-    , map, validate, andThen, succeed, fail, lazy
     , typedAttribute
+    , map, validate, resolve, andThen, succeed, fail, lazy
     )
 
 {-|
@@ -46,7 +46,7 @@ module Step.Decode2 exposing
 
 # Working with decoders
 
-@docs map, validate, andThen, succeed, fail, lazy
+@docs map, validate, resolve, andThen, succeed, fail, lazy
 
 -}
 
@@ -1810,6 +1810,11 @@ validate function decoder =
                 UnexpectedType ->
                     UnexpectedType
         )
+
+
+resolve : Decoder i (Result String a) -> Decoder i a
+resolve decoder =
+    validate identity decoder
 
 
 oneOf : List (Decoder Entity a) -> Decoder Entity a
