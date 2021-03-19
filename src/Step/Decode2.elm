@@ -14,12 +14,15 @@ module Step.Decode2 exposing
 
 {-|
 
-@docs Decoder, File, Entity, SubEntity, Attribute
+@docs Decoder, File
 
 @docs parse, header, single, all, get
 
 
 # Entities
+
+The `simpleEntity*` functions all attempt to decode a simple STEP entity with
+the given number of attributes.
 
 @docs simpleEntity1, simpleEntity2, simpleEntity3, simpleEntity4, simpleEntity5, simpleEntity6, simpleEntity7, simpleEntity8, simpleEntity9, simpleEntity10, simpleEntity11, simpleEntity12, simpleEntity13, simpleEntity14, simpleEntity15, simpleEntity16
 
@@ -31,9 +34,15 @@ module Step.Decode2 exposing
 
 ## Complex entities
 
+The `complexEntity*` functions all attempt to decode a complex STEP entity with
+the given number of sub-entities.
+
 @docs complexEntity1, complexEntity2, complexEntity3, complexEntity4, complexEntity5, complexEntity6, complexEntity7, complexEntity8, complexEntity9, complexEntity10, complexEntity11, complexEntity12
 
-@docs subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6, subEntity6, subEntity7, subEntity8, subEntity9, subEntity10, subEntity11, subEntity12
+The `subEntity*` functions all attempt to decode a sub-entity (of a complex STEP
+entity) with the given number of attributes.
+
+@docs subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6, subEntity7, subEntity8, subEntity9, subEntity10, subEntity11, subEntity12
 
 
 # Attributes
@@ -65,13 +74,16 @@ import Step.String
 import Step.Types exposing (Attribute, Entity, Header, SubEntity)
 
 
+{-| Represents an entire STEP file composed of a header and a list of entities.
+You can [get the header](#header) from a file or extract data from it using
+[entity decoders](#entities).
+-}
 type File
     = File Header (Array String)
 
 
 {-| A `Decoder` describes how to attempt to decode some input of type `i` (an
-entire file, an individual entity, a specific attribute) and produce some output
-of type `a`.
+entity or an attribute) and produce some output of type `a`.
 -}
 type Decoder i a
     = Decoder Pattern (Chomp a)
@@ -112,6 +124,8 @@ errorMessage message =
         }
 
 
+{-| Attempt to parse a given string as a STEP file.
+-}
 parse : String -> Result String File
 parse contents =
     case Preprocess.split contents of
@@ -127,6 +141,8 @@ internalError message =
     errorMessage ("Internal error in STEP parsing: " ++ message)
 
 
+{-| Get the [header](Step-Types#Header) of a given file.
+-}
 header : File -> Header
 header file =
     let
@@ -136,6 +152,9 @@ header file =
     fileHeader
 
 
+{-| Decode a single entity from a file by ID, using the given decoder. Usually
+you will want to use [`single`](#single) instead.
+-}
 get : Int -> Decoder Entity a -> File -> Result String a
 get id entityDecoder file =
     let
@@ -168,6 +187,8 @@ get id entityDecoder file =
                     Err (reportError (entityHasUnexpectedType id))
 
 
+{-| Find all entities in a file matching the given decoder.
+-}
 all : Decoder Entity a -> File -> Result String (List a)
 all entityDecoder file =
     let
@@ -191,6 +212,10 @@ entityHasUnexpectedType id =
     }
 
 
+{-| Attempt to find exactly one entity in a file that matches the given decoder.
+If there are no matching entities or more than one matching entity, an error
+message will be returned.
+-}
 single : Decoder Entity a -> File -> Result String a
 single entityDecoder file =
     case all entityDecoder file of
@@ -350,6 +375,8 @@ simpleEntityDecoder callback typeName attributePatterns chompAttributes =
                     internalError "more than one regex match for a single entity"
 
 
+{-| Get the ID of an entity while decoding.
+-}
 keepId : Decoder Int ((Int -> a) -> a)
 keepId =
     Decoder Pattern.startOfInput <|
@@ -357,6 +384,8 @@ keepId =
             Succeeded ((|>) entityLine.id) submatches
 
 
+{-| Ignore the ID of an entity while decoding.
+-}
 ignoreId : Decoder Int (a -> a)
 ignoreId =
     Decoder Pattern.startOfInput <|
@@ -386,6 +415,7 @@ thenChomp chomp2 chomp1 =
                 UnexpectedType
 
 
+{-| -}
 simpleEntity1 : a -> Decoder Int (a -> b) -> String -> Decoder Attribute (b -> c) -> Decoder Entity c
 simpleEntity1 callback idDecoder typeName firstAttributeDecoder =
     let
@@ -404,6 +434,7 @@ simpleEntity1 callback idDecoder typeName firstAttributeDecoder =
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity2 : a -> Decoder Int (a -> b) -> String -> Decoder Attribute (b -> c) -> Decoder Attribute (c -> d) -> Decoder Entity d
 simpleEntity2 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder =
     let
@@ -425,6 +456,7 @@ simpleEntity2 callback idDecoder typeName firstAttributeDecoder secondAttributeD
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity3 :
     a
     -> Decoder Int (a -> b)
@@ -456,6 +488,7 @@ simpleEntity3 callback idDecoder typeName firstAttributeDecoder secondAttributeD
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity4 :
     a
     -> Decoder Int (a -> b)
@@ -495,6 +528,7 @@ simpleEntity4 callback idDecoder typeName firstAttributeDecoder secondAttributeD
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity5 :
     a
     -> Decoder Int (a -> b)
@@ -544,6 +578,7 @@ simpleEntity5 callback idDecoder typeName firstAttributeDecoder secondAttributeD
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity6 :
     a
     -> Decoder Int (a -> b)
@@ -599,6 +634,7 @@ simpleEntity6 callback idDecoder typeName firstAttributeDecoder secondAttributeD
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity7 :
     a
     -> Decoder Int (a -> b)
@@ -660,6 +696,7 @@ simpleEntity7 callback idDecoder typeName firstAttributeDecoder secondAttributeD
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity8 :
     a
     -> Decoder Int (a -> b)
@@ -727,6 +764,7 @@ simpleEntity8 callback idDecoder typeName firstAttributeDecoder secondAttributeD
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity9 :
     a
     -> Decoder Int (a -> b)
@@ -800,6 +838,7 @@ simpleEntity9 callback idDecoder typeName firstAttributeDecoder secondAttributeD
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity10 :
     a
     -> Decoder Int (a -> b)
@@ -879,6 +918,7 @@ simpleEntity10 callback idDecoder typeName firstAttributeDecoder secondAttribute
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity11 :
     a
     -> Decoder Int (a -> b)
@@ -964,6 +1004,7 @@ simpleEntity11 callback idDecoder typeName firstAttributeDecoder secondAttribute
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity12 :
     a
     -> Decoder Int (a -> b)
@@ -1055,6 +1096,7 @@ simpleEntity12 callback idDecoder typeName firstAttributeDecoder secondAttribute
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity13 :
     a
     -> Decoder Int (a -> b)
@@ -1152,6 +1194,7 @@ simpleEntity13 callback idDecoder typeName firstAttributeDecoder secondAttribute
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity14 :
     a
     -> Decoder Int (a -> b)
@@ -1255,6 +1298,7 @@ simpleEntity14 callback idDecoder typeName firstAttributeDecoder secondAttribute
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity15 :
     a
     -> Decoder Int (a -> b)
@@ -1364,6 +1408,7 @@ simpleEntity15 callback idDecoder typeName firstAttributeDecoder secondAttribute
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+{-| -}
 simpleEntity16 :
     a
     -> Decoder Int (a -> b)
@@ -1524,11 +1569,13 @@ subEntityDecoder typeName attributePatterns chompAttributes =
         )
 
 
+{-| -}
 subEntity0 : String -> Decoder SubEntity (a -> a)
 subEntity0 typeName =
     subEntityDecoder typeName [] (\_ submatches -> Succeeded identity submatches)
 
 
+{-| -}
 subEntity1 : String -> Decoder Attribute (a -> b) -> Decoder SubEntity (a -> b)
 subEntity1 typeName firstAttributeDecoder =
     let
@@ -1538,6 +1585,7 @@ subEntity1 typeName firstAttributeDecoder =
     subEntityDecoder typeName [ pattern1 ] chomp1
 
 
+{-| -}
 subEntity2 : String -> Decoder Attribute (a -> b) -> Decoder Attribute (b -> c) -> Decoder SubEntity (a -> c)
 subEntity2 typeName firstAttributeDecoder secondAttributeDecoder =
     let
@@ -1556,6 +1604,7 @@ subEntity2 typeName firstAttributeDecoder secondAttributeDecoder =
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+{-| -}
 subEntity3 :
     String
     -> Decoder Attribute (a -> b)
@@ -1587,6 +1636,7 @@ subEntity3 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeD
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+{-| -}
 subEntity4 :
     String
     -> Decoder Attribute (a -> b)
@@ -1624,6 +1674,7 @@ subEntity4 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeD
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+{-| -}
 subEntity5 :
     String
     -> Decoder Attribute (a -> b)
@@ -1667,6 +1718,7 @@ subEntity5 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeD
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+{-| -}
 subEntity6 :
     String
     -> Decoder Attribute (a -> b)
@@ -1716,6 +1768,7 @@ subEntity6 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeD
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+{-| -}
 subEntity7 :
     String
     -> Decoder Attribute (a -> b)
@@ -1771,6 +1824,7 @@ subEntity7 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeD
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+{-| -}
 subEntity8 :
     String
     -> Decoder Attribute (a -> b)
@@ -1832,6 +1886,7 @@ subEntity8 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeD
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+{-| -}
 subEntity9 :
     String
     -> Decoder Attribute (a -> b)
@@ -1899,6 +1954,7 @@ subEntity9 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeD
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+{-| -}
 subEntity10 :
     String
     -> Decoder Attribute (a -> b)
@@ -1972,6 +2028,7 @@ subEntity10 typeName firstAttributeDecoder secondAttributeDecoder thirdAttribute
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+{-| -}
 subEntity11 :
     String
     -> Decoder Attribute (a -> b)
@@ -2051,6 +2108,7 @@ subEntity11 typeName firstAttributeDecoder secondAttributeDecoder thirdAttribute
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+{-| -}
 subEntity12 :
     String
     -> Decoder Attribute (a -> b)
@@ -2177,6 +2235,7 @@ complexEntityDecoder callback subEntityPatterns chomp =
                     internalError "more than one regex match for a single entity"
 
 
+{-| -}
 complexEntity1 : a -> Decoder Int (a -> b) -> Decoder SubEntity (b -> c) -> Decoder Entity c
 complexEntity1 callback idDecoder firstSubEntityDecoder =
     let
@@ -2189,6 +2248,7 @@ complexEntity1 callback idDecoder firstSubEntityDecoder =
     complexEntityDecoder callback [ pattern1 ] (chompId |> thenChomp chomp1)
 
 
+{-| -}
 complexEntity2 : a -> Decoder Int (a -> b) -> Decoder SubEntity (b -> c) -> Decoder SubEntity (c -> d) -> Decoder Entity d
 complexEntity2 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder =
     let
@@ -2207,6 +2267,7 @@ complexEntity2 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder =
     complexEntityDecoder callback [ pattern1, pattern2 ] chomp
 
 
+{-| -}
 complexEntity3 :
     a
     -> Decoder Int (a -> b)
@@ -2239,6 +2300,7 @@ complexEntity3 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder t
         chomp
 
 
+{-| -}
 complexEntity4 :
     a
     -> Decoder Int (a -> b)
@@ -2276,6 +2338,7 @@ complexEntity4 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder t
         chomp
 
 
+{-| -}
 complexEntity5 :
     a
     -> Decoder Int (a -> b)
@@ -2318,6 +2381,7 @@ complexEntity5 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder t
         chomp
 
 
+{-| -}
 complexEntity6 :
     a
     -> Decoder Int (a -> b)
@@ -2365,6 +2429,7 @@ complexEntity6 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder t
         chomp
 
 
+{-| -}
 complexEntity7 :
     a
     -> Decoder Int (a -> b)
@@ -2417,6 +2482,7 @@ complexEntity7 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder t
         chomp
 
 
+{-| -}
 complexEntity8 :
     a
     -> Decoder Int (a -> b)
@@ -2474,6 +2540,7 @@ complexEntity8 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder t
         chomp
 
 
+{-| -}
 complexEntity9 :
     a
     -> Decoder Int (a -> b)
@@ -2536,6 +2603,7 @@ complexEntity9 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder t
         chomp
 
 
+{-| -}
 complexEntity10 :
     a
     -> Decoder Int (a -> b)
@@ -2603,6 +2671,7 @@ complexEntity10 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder 
         chomp
 
 
+{-| -}
 complexEntity11 :
     a
     -> Decoder Int (a -> b)
@@ -2675,6 +2744,7 @@ complexEntity11 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder 
         chomp
 
 
+{-| -}
 complexEntity12 :
     a
     -> Decoder Int (a -> b)
@@ -2757,6 +2827,9 @@ couldNotParseAttributeAs dataType =
     errorMessage ("Could not parse attribute as " ++ dataType)
 
 
+{-| Decode a single attribute as a `Bool` (from the special STEP enum values
+`.T.` and `.F.`).
+-}
 bool : Decoder Attribute Bool
 bool =
     Decoder Pattern.bool <|
@@ -2772,6 +2845,8 @@ bool =
                     wrongNumberOfSubmatches
 
 
+{-| Decode a single attribute as a `String`.
+-}
 string : Decoder Attribute String
 string =
     Decoder Pattern.string <|
@@ -2787,6 +2862,10 @@ string =
                     wrongNumberOfSubmatches
 
 
+{-| Decode a single attribute as a string which must be empty (whitespace only).
+Useful when used with [`ignore`](#ignore) to check that the string being ignored
+is in fact empty.
+-}
 emptyString : Decoder Attribute ()
 emptyString =
     Decoder Pattern.emptyString <|
@@ -2802,6 +2881,9 @@ emptyString =
                     wrongNumberOfSubmatches
 
 
+{-| Decode a single attribute as a blob of binary data, using the given
+[binary decoder](https://package.elm-lang.org/packages/elm/bytes/latest/Bytes-Decode).
+-}
 binaryData : Bytes.Decode.Decoder a -> Decoder Attribute a
 binaryData bytesDecoder =
     Decoder Pattern.binaryData <|
@@ -2822,6 +2904,14 @@ binaryData bytesDecoder =
                     internalError "could not decode binary attribute"
 
 
+{-| Decode a single attribute as a `Float`. Note that unlike JSON, STEP has
+different encodings for `Int` and `Float` values so you cannot use this
+function to decode integer values; if you want to decode an integer value as a
+`Float` you will need to use
+
+    Decode.map toFloat Decode.int
+
+-}
 float : Decoder Attribute Float
 float =
     Decoder Pattern.float <|
@@ -2842,6 +2932,8 @@ float =
                     wrongNumberOfSubmatches
 
 
+{-| Decode a single attribute as an `Int`.
+-}
 int : Decoder Attribute Int
 int =
     Decoder Pattern.int <|
@@ -2867,6 +2959,9 @@ unexpectedTypeFromAttribute =
     internalError "attribute decoder returned UnexpectedType"
 
 
+{-| Keep a particular attribute value to pass to the callback function for the
+entity being decoded.
+-}
 keep : Decoder Attribute a -> Decoder Attribute ((a -> b) -> b)
 keep attributeDecoder =
     let
@@ -2887,6 +2982,9 @@ keep attributeDecoder =
         )
 
 
+{-| Ignore a particualr attribute so that it does not get passed to the callback
+function for the entity being decoded.
+-}
 ignore : Decoder Attribute a -> Decoder Attribute (b -> b)
 ignore attributeDecoder =
     let
@@ -2906,6 +3004,9 @@ ignore attributeDecoder =
                     wrongNumberOfSubmatches
 
 
+{-| Decode an attribute as a list, passing the decoder to be used for each list
+item.
+-}
 list : Decoder Attribute a -> Decoder Attribute (List a)
 list itemDecoder =
     let
@@ -2957,6 +3058,9 @@ listHelp chompItem entityLine matches accumulated remainingSubmatches =
             Succeeded (List.reverse accumulated) remainingSubmatches
 
 
+{-| Decode a list of exactly two elements, passing the decoder to be used for
+the two elements.
+-}
 tuple2 : Decoder Attribute a -> Decoder Attribute ( a, a )
 tuple2 itemDecoder =
     list itemDecoder
@@ -2971,6 +3075,9 @@ tuple2 itemDecoder =
             )
 
 
+{-| Decode a list of exactly three elements, passing the decoder to be used for
+the two elements.
+-}
 tuple3 : Decoder Attribute a -> Decoder Attribute ( a, a, a )
 tuple3 itemDecoder =
     list itemDecoder
@@ -2985,6 +3092,9 @@ tuple3 itemDecoder =
             )
 
 
+{-| Decode just the ID from an entity reference attribute. This may be useful
+for deferred decoding/processing.
+-}
 referencedId : Decoder Attribute Int
 referencedId =
     Decoder Pattern.referencedId
@@ -3011,11 +3121,19 @@ dropId _ value =
     value
 
 
+{-| Decode an attribute which is a reference to another entity, by providing the
+decoder to use for that entity.
+-}
 referenceTo : Decoder Entity a -> Decoder Attribute a
 referenceTo entityDecoder =
     referenceWithId dropId entityDecoder
 
 
+{-| Decode an attribute which is a reference to another entity, and additionally
+get the ID of that entity. You will need to pass a function that combines the
+ID and decoded value into whatever you want; for example if you pass
+`Tuple.pair` then you will get an `( Int, a )` value back.
+-}
 referenceWithId : (Int -> a -> b) -> Decoder Entity a -> Decoder Attribute b
 referenceWithId combine entityDecoder =
     Decoder Pattern.referencedId
@@ -3061,6 +3179,26 @@ referenceWithId combine entityDecoder =
         )
 
 
+{-| Decode a single enum attribute, by passing a list of enum cases as their
+STEP type name and corresponding Elm value. For example, given a STEP enum with
+values `RED`, `YELLOW` and `GREEN` you might write:
+
+    type LightColor
+        = Red
+        | Yellow
+        | Green
+
+    lightColorDecoder : Decoder Attribute LightColor
+    lightColorDecoder =
+        Decode.enum
+            [ ( "RED", Red )
+            , ( "YELLOW", Yellow )
+            , ( "GREEN", Green )
+            ]
+
+(Note that the given strings will be normalized, so case does not matter.)
+
+-}
 enum : List ( String, a ) -> Decoder Attribute a
 enum cases =
     let
@@ -3089,11 +3227,17 @@ enum cases =
         )
 
 
+{-| Decode a 'typed attribute'; for example if someone's age was stored as an
+integer, then it might be encoded directly as an integer like `38` or as a typed
+integer like `AGE(38)` or `YEARS(38)` or similar.
+-}
 typedAttribute : String -> Decoder Attribute a -> Decoder Attribute a
 typedAttribute typeName (Decoder pattern chomp) =
     Decoder (Pattern.typedAttribute typeName pattern) chomp
 
 
+{-| Map the value produced by a decoder.
+-}
 map : (a -> b) -> Decoder i a -> Decoder i b
 map function decoder =
     let
@@ -3114,6 +3258,16 @@ map function decoder =
         )
 
 
+{-| Based on the result of one entity decoder, produce a second decoder to run
+on the same entity.
+
+_**WARNING**_: This is sometimes necessary but can be a major performance issue!
+Wherever possible, ensure decoders are created _once_ instead of on the fly
+inside an `andThen` callback. For example, in some cases you may be able to
+create a few static decoders and then have logic inside and `andThen` simply
+choose which of those to use.
+
+-}
 andThen : (a -> Decoder Entity b) -> Decoder Entity a -> Decoder Entity b
 andThen function firstDecoder =
     makeEntityDecoder <|
@@ -3141,16 +3295,27 @@ andThen function firstDecoder =
                     UnexpectedType
 
 
+{-| A trivial decoder that always succeeds with the given value. May be useful
+in combination with `andThen`, but consider using `validate` instead.
+-}
 succeed : a -> Decoder Entity a
 succeed value =
     makeEntityDecoder (\_ _ -> Succeeded value [])
 
 
+{-| A trivial decoder that always failes with the given error message. May be
+useful in combination with `andThen`, but consider using `validate` instead.
+-}
 fail : String -> Decoder Entity a
 fail message =
     makeEntityDecoder (\_ _ -> errorMessage message)
 
 
+{-| Post-process the result of a decoder, either succeeding with a new value
+(possibly of a different type) or failing with an error message. This is a
+restricted form of `andThen` that does not have the same performance concerns,
+so use `validate` instead of `andThen` wherever possible.
+-}
 validate : (a -> Result String b) -> Decoder i a -> Decoder i b
 validate function decoder =
     let
@@ -3176,11 +3341,19 @@ validate function decoder =
         )
 
 
+{-| If a decoder produces a `Result String a` instead of simply a value of type
+`a` (for example if the callback function can fail) then this can 'resolve' that
+back into a regular decoder. It is equivalent to (and implemented as)
+`validate identity`.
+-}
 resolve : Decoder i (Result String a) -> Decoder i a
 resolve decoder =
     validate identity decoder
 
 
+{-| Construct an entity decoder that tries several other entity decoders in
+sequence.
+-}
 oneOf : List (Decoder Entity a) -> Decoder Entity a
 oneOf entityDecoders =
     makeEntityDecoder (chompOneOf entityDecoders)
@@ -3204,6 +3377,8 @@ chompOneOf entityDecoders entityLine _ =
             UnexpectedType
 
 
+{-| Decode the special 'null' attribute (`$`) as the given value.
+-}
 null : a -> Decoder Attribute a
 null result =
     Decoder Pattern.null
@@ -3220,6 +3395,8 @@ null result =
         )
 
 
+{-| Decode the special 'derived value' attribute (`*`) as the given value.
+-}
 derivedValue : a -> Decoder Attribute a
 derivedValue result =
     Decoder Pattern.derivedValue
@@ -3236,6 +3413,8 @@ derivedValue result =
         )
 
 
+{-| Decode an attribute that may be null, returning `Nothing` if it is.
+-}
 optional : Decoder Attribute a -> Decoder Attribute (Maybe a)
 optional decoder =
     let
@@ -3267,6 +3446,14 @@ optional decoder =
         )
 
 
+{-| Define a decoder lazily such that it is only constructed if needed. This is
+primarily used to break circular reference chains between decoders.
+
+For efficiency reasons, you should make sure that the provided callback function
+simply returns an already-existing decoder value; it should _not_ construct
+one on the fly.
+
+-}
 lazy : (() -> Decoder Entity a) -> Decoder Entity a
 lazy constructor =
     makeEntityDecoder <|
