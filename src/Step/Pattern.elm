@@ -13,6 +13,7 @@ module Step.Pattern exposing
     , endOfInput
     , enum
     , float
+    , ignore
     , int
     , list
     , nonCapturing
@@ -39,6 +40,7 @@ type Pattern
     | Maybe Pattern
     | OneOf (List Pattern)
     | Capture Pattern
+    | Ignore Pattern
     | Sequence (List Pattern)
     | ZeroOrMore Pattern
     | OneOrMore Pattern
@@ -67,6 +69,11 @@ token givenString =
 capture : Pattern -> Pattern
 capture =
     Capture
+
+
+ignore : Pattern -> Pattern
+ignore =
+    Ignore
 
 
 zeroOrMore : Pattern -> Pattern
@@ -267,6 +274,9 @@ toString mode pattern =
 
                 NonCapturing ->
                     nonCapturingPattern
+
+        Ignore ignoredPattern ->
+            toString nonCapturing ignoredPattern
 
         Sequence patterns ->
             String.concat (List.map (toString mode) patterns)
