@@ -8,6 +8,7 @@ module Step.Decode2 exposing
     , keep, ignore
     , bool, int, float, string, emptyString, binaryData, derivedValue, null, optional, enum, list, tuple2, tuple3, referenceTo, referencedId
     , map, validate, andThen, succeed, fail, lazy
+    , typedAttribute
     )
 
 {-|
@@ -39,6 +40,8 @@ module Step.Decode2 exposing
 @docs keep, ignore
 
 @docs bool, int, float, string, emptyString, binaryData, derivedValue, null, optional, enum, list, tuple2, tuple3, referenceTo, referencedId
+
+@docs typedAttribute
 
 
 # Working with decoders
@@ -1717,6 +1720,11 @@ enum cases =
                 [] ->
                     wrongNumberOfSubmatches
         )
+
+
+typedAttribute : String -> Decoder Attribute a -> Decoder Attribute a
+typedAttribute typeName (Decoder pattern chomp) =
+    Decoder (Pattern.typedAttribute typeName pattern) chomp
 
 
 map : (a -> b) -> Decoder i a -> Decoder i b
