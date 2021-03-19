@@ -2985,7 +2985,7 @@ keep attributeDecoder =
         )
 
 
-{-| Ignore a particualr attribute so that it does not get passed to the callback
+{-| Ignore a particular attribute so that it does not get passed to the callback
 function for the entity being decoded.
 -}
 ignore : Decoder Attribute a -> Decoder Attribute (b -> b)
