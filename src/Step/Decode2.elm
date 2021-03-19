@@ -138,7 +138,7 @@ single entityDecoder file =
         Ok [] ->
             Err "No matching entities found"
 
-        Ok (_ :: _) ->
+        Ok (_ :: _ :: _) ->
             Err "More than one matching entity found"
 
         Err message ->
