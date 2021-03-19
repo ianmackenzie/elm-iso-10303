@@ -1,4 +1,4 @@
-module Step.FastParse2 exposing (entities, header)
+module Step.FastParse2 exposing (split)
 
 import Array exposing (Array)
 import Regex exposing (Regex)
@@ -7,8 +7,8 @@ import Step.String
 import Step.Types exposing (Header)
 
 
-header : String -> Maybe Header
-header contents =
+split : String -> Maybe ( Header, Array String )
+split contents =
     let
         whitespaceOrComment =
             Pattern.zeroOrMore (Pattern.oneOf [ Pattern.whitespace, Pattern.comment ])
@@ -49,6 +49,7 @@ header contents =
                     , Pattern.token ")"
                     , Pattern.token ";"
                     , Pattern.token "ENDSEC;"
+                    , Pattern.token "DATA;"
                     ]
 
         headerRegex =
@@ -64,21 +65,23 @@ header contents =
             Regex.find stringRegex rawString |> List.map (.match >> decode)
     in
     case Regex.find headerRegex contents of
-        [ { submatches } ] ->
+        [ { match, submatches } ] ->
             case submatches of
                 [ Just description, Just implementationLevel, Just fileName, Just timeStamp, Just author, Just organization, Just preprocessorVersion, Just originatingSystem, Just authorization, Just schemaIdentifiers ] ->
-                    Just <|
-                        { description = decodeList description
-                        , implementationLevel = decode implementationLevel
-                        , fileName = decode fileName
-                        , timeStamp = decode timeStamp
-                        , author = decodeList author
-                        , organization = decodeList organization
-                        , preprocessorVersion = decode preprocessorVersion
-                        , originatingSystem = decode originatingSystem
-                        , authorization = decode authorization
-                        , schemaIdentifiers = decodeList schemaIdentifiers
-                        }
+                    Just
+                        ( { description = decodeList description
+                          , implementationLevel = decode implementationLevel
+                          , fileName = decode fileName
+                          , timeStamp = decode timeStamp
+                          , author = decodeList author
+                          , organization = decodeList organization
+                          , preprocessorVersion = decode preprocessorVersion
+                          , originatingSystem = decode originatingSystem
+                          , authorization = decode authorization
+                          , schemaIdentifiers = decodeList schemaIdentifiers
+                          }
+                        , entities (String.dropLeft (String.length match) contents)
+                        )
 
                 _ ->
                     Nothing
