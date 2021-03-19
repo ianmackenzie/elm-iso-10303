@@ -59,8 +59,8 @@ import Dict
 import Regex exposing (Regex)
 import Result
 import Step.Bytes
-import Step.FastParse2 as FastParse2
 import Step.Pattern as Pattern exposing (Pattern)
+import Step.Preprocess as Preprocess
 import Step.String
 import Step.Types exposing (Attribute, Entity, Header, SubEntity)
 
@@ -114,7 +114,7 @@ errorMessage message =
 
 parse : String -> Result String File
 parse contents =
-    case FastParse2.split contents of
+    case Preprocess.split contents of
         Just ( parsedHeader, entityLines ) ->
             Ok (File parsedHeader entityLines)
 
