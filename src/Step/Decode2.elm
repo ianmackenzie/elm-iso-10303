@@ -1,10 +1,10 @@
 module Step.Decode2 exposing
     ( Decoder, File
     , parse, header, single, all, get
-    , simpleEntity1, simpleEntity2, simpleEntity3, simpleEntity4, simpleEntity5, simpleEntity6, simpleEntity7, simpleEntity8, simpleEntity9, simpleEntity10, simpleEntity11, simpleEntity12
+    , simpleEntity1, simpleEntity2, simpleEntity3, simpleEntity4, simpleEntity5, simpleEntity6, simpleEntity7, simpleEntity8, simpleEntity9, simpleEntity10, simpleEntity11, simpleEntity12, simpleEntity13, simpleEntity14, simpleEntity15, simpleEntity16
     , oneOf
-    , complexEntity1, complexEntity2, complexEntity3, complexEntity4, complexEntity5, complexEntity6
-    , subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6
+    , complexEntity1, complexEntity2, complexEntity3, complexEntity4, complexEntity5, complexEntity6, complexEntity7, complexEntity8, complexEntity9, complexEntity10, complexEntity11, complexEntity12
+    , subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6, subEntity7, subEntity8, subEntity9, subEntity10, subEntity11, subEntity12
     , keepId, ignoreId
     , keep, ignore
     , bool, int, float, string, emptyString, binaryData, derivedValue, null, optional, enum, list, tuple2, tuple3, referenceTo, referencedId, referenceWithId
@@ -21,7 +21,7 @@ module Step.Decode2 exposing
 
 # Entities
 
-@docs simpleEntity1, simpleEntity2, simpleEntity3, simpleEntity4, simpleEntity5, simpleEntity6, simpleEntity7, simpleEntity8, simpleEntity9, simpleEntity10, simpleEntity11, simpleEntity12
+@docs simpleEntity1, simpleEntity2, simpleEntity3, simpleEntity4, simpleEntity5, simpleEntity6, simpleEntity7, simpleEntity8, simpleEntity9, simpleEntity10, simpleEntity11, simpleEntity12, simpleEntity13, simpleEntity14, simpleEntity15, simpleEntity16
 
 
 ## Alternatives
@@ -31,9 +31,9 @@ module Step.Decode2 exposing
 
 ## Complex entities
 
-@docs complexEntity1, complexEntity2, complexEntity3, complexEntity4, complexEntity5, complexEntity6
+@docs complexEntity1, complexEntity2, complexEntity3, complexEntity4, complexEntity5, complexEntity6, complexEntity7, complexEntity8, complexEntity9, complexEntity10, complexEntity11, complexEntity12
 
-@docs subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6
+@docs subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6, subEntity6, subEntity7, subEntity8, subEntity9, subEntity10, subEntity11, subEntity12
 
 
 # Attributes
@@ -1055,6 +1055,430 @@ simpleEntity12 callback idDecoder typeName firstAttributeDecoder secondAttribute
     simpleEntityDecoder callback typeName attributePatterns chomp
 
 
+simpleEntity13 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder Attribute (m -> n)
+    -> Decoder Attribute (n -> o)
+    -> Decoder Entity o
+simpleEntity13 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder thirteenthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        (Decoder pattern13 chomp13) =
+            thirteenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            , pattern13
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+                |> thenChomp chomp13
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+simpleEntity14 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder Attribute (m -> n)
+    -> Decoder Attribute (n -> o)
+    -> Decoder Attribute (o -> p)
+    -> Decoder Entity p
+simpleEntity14 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder thirteenthAttributeDecoder fourteenthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        (Decoder pattern13 chomp13) =
+            thirteenthAttributeDecoder
+
+        (Decoder pattern14 chomp14) =
+            fourteenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            , pattern13
+            , pattern14
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+                |> thenChomp chomp13
+                |> thenChomp chomp14
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+simpleEntity15 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder Attribute (m -> n)
+    -> Decoder Attribute (n -> o)
+    -> Decoder Attribute (o -> p)
+    -> Decoder Attribute (p -> q)
+    -> Decoder Entity q
+simpleEntity15 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder thirteenthAttributeDecoder fourteenthAttributeDecoder fifteenthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        (Decoder pattern13 chomp13) =
+            thirteenthAttributeDecoder
+
+        (Decoder pattern14 chomp14) =
+            fourteenthAttributeDecoder
+
+        (Decoder pattern15 chomp15) =
+            fifteenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            , pattern13
+            , pattern14
+            , pattern15
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+                |> thenChomp chomp13
+                |> thenChomp chomp14
+                |> thenChomp chomp15
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
+simpleEntity16 :
+    a
+    -> Decoder Int (a -> b)
+    -> String
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder Attribute (m -> n)
+    -> Decoder Attribute (n -> o)
+    -> Decoder Attribute (o -> p)
+    -> Decoder Attribute (p -> q)
+    -> Decoder Attribute (q -> r)
+    -> Decoder Entity r
+simpleEntity16 callback idDecoder typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder thirteenthAttributeDecoder fourteenthAttributeDecoder fifteenthAttributeDecoder sixteenthAttributeDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        (Decoder pattern13 chomp13) =
+            thirteenthAttributeDecoder
+
+        (Decoder pattern14 chomp14) =
+            fourteenthAttributeDecoder
+
+        (Decoder pattern15 chomp15) =
+            fifteenthAttributeDecoder
+
+        (Decoder pattern16 chomp16) =
+            sixteenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            , pattern13
+            , pattern14
+            , pattern15
+            , pattern16
+            ]
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+                |> thenChomp chomp13
+                |> thenChomp chomp14
+                |> thenChomp chomp15
+                |> thenChomp chomp16
+    in
+    simpleEntityDecoder callback typeName attributePatterns chomp
+
+
 subEntityDecoder : String -> List Pattern -> Chomp (a -> b) -> Decoder SubEntity (a -> b)
 subEntityDecoder typeName attributePatterns chompAttributes =
     let
@@ -1292,6 +1716,426 @@ subEntity6 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeD
     subEntityDecoder typeName attributePatterns chompAttributes
 
 
+subEntity7 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder SubEntity (a -> h)
+subEntity7 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
+
+
+subEntity8 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder SubEntity (a -> i)
+subEntity8 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
+
+
+subEntity9 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder SubEntity (a -> j)
+subEntity9 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
+
+
+subEntity10 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder SubEntity (a -> k)
+subEntity10 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
+
+
+subEntity11 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder SubEntity (a -> l)
+subEntity11 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
+
+
+subEntity12 :
+    String
+    -> Decoder Attribute (a -> b)
+    -> Decoder Attribute (b -> c)
+    -> Decoder Attribute (c -> d)
+    -> Decoder Attribute (d -> e)
+    -> Decoder Attribute (e -> f)
+    -> Decoder Attribute (f -> g)
+    -> Decoder Attribute (g -> h)
+    -> Decoder Attribute (h -> i)
+    -> Decoder Attribute (i -> j)
+    -> Decoder Attribute (j -> k)
+    -> Decoder Attribute (k -> l)
+    -> Decoder Attribute (l -> m)
+    -> Decoder SubEntity (a -> m)
+subEntity12 typeName firstAttributeDecoder secondAttributeDecoder thirdAttributeDecoder fourthAttributeDecoder fifthAttributeDecoder sixthAttributeDecoder seventhAttributeDecoder eighthAttributeDecoder ninthAttributeDecoder tenthAttributeDecoder eleventhAttributeDecoder twelfthAttributeDecoder =
+    let
+        (Decoder pattern1 chomp1) =
+            firstAttributeDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondAttributeDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdAttributeDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthAttributeDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthAttributeDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthAttributeDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhAttributeDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthAttributeDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthAttributeDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthAttributeDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhAttributeDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthAttributeDecoder
+
+        attributePatterns =
+            [ pattern1
+            , pattern2
+            , pattern3
+            , pattern4
+            , pattern5
+            , pattern6
+            , pattern7
+            , pattern8
+            , pattern9
+            , pattern10
+            , pattern11
+            , pattern12
+            ]
+
+        chompAttributes =
+            chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+    in
+    subEntityDecoder typeName attributePatterns chompAttributes
+
+
 complexEntityRegex : List Pattern -> Regex
 complexEntityRegex subEntityPatterns =
     Pattern.compile <|
@@ -1518,6 +2362,393 @@ complexEntity6 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder t
     in
     complexEntityDecoder callback
         [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6 ]
+        chomp
+
+
+complexEntity7 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder Entity i
+complexEntity7 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7 ]
+        chomp
+
+
+complexEntity8 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder SubEntity (i -> j)
+    -> Decoder Entity j
+complexEntity8 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder eighthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7, pattern8 ]
+        chomp
+
+
+complexEntity9 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder SubEntity (i -> j)
+    -> Decoder SubEntity (j -> k)
+    -> Decoder Entity k
+complexEntity9 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder eighthSubEntityDecoder ninthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthSubEntityDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7, pattern8, pattern9 ]
+        chomp
+
+
+complexEntity10 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder SubEntity (i -> j)
+    -> Decoder SubEntity (j -> k)
+    -> Decoder SubEntity (k -> l)
+    -> Decoder Entity l
+complexEntity10 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder eighthSubEntityDecoder ninthSubEntityDecoder tenthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthSubEntityDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthSubEntityDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7, pattern8, pattern9, pattern10 ]
+        chomp
+
+
+complexEntity11 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder SubEntity (i -> j)
+    -> Decoder SubEntity (j -> k)
+    -> Decoder SubEntity (k -> l)
+    -> Decoder SubEntity (l -> m)
+    -> Decoder Entity m
+complexEntity11 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder eighthSubEntityDecoder ninthSubEntityDecoder tenthSubEntityDecoder eleventhSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthSubEntityDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthSubEntityDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthSubEntityDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7, pattern8, pattern9, pattern10, pattern11 ]
+        chomp
+
+
+complexEntity12 :
+    a
+    -> Decoder Int (a -> b)
+    -> Decoder SubEntity (b -> c)
+    -> Decoder SubEntity (c -> d)
+    -> Decoder SubEntity (d -> e)
+    -> Decoder SubEntity (e -> f)
+    -> Decoder SubEntity (f -> g)
+    -> Decoder SubEntity (g -> h)
+    -> Decoder SubEntity (h -> i)
+    -> Decoder SubEntity (i -> j)
+    -> Decoder SubEntity (j -> k)
+    -> Decoder SubEntity (k -> l)
+    -> Decoder SubEntity (l -> m)
+    -> Decoder SubEntity (m -> n)
+    -> Decoder Entity n
+complexEntity12 callback idDecoder firstSubEntityDecoder secondSubEntityDecoder thirdSubEntityDecoder fourthSubEntityDecoder fifthSubEntityDecoder sixthSubEntityDecoder seventhSubEntityDecoder eighthSubEntityDecoder ninthSubEntityDecoder tenthSubEntityDecoder eleventhSubEntityDecoder twelfthSubEntityDecoder =
+    let
+        (Decoder _ chompId) =
+            idDecoder
+
+        (Decoder pattern1 chomp1) =
+            firstSubEntityDecoder
+
+        (Decoder pattern2 chomp2) =
+            secondSubEntityDecoder
+
+        (Decoder pattern3 chomp3) =
+            thirdSubEntityDecoder
+
+        (Decoder pattern4 chomp4) =
+            fourthSubEntityDecoder
+
+        (Decoder pattern5 chomp5) =
+            fifthSubEntityDecoder
+
+        (Decoder pattern6 chomp6) =
+            sixthSubEntityDecoder
+
+        (Decoder pattern7 chomp7) =
+            seventhSubEntityDecoder
+
+        (Decoder pattern8 chomp8) =
+            eighthSubEntityDecoder
+
+        (Decoder pattern9 chomp9) =
+            ninthSubEntityDecoder
+
+        (Decoder pattern10 chomp10) =
+            tenthSubEntityDecoder
+
+        (Decoder pattern11 chomp11) =
+            eleventhSubEntityDecoder
+
+        (Decoder pattern12 chomp12) =
+            twelfthSubEntityDecoder
+
+        chomp =
+            chompId
+                |> thenChomp chomp1
+                |> thenChomp chomp2
+                |> thenChomp chomp3
+                |> thenChomp chomp4
+                |> thenChomp chomp5
+                |> thenChomp chomp6
+                |> thenChomp chomp7
+                |> thenChomp chomp8
+                |> thenChomp chomp9
+                |> thenChomp chomp10
+                |> thenChomp chomp11
+                |> thenChomp chomp12
+    in
+    complexEntityDecoder callback
+        [ pattern1, pattern2, pattern3, pattern4, pattern5, pattern6, pattern7, pattern8, pattern9, pattern10, pattern11, pattern12 ]
         chomp
 
 
