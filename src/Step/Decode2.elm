@@ -4,7 +4,7 @@ module Step.Decode2 exposing
     , simpleEntity1, simpleEntity2, simpleEntity3, simpleEntity4, simpleEntity5, simpleEntity6, simpleEntity7, simpleEntity8, simpleEntity9, simpleEntity10, simpleEntity11, simpleEntity12
     , oneOf
     , complexEntity1, complexEntity2, complexEntity3, complexEntity4, complexEntity5, complexEntity6
-    , subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6
+    , subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6
     , keepId, ignoreId
     , keep, ignore
     , bool, int, float, string, emptyString, binaryData, derivedValue, null, optional, enum, list, tuple2, tuple3, referenceTo, referencedId, referenceWithId
@@ -33,7 +33,7 @@ module Step.Decode2 exposing
 
 @docs complexEntity1, complexEntity2, complexEntity3, complexEntity4, complexEntity5, complexEntity6
 
-@docs subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6
+@docs subEntity0, subEntity1, subEntity2, subEntity3, subEntity4, subEntity5, subEntity6
 
 
 # Attributes
@@ -1098,6 +1098,11 @@ subEntityDecoder typeName attributePatterns chompAttributes =
                 [] ->
                     wrongNumberOfSubmatches
         )
+
+
+subEntity0 : String -> Decoder SubEntity (a -> a)
+subEntity0 typeName =
+    subEntityDecoder typeName [] (\_ submatches -> Succeeded identity submatches)
 
 
 subEntity1 : String -> Decoder Attribute (a -> b) -> Decoder SubEntity (a -> b)
