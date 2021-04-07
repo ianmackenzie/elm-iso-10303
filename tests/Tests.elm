@@ -5,7 +5,7 @@ import Bytes.Decode
 import Bytes.Encode
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
-import Step.Decode as Decode
+import Step.Decode as Decode exposing (Decoder)
 import Step.Encode
 import Step.Types as Step
 import Test exposing (Test)
@@ -74,6 +74,7 @@ testString entityType expectedString =
     let
         entityDecoder =
             Decode.simpleEntity1 identity
+                Decode.ignoreContext
                 Decode.ignoreId
                 entityType
                 (Decode.keep Decode.string)
@@ -81,7 +82,7 @@ testString entityType expectedString =
     Test.describe entityType
         [ Test.test "Decoded string" <|
             \() ->
-                case Decode.single entityDecoder testFile of
+                case Decode.single entityDecoder testFile () of
                     Ok value ->
                         value |> Expect.equal expectedString
 
@@ -141,11 +142,12 @@ suite =
 
                     entityDecoder =
                         Decode.simpleEntity1 identity
+                            Decode.ignoreContext
                             Decode.ignoreId
                             "BINARY_DATA"
                             (Decode.keep (Decode.binaryData bytesDecoder))
                 in
-                case Decode.single entityDecoder testFile of
+                case Decode.single entityDecoder testFile () of
                     Ok value ->
                         value |> Expect.equal 1234
 
@@ -156,17 +158,19 @@ suite =
                 let
                     nestedDecoder =
                         Decode.simpleEntity1 identity
+                            Decode.ignoreContext
                             Decode.ignoreId
                             "PARENT"
                             (Decode.keep <|
                                 Decode.referenceTo <|
                                     Decode.simpleEntity1 identity
+                                        Decode.ignoreContext
                                         Decode.ignoreId
                                         "CHILD"
                                         (Decode.keep Decode.int)
                             )
                 in
-                case Decode.single nestedDecoder testFile of
+                case Decode.single nestedDecoder testFile () of
                     Ok value ->
                         value |> Expect.equal 1
 
@@ -177,17 +181,19 @@ suite =
                 let
                     nestedDecoder =
                         Decode.simpleEntity1 identity
+                            Decode.ignoreContext
                             Decode.ignoreId
                             "PARENT"
                             (Decode.keep <|
                                 Decode.referenceTo <|
                                     Decode.simpleEntity1 identity
+                                        Decode.ignoreContext
                                         Decode.ignoreId
                                         "CHILD"
                                         (Decode.keep Decode.string)
                             )
                 in
-                case Decode.single nestedDecoder testFile of
+                case Decode.single nestedDecoder testFile () of
                     Ok _ ->
                         Expect.fail "Expected decoding to fail"
 
@@ -198,17 +204,19 @@ suite =
                 let
                     nestedDecoder =
                         Decode.simpleEntity1 identity
+                            Decode.ignoreContext
                             Decode.ignoreId
                             "PARENT"
                             (Decode.keep <|
                                 Decode.referenceTo <|
                                     Decode.simpleEntity1 identity
+                                        Decode.ignoreContext
                                         Decode.ignoreId
                                         "GRANDCHILD"
                                         (Decode.keep Decode.string)
                             )
                 in
-                case Decode.single nestedDecoder testFile of
+                case Decode.single nestedDecoder testFile () of
                     Ok _ ->
                         Expect.fail "Expected decoding to fail"
 
@@ -217,9 +225,10 @@ suite =
         , Test.test "Complex entity" <|
             \() ->
                 let
-                    decoder : Decode.Decoder Step.Entity ComplexEntityData
+                    decoder : Decode.Decoder Step.Entity () ComplexEntityData
                     decoder =
                         Decode.complexEntity3 ComplexEntityData
+                            Decode.ignoreContext
                             Decode.ignoreId
                             (Decode.subEntity1 "SUB1"
                                 (Decode.keep Decode.int)
@@ -233,7 +242,7 @@ suite =
                                 (Decode.keep Decode.float)
                             )
                 in
-                case Decode.single decoder testFile of
+                case Decode.single decoder testFile () of
                     Ok values ->
                         values
                             |> Expect.all
@@ -249,14 +258,16 @@ suite =
         , Test.test "Point with empty string" <|
             \() ->
                 let
+                    decoder : Decoder Step.Entity () ( Float, Float, Float )
                     decoder =
                         Decode.simpleEntity2 identity
+                            Decode.ignoreContext
                             Decode.ignoreId
                             "POINT"
                             (Decode.ignore Decode.emptyString)
                             (Decode.keep (Decode.tuple3 Decode.float))
                 in
-                case Decode.single decoder testFile of
+                case Decode.single decoder testFile () of
                     Ok coordinates ->
                         coordinates
                             |> Expect.all
@@ -272,6 +283,7 @@ suite =
                 let
                     decoder =
                         Decode.simpleEntity5 VariousAttributes
+                            Decode.ignoreContext
                             Decode.ignoreId
                             "VARIOUS_ATTRIBUTES"
                             (Decode.keep Decode.bool)
@@ -280,7 +292,7 @@ suite =
                             (Decode.keep (Decode.derivedValue 1))
                             (Decode.keep (Decode.null 2))
                 in
-                case Decode.single decoder testFile of
+                case Decode.single decoder testFile () of
                     Ok variousAttributes ->
                         variousAttributes
                             |> Expect.all
