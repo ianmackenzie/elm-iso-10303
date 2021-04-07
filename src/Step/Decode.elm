@@ -97,6 +97,9 @@ type File
     = File Header (Array String)
 
 
+{-| Represents a 'context' value that is threaded through decoding after being
+passed in at the top level (and possibly updated/transformed during decoding).
+-}
 type Context
     = Context
 
@@ -403,6 +406,8 @@ simpleEntityDecoder callback typeName attributePatterns chompAttributes =
                     internalError "more than one regex match for a single entity"
 
 
+{-| Get the current context while decoding.
+-}
 keepContext : Decoder Context context ((context -> a) -> a)
 keepContext =
     Decoder Pattern.startOfInput <|
@@ -410,6 +415,8 @@ keepContext =
             Succeeded ((|>) entityLine.context) submatches
 
 
+{-| Ignore the current context while decoding.
+-}
 ignoreContext : Decoder Context context (a -> a)
 ignoreContext =
     Decoder Pattern.startOfInput <|
@@ -3510,6 +3517,9 @@ andThen function firstDecoder =
                     UnexpectedType
 
 
+{-| Transform the result of a decoder using its context. This works just like
+`map` but additionally passes the current context to the mapping function.
+-}
 transform : (context -> a -> b) -> Decoder input context a -> Decoder input context b
 transform function decoder =
     let
@@ -3530,6 +3540,9 @@ transform function decoder =
         )
 
 
+{-| Take a decoder that expects a particular type of context, and 'inject' part
+of the current context into it.
+-}
 inject :
     (outerContext -> innerContext)
     -> Decoder input innerContext output
@@ -3550,6 +3563,13 @@ inject selectContext decoder =
                 submatches
 
 
+{-| Chain two decoders together so that the output of the first can affect the
+behavior of the second. Given two decoders, you must additionally pass a
+function that takes the context of the first decoder and its output, and
+produces the context to feed into the second decoder. The result is a combined
+decoder that accepts the context of the first and produces the output of the
+second.
+-}
 chain :
     (context1 -> output1 -> context2)
     -> Decoder Entity context1 output1
@@ -3585,6 +3605,11 @@ chain function firstDecoder secondDecoder =
                     UnexpectedType
 
 
+{-| A variant of [`chain`](#chain) that additionally allows you to stop decoding
+after the first step (never run the second decoder) by returning `Nothing`
+instead of `Just context` from the callback function. In that case the output
+of the combined decoder will also be `Nothing`.
+-}
 filter :
     (context1 -> output1 -> Maybe context2)
     -> Decoder Entity context1 output1
